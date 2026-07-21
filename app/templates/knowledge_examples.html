@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+
+{% block title %}典型例题 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+.examples-layout {
+    display: flex;
+    gap: 24px;
+    min-height: calc(100vh - 260px);
+    align-items: flex-start;
+}
+
+/* 左侧边栏 */
+.examples-layout .sidebar-wrapper {
+    width: 260px;
+    min-width: 260px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 80px;
+    align-self: flex-start;
+}
+
+.examples-layout .sidebar {
+    width: 100% !important;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    height: auto !important;
+    background: linear-gradient(180deg, var(--light-green-bg) 0%, var(--light-green-bg-2) 100%) !important;
+    color: var(--ink-color) !important;
+    border-radius: 12px;
+    padding: 16px 0;
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    box-shadow: 0 2px 12px rgba(46,139,87,0.10);
+    border: 1px solid var(--border-green);
+}
+
+.sidebar-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    padding: 8px 20px 12px;
+    border-bottom: 2px solid #C8E6C9;
+    margin-bottom: 4px;
+}
+
+.chapter-item {
+    padding: 10px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+    user-select: none;
+}
+
+.chapter-item:hover {
+    background: rgba(46, 139, 87, 0.08);
+}
+
+.chapter-item.active {
+    background: rgba(46, 139, 87, 0.12);
+    border-left-color: var(--seagreen);
+    font-weight: 600;
+    color: var(--dark-green);
+}
+
+.chapter-item .chapter-name {
+    flex: 1;
+    font-size: 0.88rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chapter-item .chapter-count {
+    background: var(--seagreen);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 1px 7px;
+    border-radius: 10px;
+    min-width: 24px;
+    text-align: center;
+    margin-left: 8px;
+}
+
+.chapter-item.active .chapter-count {
+    background: #fff;
+    color: var(--seagreen);
+}
+
+/* 右侧主区域 */
+.main-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.filter-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.filter-bar .search-input {
+    flex: 1;
+    min-width: 220px;
+    position: relative;
+}
+
+.filter-bar .search-input input {
+    border-radius: 20px;
+    padding-left: 40px;
+    border: 2px solid #C8E6C9;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.filter-bar .search-input input:focus {
+    border-color: var(--seagreen);
+    box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.15);
+    outline: none;
+}
+
+.filter-bar .search-input .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+}
+
+.result-count {
+    font-size: 0.88rem;
+    color: var(--ink-gray);
+    margin-bottom: 14px;
+    padding-left: 4px;
+}
+
+.result-count strong {
+    color: var(--seagreen);
+}
+
+/* 例题卡片 */
+.example-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    border-left: 4px solid var(--seagreen);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.example-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--seagreen), var(--teal));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.example-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(46, 139, 87, 0.15);
+    border-left-color: var(--medium-seagreen);
+}
+
+.example-card:hover::before {
+    opacity: 1;
+}
+
+.example-card .card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.example-card .chapter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--light-green-bg);
+    color: var(--dark-green);
+    font-size: 0.78rem;
+    padding: 3px 12px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.example-card .badges {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.example-card .type-badge, .example-card .diff-badge, .example-card .graph-badge {
+    font-size: 0.72rem;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.example-card .type-badge {
+    background: rgba(0, 137, 123, 0.12);
+    color: var(--teal);
+}
+
+.example-card .diff-badge.easy {
+    background: rgba(76, 175, 80, 0.15);
+    color: #2E7D32;
+}
+
+.example-card .diff-badge.medium {
+    background: rgba(255, 152, 0, 0.15);
+    color: #E65100;
+}
+
+.example-card .diff-badge.hard {
+    background: rgba(244, 67, 54, 0.15);
+    color: #C62828;
+}
+
+.example-card .graph-badge {
+    background: rgba(46, 139, 87, 0.15);
+    color: var(--seagreen);
+}
+
+.example-card .card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    margin: 6px 0 8px;
+    line-height: 1.4;
+}
+
+.example-card .card-question {
+    color: var(--text-dark);
+    font-size: 0.92rem;
+    line-height: 1.7;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.example-card .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.example-card .tag {
+    font-size: 0.72rem;
+    color: var(--ink-gray);
+    background: #f5f5f5;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.example-card .card-footer-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 12px;
+    color: var(--seagreen);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.example-card .card-footer-row i {
+    margin-left: 4px;
+    transition: transform 0.2s ease;
+}
+
+.example-card:hover .card-footer-row i {
+    transform: translateX(4px);
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: #999;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: #C8E6C9;
+    margin-bottom: 16px;
+}
+
+.empty-state h5 {
+    color: var(--ink-gray);
+    margin-bottom: 8px;
+}
+
+/* 状态提示 */
+.status-bar {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1050;
+    min-width: 280px;
+    display: none;
+}
+
+/* 类型/难度标签的中文化函数辅助 */
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h2 class="text-dark-green mb-0">
+            <i class="bi bi-lightbulb-fill me-2"></i>典型例题
+        </h2>
+        <small class="text-muted">分步动画讲解 · 覆盖 13 章核心知识</small>
+    </div>
+    <div class="btn-group">
+        <a href="{{ url_for('knowledge.index') }}" class="btn btn-outline-seagreen btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>返回知识库
+        </a>
+        {% if examples|length == 0 %}
+        <button class="btn btn-seagreen btn-sm" onclick="importExamples()" id="btn-import">
+            <i class="bi bi-cloud-download me-1"></i>导入例题
+        </button>
+        {% else %}
+        <button class="btn btn-outline-seagreen btn-sm" onclick="importExamples()" id="btn-import">
+            <i class="bi bi-arrow-repeat me-1"></i>重新导入
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="examples-layout">
+    <!-- 左侧章节筛选 -->
+    <div class="sidebar-wrapper">
+        <div class="sidebar">
+            <div class="sidebar-title">
+                <i class="bi bi-list-ul me-1"></i>章节筛选
+            </div>
+        <div class="chapter-item {% if not current_chapter %}active{% endif %}" onclick="filterByChapter('')">
+            <span class="chapter-name">全部章节</span>
+            <span class="chapter-count">{{ examples|length if not current_chapter else (chapter_counts.values()|sum) }}</span>
+        </div>
+        {% for ch, title in chapter_titles.items() %}
+        <div class="chapter-item {% if current_chapter == ch %}active{% endif %}" onclick="filterByChapter('{{ ch }}')">
+            <span class="chapter-name">{{ ch }} {{ title }}</span>
+            <span class="chapter-count">{{ chapter_counts.get(ch, 0) }}</span>
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+
+    <!-- 右侧主区域 -->
+    <div class="main-content">
+        <div class="filter-bar">
+            <div class="search-input">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" id="searchInput" class="form-control" placeholder="搜索例题标题、题干或标签..."
+                       value="{{ search }}" onkeydown="if(event.key==='Enter') doSearch()">
+            </div>
+            {% if search %}
+            <button class="btn btn-outline-secondary btn-sm" onclick="clearSearch()">
+                <i class="bi bi-x-lg me-1"></i>清除
+            </button>
+            {% endif %}
+            <button class="btn btn-seagreen btn-sm" onclick="doSearch()">
+                <i class="bi bi-search me-1"></i>搜索
+            </button>
+        </div>
+
+        <div class="result-count">
+            {% if current_chapter %}
+            当前章节：<strong>{{ current_chapter }} {{ chapter_titles.get(current_chapter, '') }}</strong> ·
+            {% endif %}
+            共 <strong>{{ examples|length }}</strong> 道例题
+        </div>
+
+        {% if examples|length == 0 %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h5>暂无例题</h5>
+            <p>点击右上角"导入例题"按钮，加载 104 道内置典型例题。</p>
+        </div>
+        {% else %}
+        <div class="examples-list">
+            {% for ex in examples %}
+            <div class="example-card" onclick="window.location.href='{{ url_for('knowledge.example_detail', example_id=ex.id) }}'">
+                <div class="card-header-row">
+                    <span class="chapter-badge">
+                        <i class="bi bi-bookmark-fill"></i>
+                        {{ ex.chapter }} {{ chapter_titles.get(ex.chapter, '') }}
+                    </span>
+                    <div class="badges">
+                        {% if ex.question_type == 'choice' %}
+                        <span class="type-badge">选择题</span>
+                        {% elif ex.question_type == 'fill' %}
+                        <span class="type-badge">填空题</span>
+                        {% elif ex.question_type == 'proof' %}
+                        <span class="type-badge">证明题</span>
+                        {% else %}
+                        <span class="type-badge">计算题</span>
+                        {% endif %}
+                        {% if ex.difficulty == 'easy' %}
+                        <span class="diff-badge easy">简单</span>
+                        {% elif ex.difficulty == 'medium' %}
+                        <span class="diff-badge medium">中等</span>
+                        {% else %}
+                        <span class="diff-badge hard">困难</span>
+                        {% endif %}
+                        {% if ex.graph_data %}
+                        <span class="graph-badge"><i class="bi bi-diagram-3"></i> 图形联动</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <h5 class="card-title">{{ ex.title }}</h5>
+                <p class="card-question">{{ ex.question }}</p>
+                {% if ex.tags %}
+                <div class="card-tags">
+                    {% for tag in ex.tags.split(',') if tag.strip() %}
+                    <span class="tag">#{{ tag.strip() }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="card-footer-row">
+                    <span>查看分步解析</span>
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 状态提示条 -->
+<div class="status-bar" id="statusBar">
+    <div class="alert alert-success mb-0 shadow" id="statusAlert">
+        <i class="bi bi-check-circle me-2"></i><span id="statusText"></span>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterByChapter(chapter) {
+    const url = new URL(window.location.href);
+    if (chapter) {
+        url.searchParams.set('chapter', chapter);
+    } else {
+        url.searchParams.delete('chapter');
+    }
+    url.searchParams.delete('search');
+    window.location.href = url.toString();
+}
+
+function doSearch() {
+    const keyword = document.getElementById('searchInput').value.trim();
+    const url = new URL(window.location.href);
+    if (keyword) {
+        url.searchParams.set('search', keyword);
+    } else {
+        url.searchParams.delete('search');
+    }
+    window.location.href = url.toString();
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    doSearch();
+}
+
+function importExamples() {
+    if (!confirm('确定要导入/重新导入例题吗？此操作将清空现有例题并加载 104 道内置典型例题。')) {
+        return;
+    }
+    const btn = document.getElementById('btn-import');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>导入中...';
+    showStatus('正在导入 104 道例题，请稍候...', true);
+
+    fetch('/knowledge/api/examples/import', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = original;
+            if (data.success) {
+                showStatus(data.message, false);
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                showStatus('导入失败：' + data.message, false);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = original;
+            showStatus('请求出错：' + err, false);
+        });
+}
+
+function showStatus(msg, loading) {
+    const bar = document.getElementById('statusBar');
+    const alert = document.getElementById('statusAlert');
+    const text = document.getElementById('statusText');
+    text.textContent = msg;
+    alert.className = 'alert mb-0 shadow ' + (loading ? 'alert-info' : 'alert-success');
+    bar.style.display = 'block';
+    setTimeout(() => { bar.style.display = 'none'; }, 4000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,2877 @@
+{% extends "base.html" %}
+
+{% block title %}图形画板 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+    .graph-canvas-wrapper { display:flex; height: calc(100vh - 180px); min-height:500px; }
+    .toolbar-panel { width:56px; background:#1B5E20; border-radius:8px; padding:6px 4px; display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; overflow-y:auto; }
+    .toolbar-panel .tool-btn { width:44px; height:44px; border:none; background:transparent; color:#fff; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; transition:background .15s; }
+    .toolbar-panel .tool-btn:hover { background:rgba(255,255,255,.15); }
+    .toolbar-panel .tool-btn.active { background:#2E8B57; color:#fff; }
+    .toolbar-panel .tool-sep { width:36px; border-top:1px solid rgba(255,255,255,.25); margin:4px 0; }
+    .toolbar-panel .tool-label { color:rgba(255,255,255,.7); font-size:9px; text-align:center; line-height:1.1; pointer-events:none; }
+
+    .canvas-area { flex:1; position:relative; overflow:hidden; border:2px solid #2E8B57; border-radius:8px; margin:0 8px; background:#f8fcf8; }
+    .canvas-area canvas { display:block; }
+
+    .side-panel { width:240px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; overflow-y:auto; max-height: calc(100vh - 180px); }
+    .side-panel .panel-card { background:#fff; border-radius:8px; box-shadow:0 1px 6px rgba(0,0,0,.08); overflow:hidden; }
+    .side-panel .panel-header { background:#2E8B57; color:#fff; padding:8px 12px; font-size:13px; font-weight:600; }
+    .side-panel .panel-body { padding:10px 12px; font-size:12px; }
+    .side-panel .panel-body label { font-weight:600; color:#333; margin-bottom:2px; display:block; font-size:11px; }
+    .side-panel .panel-body input, .side-panel .panel-body select { width:100%; font-size:12px; padding:4px 8px; border:1px solid #ccc; border-radius:4px; margin-bottom:6px; }
+    .side-panel .panel-body input:focus, .side-panel .panel-body select:focus { border-color:#2E8B57; outline:none; box-shadow:0 0 0 2px rgba(46,139,87,.2); }
+    #propPanel { max-height:320px; overflow-y:auto; }
+    .panel-scroll { max-height:200px; overflow-y:auto; }
+    #propPanel::-webkit-scrollbar, .panel-scroll::-webkit-scrollbar { width:6px; }
+    #propPanel::-webkit-scrollbar-track, .panel-scroll::-webkit-scrollbar-track { background:#f1f1f1; border-radius:3px; }
+    #propPanel::-webkit-scrollbar-thumb, .panel-scroll::-webkit-scrollbar-thumb { background:#2E8B57; border-radius:3px; }
+
+    /* 算法结果模态框：禁用 backdrop 并让外层不拦截画布/工具栏点击 */
+    #algoResultModal { pointer-events: none; }
+    #algoResultModal .modal-dialog { pointer-events: auto; }
+
+    .graph-list-item { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:12px; transition:background .15s; }
+    .graph-list-item:hover { background:#E8F5E9; }
+    .graph-list-item .del-btn { color:#dc3545; cursor:pointer; font-size:14px; opacity:.6; }
+    .graph-list-item .del-btn:hover { opacity:1; }
+
+    .algo-btn { display:block; width:100%; padding:5px 8px; margin-bottom:4px; border:1px solid #2E8B57; background:#fff; color:#2E8B57; border-radius:4px; font-size:11px; cursor:pointer; text-align:left; transition:all .15s; }
+    .algo-btn:hover { background:#2E8B57; color:#fff; }
+
+    .modal-custom .modal-header { background:#2E8B57; color:#fff; }
+    .modal-custom .modal-header .btn-close { filter:invert(1); }
+    .modal-custom .btn-primary { background:#2E8B57; border-color:#2E8B57; }
+    .modal-custom { z-index: 1200 !important; }
+    .modal-custom .modal-dialog { z-index: 1201 !important; }
+
+    #contextMenu { position:fixed; background:#fff; border:1px solid #ccc; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.15); z-index:9999; min-width:140px; display:none; }
+    #contextMenu .ctx-item { padding:8px 16px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:6px; }
+    #contextMenu .ctx-item:hover { background:#E8F5E9; }
+    #contextMenu .ctx-sep { border-top:1px solid #eee; }
+
+    .toast-container { position:fixed; top:80px; right:20px; z-index:10000; }
+
+    .pen-width-row { display:flex; align-items:center; gap:6px; }
+    .pen-width-row input[type="range"] { flex:1; margin-bottom:0; }
+    .pen-width-val { font-size:11px; color:#666; min-width:30px; text-align:right; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="text-dark-green mb-0"><i class="bi bi-diagram-3-fill me-2"></i>图形画板</h4>
+    <div>
+        <button class="btn btn-sm btn-outline-seagreen" onclick="gc.exportPNG()"><i class="bi bi-image me-1"></i>导出PNG</button>
+    </div>
+</div>
+
+<div class="graph-canvas-wrapper">
+    <!-- 左侧工具栏 -->
+    <div class="toolbar-panel" id="toolbar">
+        <!-- 基础工具 -->
+        <button class="tool-btn active" data-tool="select" title="选择/移动工具（可拖拽元素）"><i class="bi bi-cursor-fill"></i></button>
+        <div class="tool-label">选择</div>
+        <div class="tool-sep"></div>
+        
+        <!-- 图论工具 -->
+        <button class="tool-btn" data-tool="vertex" title="添加顶点（点击画布添加）"><i class="bi bi-circle-fill"></i></button>
+        <div class="tool-label">顶点</div>
+        <button class="tool-btn" data-tool="edge" title="添加无向边（依次点击两个顶点）"><i class="bi bi-dash-lg"></i></button>
+        <div class="tool-label">边</div>
+        <button class="tool-btn" data-tool="directed_edge" title="添加有向边（依次点击起点和终点）"><i class="bi bi-arrow-right"></i></button>
+        <div class="tool-label">有向边</div>
+        <div class="tool-sep"></div>
+        
+        <!-- 基础图形 -->
+        <button class="tool-btn" data-tool="rect" title="绘制矩形"><i class="bi bi-square"></i></button>
+        <div class="tool-label">矩形</div>
+        <button class="tool-btn" data-tool="ellipse" title="绘制椭圆"><i class="bi bi-oval-fill"></i></button>
+        <div class="tool-label">椭圆</div>
+        <button class="tool-btn" data-tool="diamond" title="绘制菱形"><i class="bi bi-diamond-half"></i></button>
+        <div class="tool-label">菱形</div>
+        <button class="tool-btn" data-tool="line" title="绘制直线"><i class="bi bi-slash-lg"></i></button>
+        <div class="tool-label">直线</div>
+        <button class="tool-btn" data-tool="arrow_line" title="绘制箭头线"><i class="bi bi-arrow-up-right"></i></button>
+        <div class="tool-label">箭头</div>
+        <div class="tool-sep"></div>
+        
+        <!-- 标注工具 -->
+        <button class="tool-btn" data-tool="annotation" title="添加文字标注"><i class="bi bi-fonts"></i></button>
+        <div class="tool-label">标注</div>
+        <button class="tool-btn" data-tool="pen" title="自由画笔（按住拖拽自由绘制）"><i class="bi bi-pencil"></i></button>
+        <div class="tool-label">画笔</div>
+        <div class="tool-sep"></div>
+        
+        <!-- 编辑工具 -->
+        <button class="tool-btn" data-tool="delete" title="删除元素（点击要删除的元素）"><i class="bi bi-trash3"></i></button>
+        <div class="tool-label">删除</div>
+        <button class="tool-btn" data-tool="eraser" title="框选擦除（拖拽框选区域）"><i class="bi bi-eraser"></i></button>
+        <div class="tool-label">橡皮擦</div>
+        <div class="tool-sep"></div>
+        
+        <button class="tool-btn" title="撤销上一步操作 (Ctrl+Z)" onclick="gc.undo()"><i class="bi bi-arrow-counterclockwise"></i></button>
+        <div class="tool-label">撤销</div>
+        <button class="tool-btn" title="清空画布" onclick="gc.clearAll()"><i class="bi bi-x-lg"></i></button>
+        <div class="tool-label">清空</div>
+    </div>
+
+    <!-- 中间画布 -->
+    <div class="canvas-area" id="canvasArea">
+        <canvas id="graphCanvas"></canvas>
+    </div>
+
+    <!-- 右侧面板 -->
+    <div class="side-panel">
+        <!-- 属性面板 -->
+        <div class="panel-card">
+            <div class="panel-header"><i class="bi bi-sliders me-1"></i>属性</div>
+            <div class="panel-body" id="propPanel">
+                <div style="color:#999; text-align:center; padding:10px 0;">选中元素后显示属性</div>
+            </div>
+        </div>
+
+        <!-- 图算法面板 -->
+        <div class="panel-card">
+            <div class="panel-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-graph-up me-1"></i>图算法</span>
+                <button class="btn btn-sm btn-light py-0 px-2" style="font-size:11px" onclick="showAIGenModal()"><i class="bi bi-brain"></i> AI生成</button>
+            </div>
+            <div class="panel-body panel-scroll">
+                <button class="algo-btn" onclick="gc.runKruskal()"><i class="bi bi-diagram-2 me-1"></i>Kruskal 最小生成树</button>
+                <button class="algo-btn" onclick="gc.runPrim()"><i class="bi bi-diagram-2 me-1"></i>Prim 最小生成树</button>
+                <button class="algo-btn" onclick="gc.runDijkstra()"><i class="bi bi-signpost-split me-1"></i>Dijkstra 最短路径</button>
+                <button class="algo-btn" onclick="gc.runBellmanFord()"><i class="bi bi-signpost-split me-1"></i>Bellman-Ford 最短路径</button>
+                <button class="algo-btn" onclick="gc.runFloydWarshall()"><i class="bi bi-signpost-split me-1"></i>Floyd-Warshall 最短路径</button>
+                <button class="algo-btn" onclick="gc.runTopologicalSort()"><i class="bi bi-arrow-up-right me-1"></i>拓扑排序</button>
+                <button class="algo-btn" onclick="gc.runEulerCycle()"><i class="bi bi-arrow-repeat me-1"></i>欧拉回路检测</button>
+                <button class="algo-btn" onclick="gc.runBFS()"><i class="bi bi-arrow-repeat me-1"></i>BFS 遍历</button>
+                <button class="algo-btn" onclick="gc.runDFS()"><i class="bi bi-arrow-down-circle me-1"></i>DFS 遍历</button>
+                <button class="algo-btn" onclick="gc.clearHighlight()"><i class="bi bi-x-circle me-1"></i>清除高亮</button>
+            </div>
+        </div>
+
+        <!-- 树工具面板 -->
+        <div class="panel-card">
+            <div class="panel-header"><i class="bi bi-tree me-1"></i>树工具</div>
+            <div class="panel-body panel-scroll">
+                <button class="algo-btn" onclick="showGenTreeModal('binary')"><i class="bi bi-node-plus me-1"></i>生成二叉树</button>
+                <button class="algo-btn" onclick="showGenTreeModal('complete')"><i class="bi bi-node-plus me-1"></i>生成完全二叉树</button>
+                <button class="algo-btn" onclick="gc.runPreorder()"><i class="bi bi-arrow-up-right me-1"></i>前序遍历</button>
+                <button class="algo-btn" onclick="gc.runInorder()"><i class="bi bi-arrow-right me-1"></i>中序遍历</button>
+                <button class="algo-btn" onclick="gc.runPostorder()"><i class="bi bi-arrow-down-right me-1"></i>后序遍历</button>
+                <hr style="margin:6px 0">
+                <button class="algo-btn" onclick="showBSTModal('insert')"><i class="bi bi-plus-circle me-1"></i>BST 插入</button>
+                <button class="algo-btn" onclick="showBSTModal('search')"><i class="bi bi-search me-1"></i>BST 查找</button>
+                <button class="algo-btn" onclick="showBSTModal('delete')"><i class="bi bi-dash-circle me-1"></i>BST 删除</button>
+            </div>
+        </div>
+
+        <!-- 保存的图形列表 -->
+        <div class="panel-card">
+            <div class="panel-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-save me-1"></i>已保存图形</span>
+                <button class="btn btn-sm btn-light py-0 px-2" style="font-size:11px" onclick="gc.saveGraph()"><i class="bi bi-plus"></i>保存</button>
+            </div>
+            <div class="panel-body panel-scroll" id="graphList">
+                <div style="color:#999; text-align:center;">暂无保存的图形</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 右键菜单 -->
+<div id="contextMenu">
+    <div class="ctx-item" onclick="gc.ctxEditLabel()"><i class="bi bi-pencil me-1"></i>编辑标签</div>
+    <div class="ctx-item" onclick="gc.ctxChangeColor()"><i class="bi bi-palette me-1"></i>改颜色</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" onclick="gc.ctxDelete()"><i class="bi bi-trash3 me-1"></i>删除</div>
+</div>
+
+<!-- 保存模态框 -->
+<div class="modal fade modal-custom" id="saveModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title">保存图形</h6><button type="button" class="btn-close"></button></div>
+            <div class="modal-body">
+                <label class="form-label">名称</label>
+                <input type="text" class="form-control form-control-sm" id="saveName">
+                <label class="form-label mt-2">类型</label>
+                <select class="form-select form-select-sm" id="saveType">
+                    <option value="graph">图</option>
+                    <option value="tree">树</option>
+                </select>
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary btn-sm" onclick="gc.doSave()">保存</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- 通用文本输入模态框（用于标注和标签编辑） -->
+<div class="modal fade modal-custom" id="textModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="textModalTitle">输入</h6><button type="button" class="btn-close"></button></div>
+            <div class="modal-body">
+                <label class="form-label" id="textModalLabel">文本</label>
+                <input type="text" class="form-control form-control-sm" id="textInput">
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary btn-sm" onclick="gc.confirmText()">确定</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- 生成树模态框 -->
+<div class="modal fade modal-custom" id="genTreeModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="genTreeTitle">生成树</h6><button type="button" class="btn-close"></button></div>
+            <div class="modal-body" id="genTreeBody"></div>
+            <div class="modal-footer"><button class="btn btn-primary btn-sm" id="genTreeConfirm">生成</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- BST操作模态框 -->
+<div class="modal fade modal-custom" id="bstModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="bstTitle">BST操作</h6><button type="button" class="btn-close"></button></div>
+            <div class="modal-body">
+                <label class="form-label">节点值</label>
+                <input type="number" class="form-control form-control-sm" id="bstValue">
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary btn-sm" id="bstConfirm">确定</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- 算法结果模态框（禁用 backdrop，避免右侧工具栏被灰屏遮挡） -->
+<div class="modal fade modal-custom" id="algoResultModal" tabindex="-1" data-bs-backdrop="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="algoResultTitle">算法结果</h6><button type="button" class="btn-close"></button></div>
+            <div class="modal-body" id="algoResultBody" style="max-height:400px;overflow-y:auto;font-size:13px;white-space:pre-wrap;"></div>
+            <div class="modal-footer"><button class="btn btn-secondary btn-sm" onclick="gc.modals.close('algoResultModal')">关闭</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Dijkstra起点选择模态框 -->
+<div class="modal fade modal-custom" id="dijkstraModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title">Dijkstra 最短路径</h6><button type="button" class="btn-close"></button></div>
+            <div class="modal-body">
+                <label class="form-label">起始顶点标签</label>
+                <input type="text" class="form-control form-control-sm" id="dijkstraStart">
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary btn-sm" onclick="gc.doDijkstra()">运行</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- BFS/DFS起点模态框 -->
+<div class="modal fade modal-custom" id="traversalModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="traversalTitle">遍历</h6><button type="button" class="btn-close"></button></div>
+            <div class="modal-body">
+                <label class="form-label">起始顶点标签</label>
+                <input type="text" class="form-control form-control-sm" id="traversalStart">
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary btn-sm" id="traversalConfirm">运行</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- AI图形生成模态框 -->
+<div class="modal fade modal-custom" id="aiGenModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title">AI 图形生成</h6><button type="button" class="btn-close"></button></div>
+            <div class="modal-body">
+                <label class="form-label">描述您想要生成的图形</label>
+                <textarea class="form-control form-control-sm" id="aiGenPrompt" rows="3" placeholder="例如：画一个带权无向图，包含5个顶点A、B、C、D、E，形成一个完全图K5，权重分别为1-10的随机整数"></textarea>
+                <div class="mt-2 text-muted" style="font-size:11px;">
+                    <p>支持的描述示例：</p>
+                    <ul class="mb-0">
+                        <li>生成一个有向图，包含6个节点，形成一个有向无环图</li>
+                        <li>画一个二叉搜索树，节点值为15、10、20、8、12、18、25</li>
+                        <li>生成一个带权图，用于演示Dijkstra算法</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="gc.modals.close('aiGenModal')">取消</button>
+                <button class="btn btn-primary btn-sm" id="aiGenConfirm">生成</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==================== 工具函数 ====================
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function distSq(ax, ay, bx, by) { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; }
+
+function pointToSegmentDistSq(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) { const ex = px - x1, ey = py - y1; return ex * ex + ey * ey; }
+    let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const nx = x1 + t * dx, ny = y1 + t * dy;
+    const ex = px - nx, ey = py - ny;
+    return ex * ex + ey * ey;
+}
+
+function deepEqual(a, b) {
+    if (a === b) return true;
+    if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+    const keysA = Object.keys(a), keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    for (const key of keysA) {
+        if (!keysB.includes(key) || !deepEqual(a[key], b[key])) return false;
+    }
+    return true;
+}
+
+// ==================== 数据类 ====================
+class Vertex {
+    constructor(id, x, y, label, color, radius) {
+        this.id = id;
+        this.x = x;
+        this.y = y;
+        this.label = label || String(id);
+        this.color = color || '#2E8B57';
+        this.radius = radius || 22;
+        this.highlighted = false;
+        this.highlightColor = null;
+        this.visitOrder = null;
+    }
+    containsPoint(px, py) { return distSq(px, py, this.x, this.y) <= this.radius * this.radius; }
+    toJSON() { return { id: this.id, x: this.x, y: this.y, label: this.label, color: this.color, radius: this.radius }; }
+    static fromJSON(d) { return new Vertex(d.id, d.x, d.y, d.label, d.color, d.radius); }
+}
+
+class Edge {
+    constructor(id, source, target, directed, weight, color) {
+        this.id = id;
+        this.source = source;
+        this.target = target;
+        this.directed = directed || false;
+        this.weight = weight !== undefined ? weight : null;
+        this.color = color || '#444';
+        this.highlighted = false;
+        this.highlightColor = null;
+    }
+    toJSON() { return { id: this.id, source: this.source, target: this.target, directed: this.directed, weight: this.weight, color: this.color }; }
+    static fromJSON(d) { return new Edge(d.id, d.source, d.target, d.directed, d.weight, d.color); }
+}
+
+class Annotation {
+    constructor(id, x, y, text, color) {
+        this.id = id;
+        this.x = x;
+        this.y = y;
+        this.text = text || '';
+        this.color = color || '#333';
+    }
+    containsPoint(px, py) {
+        const w = Math.max(40, this.text.length * 8);
+        return Math.abs(px - this.x) < w / 2 && Math.abs(py - this.y) < 15;
+    }
+    toJSON() { return { id: this.id, x: this.x, y: this.y, text: this.text, color: this.color }; }
+    static fromJSON(d) { return new Annotation(d.id, d.x, d.y, d.text, d.color); }
+}
+
+class FreeDraw {
+    constructor(id, points, color, width) {
+        this.id = id;
+        this.points = points || [];
+        this.color = color || '#2E8B57';
+        this.width = width || 3;
+    }
+    containsPoint(px, py) {
+        const tol = this.width + 5;
+        const tolSq = tol * tol;
+        for (let i = 0; i < this.points.length; i++) {
+            const p = this.points[i];
+            if (distSq(px, py, p.x, p.y) <= tolSq) return true;
+            if (i < this.points.length - 1) {
+                const q = this.points[i + 1];
+                if (pointToSegmentDistSq(px, py, p.x, p.y, q.x, q.y) <= tolSq) return true;
+            }
+        }
+        return false;
+    }
+    toJSON() { return { id: this.id, points: this.points, color: this.color, width: this.width }; }
+    static fromJSON(d) { return new FreeDraw(d.id, d.points, d.color, d.width); }
+}
+
+class Shape {
+    constructor(id, type, x, y, width, height, color, strokeColor) {
+        this.id = id;
+        this.type = type;
+        this.x = x;
+        this.y = y;
+        this.width = width || 80;
+        this.height = height || 60;
+        this.color = color || 'rgba(46, 139, 87, 0.15)';
+        this.strokeColor = strokeColor || '#2E8B57';
+        this.strokeWidth = 2;
+    }
+    containsPoint(px, py) {
+        const cx = this.x + this.width / 2;
+        const cy = this.y + this.height / 2;
+        if (this.type === 'ellipse') {
+            const rx = this.width / 2, ry = this.height / 2;
+            return ((px - cx) * (px - cx)) / (rx * rx) + ((py - cy) * (py - cy)) / (ry * ry) <= 1;
+        }
+        return px >= this.x && px <= this.x + this.width && py >= this.y && py <= this.y + this.height;
+    }
+    toJSON() { return { id: this.id, type: this.type, x: this.x, y: this.y, width: this.width, height: this.height, color: this.color, strokeColor: this.strokeColor }; }
+    static fromJSON(d) { return new Shape(d.id, d.type, d.x, d.y, d.width, d.height, d.color, d.strokeColor); }
+}
+
+class LineShape {
+    constructor(id, x1, y1, x2, y2, color, arrow) {
+        this.id = id;
+        this.type = arrow ? 'arrow_line' : 'line';
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
+        this.color = color || '#2E8B57';
+        this.strokeWidth = 2;
+        this.arrow = arrow || false;
+    }
+    containsPoint(px, py) { return pointToSegmentDistSq(px, py, this.x1, this.y1, this.x2, this.y2) <= 64; }
+    toJSON() { return { id: this.id, type: this.type, x1: this.x1, y1: this.y1, x2: this.x2, y2: this.y2, color: this.color, arrow: this.arrow }; }
+    static fromJSON(d) { return new LineShape(d.id, d.x1, d.y1, d.x2, d.y2, d.color, d.arrow); }
+}
+
+// ==================== 模态框管理器 ====================
+class ModalManager {
+    constructor() {
+        this.activeEl = null;
+        this._escapeHandler = null;
+    }
+
+    _cleanupBackdrops() {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(b => b.remove());
+        const openModals = document.querySelectorAll('.modal.show');
+        if (openModals.length === 0) {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+        }
+    }
+
+    forceCleanup() {
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+    }
+
+    open(id, onShown) {
+        const el = document.getElementById(id);
+        if (!el) { console.warn('Modal not found:', id); return; }
+        this._createAndShow(el, onShown);
+    }
+
+    _createAndShow(el, onShown) {
+        this._cleanupBackdrops();
+        
+        el.classList.add('show');
+        el.setAttribute('aria-modal', 'true');
+        el.style.display = 'block';
+        this.activeEl = el;
+        
+        if (this._escapeHandler) {
+            document.removeEventListener('keydown', this._escapeHandler);
+        }
+        this._escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.close(el.id);
+            }
+        };
+        document.addEventListener('keydown', this._escapeHandler);
+        
+        if (onShown) setTimeout(onShown, 80);
+    }
+
+    close(id) {
+        const el = typeof id === 'string' ? document.getElementById(id) : id;
+        if (!el) return;
+        
+        el.classList.remove('show');
+        el.removeAttribute('aria-modal');
+        el.style.display = 'none';
+        if (this.activeEl === el) this.activeEl = null;
+        
+        if (this._escapeHandler) {
+            document.removeEventListener('keydown', this._escapeHandler);
+            this._escapeHandler = null;
+        }
+        
+        setTimeout(() => this._cleanupBackdrops(), 300);
+    }
+
+    closeAllExcept(exceptId) {
+        const exceptEl = document.getElementById(exceptId);
+        document.querySelectorAll('.modal.show').forEach(m => {
+            if (m !== exceptEl) {
+                m.classList.remove('show');
+                m.removeAttribute('aria-modal');
+                m.style.display = 'none';
+            }
+        });
+        if (this.activeEl && this.activeEl !== exceptEl) this.activeEl = null;
+        setTimeout(() => this._cleanupBackdrops(), 300);
+    }
+
+    isOpen() { return document.querySelectorAll('.modal.show').length > 0; }
+
+    disposeAll() {
+        ['saveModal', 'textModal', 'genTreeModal', 'bstModal', 'algoResultModal', 'dijkstraModal', 'traversalModal', 'aiGenModal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('show');
+            el.removeAttribute('aria-modal');
+            el.style.display = 'none';
+        });
+        this.activeEl = null;
+        if (this._escapeHandler) {
+            document.removeEventListener('keydown', this._escapeHandler);
+            this._escapeHandler = null;
+        }
+        setTimeout(() => this._cleanupBackdrops(), 300);
+    }
+}
+
+// ==================== 历史记录管理器 ====================
+class HistoryManager {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.stack = [];
+        this.suspended = false;
+        this.maxSize = 50;
+    }
+
+    _snapshot() {
+        return {
+            vertices: this.canvas.vertices.map(v => v.toJSON()),
+            edges: this.canvas.edges.map(e => e.toJSON()),
+            annotations: this.canvas.annotations.map(a => a.toJSON()),
+            freeDraws: this.canvas.freeDraws.map(f => f.toJSON()),
+            shapes: this.canvas.shapes.map(s => s.toJSON()),
+            lineShapes: this.canvas.lineShapes.map(l => l.toJSON()),
+            nextVId: this.canvas.nextVId,
+            nextEId: this.canvas.nextEId,
+            nextAId: this.canvas.nextAId,
+            nextFId: this.canvas.nextFId,
+            nextSId: this.canvas.nextSId,
+            nextLId: this.canvas.nextLId
+        };
+    }
+
+    push() {
+        if (this.suspended) return;
+        const snap = this._snapshot();
+        if (this.stack.length > 0 && deepEqual(this.stack[this.stack.length - 1], snap)) return;
+        this.stack.push(snap);
+        if (this.stack.length > this.maxSize) this.stack.shift();
+    }
+
+    undo() {
+        if (this.stack.length === 0) return null;
+        return this.stack.pop();
+    }
+
+    clear() { this.stack = []; }
+    suspend() { this.suspended = true; }
+    resume() { this.suspended = false; }
+}
+
+// ==================== 主画布类 ====================
+class GraphCanvas {
+    constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.modals = new ModalManager();
+        this.history = new HistoryManager(this);
+
+        this.vertices = [];
+        this.edges = [];
+        this.annotations = [];
+        this.freeDraws = [];
+        this.shapes = [];
+        this.lineShapes = [];
+        this.nextVId = 1;
+        this.nextEId = 1;
+        this.nextAId = 1;
+        this.nextFId = 1;
+        this.nextSId = 1;
+        this.nextLId = 1;
+
+        this.currentTool = 'select';
+        this.selectedElement = null;
+        this.hoverElement = null;
+        this.deleteHover = null;
+        this.edgeStartVertex = null;
+        this.hoverVertex = null;
+
+        // 拖拽/绘制状态
+        this.isDragging = false;
+        this.dragTarget = null;
+        this.dragType = null;
+        this.dragOffsetX = 0;
+        this.dragOffsetY = 0;
+        this.dragStartPoints = null;
+
+        this.isResizing = false;
+        this.resizeTarget = null;
+        this.resizeHandle = null;
+        this.resizeStart = null;
+
+        this.isPanning = false;
+        this.panStartX = 0;
+        this.panStartY = 0;
+        this.offsetX = 0;
+        this.offsetY = 0;
+        this.scale = 1;
+        this.spaceDown = false;
+
+        this.isDrawing = false;
+        this.currentDraw = null;
+        this.penColor = '#2E8B57';
+        this.penWidth = 3;
+
+        this.isDrawingShape = false;
+        this.shapeStartX = 0;
+        this.shapeStartY = 0;
+        this.currentShape = null;
+
+        this.eraserRect = null;
+        this.animationTimers = [];
+
+        this.textCallback = null;
+        this._mouseWorld = null;
+
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+        this.bindEvents();
+        this.redraw();
+    }
+
+    resizeCanvas() {
+        const area = document.getElementById('canvasArea');
+        this.canvas.width = area.clientWidth;
+        this.canvas.height = area.clientHeight;
+        this.redraw();
+    }
+
+    screenToWorld(sx, sy) { return { x: (sx - this.offsetX) / this.scale, y: (sy - this.offsetY) / this.scale }; }
+    worldToScreen(wx, wy) { return { x: wx * this.scale + this.offsetX, y: wy * this.scale + this.offsetY }; }
+
+    // ---------- 工具切换 ----------
+    setTool(tool) {
+        // 切换工具时关闭所有模态框并清理回调，防止上一个工具的模态框阻塞新操作
+        this.modals.disposeAll();
+        this.textCallback = null;
+        this.currentTool = tool;
+        this.edgeStartVertex = null;
+        this.hoverVertex = null;
+        this.hoverElement = null;
+        this.deleteHover = null;
+        this.selectedElement = null;
+        this.isDragging = false;
+        this.dragTarget = null;
+        this.dragType = null;
+        this.dragStartPoints = null;
+        this.isResizing = false;
+        this.resizeTarget = null;
+        this.resizeHandle = null;
+        this.resizeStart = null;
+        this.isDrawing = false;
+        this.currentDraw = null;
+        this.isDrawingShape = false;
+        this.currentShape = null;
+        this.eraserRect = null;
+        this.textCallback = null;
+        document.querySelectorAll('#toolbar .tool-btn[data-tool]').forEach(b => {
+            b.classList.toggle('active', b.dataset.tool === tool);
+        });
+        this.updateCursor();
+        this.updatePropPanel();
+        this.redraw();
+    }
+
+    updateCursor() {
+        const t = this.currentTool;
+        if (t === 'select') this.canvas.style.cursor = 'default';
+        else if (t === 'eraser') this.canvas.style.cursor = 'cell';
+        else if (t === 'delete') this.canvas.style.cursor = 'crosshair';
+        else if (t === 'pen') this.canvas.style.cursor = 'crosshair';
+        else this.canvas.style.cursor = 'crosshair';
+    }
+
+    // ---------- 撤销 ----------
+    undo() {
+        if (this.history.stack.length === 0) { this.showToast('没有可撤销的操作'); return; }
+        const snap = this.history.undo();
+        this.history.suspend();
+        this.vertices = snap.vertices.map(d => Vertex.fromJSON(d));
+        this.edges = snap.edges.map(d => Edge.fromJSON(d));
+        this.annotations = snap.annotations.map(d => Annotation.fromJSON(d));
+        this.freeDraws = snap.freeDraws.map(d => FreeDraw.fromJSON(d));
+        this.shapes = (snap.shapes || []).map(d => Shape.fromJSON(d));
+        this.lineShapes = (snap.lineShapes || []).map(d => LineShape.fromJSON(d));
+        this.nextVId = snap.nextVId;
+        this.nextEId = snap.nextEId;
+        this.nextAId = snap.nextAId;
+        this.nextFId = snap.nextFId;
+        this.nextSId = snap.nextSId || 1;
+        this.nextLId = snap.nextLId || 1;
+        this.selectedElement = null;
+        this.edgeStartVertex = null;
+        this.hoverElement = null;
+        this.deleteHover = null;
+        this.clearAnimationTimers();
+        this.history.resume();
+        this.updatePropPanel();
+        this.redraw();
+        this.showToast('已撤销');
+    }
+
+    // ---------- 绘制 ----------
+    redraw() {
+        const ctx = this.ctx;
+        const W = this.canvas.width, H = this.canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.save();
+        ctx.translate(this.offsetX, this.offsetY);
+        ctx.scale(this.scale, this.scale);
+
+        this.drawGrid(ctx, W, H);
+        for (const e of this.edges) this.drawEdge(ctx, e);
+        for (const s of this.shapes) this.drawShape(ctx, s);
+        for (const l of this.lineShapes) this.drawLineShape(ctx, l);
+        for (const f of this.freeDraws) this.drawFreeDraw(ctx, f);
+        for (const v of this.vertices) this.drawVertex(ctx, v);
+        for (const a of this.annotations) this.drawAnnotation(ctx, a);
+
+        // 绘制选中元素控制点（在所有元素之上）
+        if (this.selectedElement && this.currentTool === 'select') {
+            this.drawSelectionHandles(ctx, this.selectedElement);
+        }
+
+        if (this.edgeStartVertex && this._mouseWorld) {
+            const sv = this.getVertex(this.edgeStartVertex);
+            if (sv) {
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#2E8B57';
+                ctx.lineWidth = 2;
+                ctx.moveTo(sv.x, sv.y);
+                ctx.lineTo(this._mouseWorld.x, this._mouseWorld.y);
+                ctx.stroke();
+                if (this.currentTool === 'directed_edge') this.drawArrowHead(ctx, sv.x, sv.y, this._mouseWorld.x, this._mouseWorld.y, '#2E8B57');
+                ctx.setLineDash([]);
+            }
+        }
+
+        if (this.isDrawing && this.currentDraw) this.drawFreeDraw(ctx, this.currentDraw);
+        if (this.isDrawingShape && this.currentShape) {
+            if (this.currentShape.type === 'line' || this.currentShape.type === 'arrow_line') this.drawLineShape(ctx, this.currentShape);
+            else this.drawShape(ctx, this.currentShape);
+        }
+        if (this.eraserRect) {
+            ctx.fillStyle = 'rgba(255,0,0,0.1)';
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 1;
+            const r = this.eraserRect;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+            ctx.strokeRect(r.x, r.y, r.w, r.h);
+        }
+        if (this.deleteHover) this.drawDeleteHover(ctx);
+
+        ctx.restore();
+    }
+
+    drawGrid(ctx, W, H) {
+        const step = 30;
+        ctx.strokeStyle = '#e0e8e0';
+        ctx.lineWidth = 0.5;
+        const startX = Math.floor(-this.offsetX / this.scale / step) * step - step;
+        const startY = Math.floor(-this.offsetY / this.scale / step) * step - step;
+        const endX = startX + W / this.scale + step * 2;
+        const endY = startY + H / this.scale + step * 2;
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x += step) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
+        for (let y = startY; y <= endY; y += step) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
+        ctx.stroke();
+    }
+
+    drawVertex(ctx, v) {
+        const isSel = this.selectedElement && this.selectedElement.type === 'vertex' && this.selectedElement.id === v.id;
+        const isDelHover = this.deleteHover && this.deleteHover.type === 'vertex' && this.deleteHover.id === v.id;
+        if (this.hoverVertex === v.id && (this.currentTool === 'edge' || this.currentTool === 'directed_edge')) {
+            ctx.beginPath(); ctx.arc(v.x, v.y, v.radius + 7, 0, 2 * Math.PI); ctx.strokeStyle = 'rgba(46,139,87,0.7)'; ctx.lineWidth = 3; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+        }
+        if (v.highlighted) {
+            ctx.beginPath(); ctx.arc(v.x, v.y, v.radius + 6, 0, 2 * Math.PI); ctx.fillStyle = v.highlightColor || 'rgba(255,193,7,0.4)'; ctx.fill();
+        }
+        if (isSel || isDelHover) {
+            ctx.beginPath(); ctx.arc(v.x, v.y, v.radius + 4, 0, 2 * Math.PI); ctx.strokeStyle = isDelHover ? '#dc3545' : '#0d6efd'; ctx.lineWidth = 3; ctx.stroke();
+        }
+        ctx.beginPath(); ctx.arc(v.x, v.y, v.radius, 0, 2 * Math.PI); ctx.fillStyle = v.color; ctx.fill();
+        ctx.strokeStyle = isDelHover ? '#dc3545' : (isSel ? '#0d6efd' : '#1B5E20'); ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(12, v.radius * 0.7)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(v.label, v.x, v.y);
+        if (v.visitOrder !== null) {
+            ctx.fillStyle = '#c62828'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+            ctx.fillText('(' + v.visitOrder + ')', v.x + v.radius + 8, v.y - v.radius - 4);
+        }
+    }
+
+    drawEdge(ctx, e) {
+        const sv = this.getVertex(e.source), tv = this.getVertex(e.target);
+        if (!sv || !tv) return;
+        const isSel = this.selectedElement && this.selectedElement.type === 'edge' && this.selectedElement.id === e.id;
+        const isDelHover = this.deleteHover && this.deleteHover.type === 'edge' && this.deleteHover.id === e.id;
+        let color = e.color, lw = 2;
+        if (e.highlighted) { color = e.highlightColor || '#FF9800'; lw = 4; }
+        if (isSel || isDelHover) { color = isDelHover ? '#dc3545' : '#0d6efd'; lw = 3; }
+        const arrowLen = 15;
+        if (e.source === e.target) {
+            const cx = sv.x, cy = sv.y - sv.radius - 18;
+            ctx.beginPath(); ctx.arc(cx, cy, 16, 0, 2 * Math.PI); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.stroke();
+            if (e.directed) this.drawArrowHead(ctx, cx - 10, cy + 14, cx, cy + 18, color);
+            if (e.weight !== null) this.drawWeightLabel(ctx, cx, cy - 22, e.weight);
+            return;
+        }
+        const angle = Math.atan2(tv.y - sv.y, tv.x - sv.x);
+        const sx = sv.x + sv.radius * Math.cos(angle);
+        const sy = sv.y + sv.radius * Math.sin(angle);
+        const endOffset = e.directed ? (tv.radius + arrowLen) : tv.radius;
+        const ex = tv.x - endOffset * Math.cos(angle);
+        const ey = tv.y - endOffset * Math.sin(angle);
+
+        const pairEdges = this.getEdgesBetween(e.source, e.target);
+        const curveIdx = pairEdges.indexOf(e);
+        const curveOffset = this.computeCurveOffset(pairEdges.length, curveIdx);
+
+        ctx.beginPath(); ctx.moveTo(sx, sy);
+        if (curveOffset === 0) {
+            ctx.lineTo(ex, ey);
+        } else {
+            const cx = (sx + ex) / 2, cy = (sy + ey) / 2;
+            const dx = ex - sx, dy = ey - sy;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            const nx = -dy / len, ny = dx / len;
+            const qx = cx + nx * curveOffset;
+            const qy = cy + ny * curveOffset;
+            ctx.quadraticCurveTo(qx, qy, ex, ey);
+        }
+        ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.stroke();
+
+        if (e.directed) {
+            if (curveOffset === 0) {
+                this.drawArrowHead(ctx, sx, sy, ex, ey, color);
+            } else {
+                const cx = (sx + ex) / 2, cy = (sy + ey) / 2;
+                const dx = ex - sx, dy = ey - sy;
+                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                const nx = -dy / len, ny = dx / len;
+                const qx = cx + nx * curveOffset;
+                const qy = cy + ny * curveOffset;
+                this.drawArrowHead(ctx, qx, qy, ex, ey, color);
+            }
+        }
+        if (e.weight !== null) {
+            let wx, wy, off;
+            if (curveOffset === 0) {
+                wx = (sx + ex) / 2; wy = (sy + ey) / 2;
+                off = this.edgeNormalOffset(sv, tv, 14);
+            } else {
+                const t = 0.5;
+                const cx = (sx + ex) / 2, cy = (sy + ey) / 2;
+                const dx = ex - sx, dy = ey - sy;
+                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                const nx = -dy / len, ny = dx / len;
+                const qx = cx + nx * curveOffset;
+                const qy = cy + ny * curveOffset;
+                wx = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * qx + t * t * ex;
+                wy = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * qy + t * t * ey;
+                off = { x: nx * 14 * Math.sign(curveOffset), y: ny * 14 * Math.sign(curveOffset) };
+            }
+            this.drawWeightLabel(ctx, wx + off.x, wy + off.y, e.weight);
+        }
+    }
+
+    getEdgesBetween(v1, v2) {
+        const key = v1 < v2 ? `${v1}-${v2}` : `${v2}-${v1}`;
+        return this.edges.filter(e => {
+            const k = e.source < e.target ? `${e.source}-${e.target}` : `${e.target}-${e.source}`;
+            return k === key;
+        });
+    }
+
+    computeCurveOffset(count, idx) {
+        if (idx === 0 || count <= 1) return 0;
+        // 将可用弧度空间平均分配到中垂线两侧，确保同对顶点的多条边互不重叠
+        const maxSpan = 120;
+        const sideCount = Math.ceil((count - 1) / 2);
+        const step = Math.min(30, maxSpan / Math.max(1, sideCount));
+        const level = Math.floor((idx + 1) / 2);
+        const sign = (idx % 2 === 0) ? 1 : -1;
+        return sign * level * step;
+    }
+
+    drawWeightLabel(ctx, x, y, weight) {
+        const text = String(weight);
+        ctx.font = 'bold 13px sans-serif';
+        const metrics = ctx.measureText(text);
+        const w = metrics.width + 8, h = 18;
+        ctx.fillStyle = '#fff'; ctx.fillRect(x - w / 2, y - h / 2, w, h);
+        ctx.strokeStyle = '#2E8B57'; ctx.lineWidth = 1; ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+        ctx.fillStyle = '#c62828'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y);
+    }
+
+    edgeNormalOffset(sv, tv, dist) {
+        const dx = tv.x - sv.x, dy = tv.y - sv.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        return { x: -dy / len * dist, y: dx / len * dist };
+    }
+
+    drawArrowHead(ctx, fromX, fromY, toX, toY, color) {
+        const headLen = 15;
+        const angle = Math.atan2(toY - fromY, toX - fromX);
+        ctx.beginPath();
+        ctx.moveTo(toX, toY);
+        ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+    }
+
+    drawFreeDraw(ctx, f) {
+        if (f.points.length < 1) return;
+        const isSel = this.selectedElement && this.selectedElement.type === 'freeDraw' && this.selectedElement.id === f.id;
+        const isDelHover = this.deleteHover && this.deleteHover.type === 'freeDraw' && this.deleteHover.id === f.id;
+        ctx.beginPath(); ctx.moveTo(f.points[0].x, f.points[0].y);
+        for (let i = 1; i < f.points.length; i++) ctx.lineTo(f.points[i].x, f.points[i].y);
+        ctx.strokeStyle = isDelHover ? '#dc3545' : f.color; ctx.lineWidth = f.width; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+        if (isSel || isDelHover) {
+            const bbox = this.getFreeDrawBBox(f);
+            ctx.strokeStyle = isDelHover ? '#dc3545' : '#0d6efd'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+            ctx.strokeRect(bbox.x - 5, bbox.y - 5, bbox.w + 10, bbox.h + 10); ctx.setLineDash([]);
+        }
+    }
+
+    drawShape(ctx, s) {
+        const isSel = this.selectedElement && this.selectedElement.type === 'shape' && this.selectedElement.id === s.id;
+        const isDelHover = this.deleteHover && this.deleteHover.type === 'shape' && this.deleteHover.id === s.id;
+        ctx.beginPath(); ctx.fillStyle = isDelHover ? 'rgba(220,53,69,0.15)' : s.color;
+        ctx.strokeStyle = isDelHover ? '#dc3545' : (isSel ? '#0d6efd' : s.strokeColor); ctx.lineWidth = s.strokeWidth;
+        if (s.type === 'rect') ctx.rect(s.x, s.y, s.width, s.height);
+        else if (s.type === 'ellipse') ctx.ellipse(s.x + s.width/2, s.y + s.height/2, s.width/2, s.height/2, 0, 0, 2*Math.PI);
+        else if (s.type === 'diamond') {
+            ctx.moveTo(s.x + s.width/2, s.y); ctx.lineTo(s.x + s.width, s.y + s.height/2);
+            ctx.lineTo(s.x + s.width/2, s.y + s.height); ctx.lineTo(s.x, s.y + s.height/2); ctx.closePath();
+        }
+        ctx.fill(); ctx.stroke();
+        if (isSel || isDelHover) {
+            ctx.setLineDash([4, 3]);
+            ctx.strokeRect(s.x - 3, s.y - 3, s.width + 6, s.height + 6);
+            ctx.setLineDash([]);
+        }
+    }
+
+    drawLineShape(ctx, l) {
+        const isSel = this.selectedElement && this.selectedElement.type === 'lineShape' && this.selectedElement.id === l.id;
+        const isDelHover = this.deleteHover && this.deleteHover.type === 'lineShape' && this.deleteHover.id === l.id;
+        ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2);
+        ctx.strokeStyle = isDelHover ? '#dc3545' : (isSel ? '#0d6efd' : l.color); ctx.lineWidth = l.strokeWidth; ctx.stroke();
+        if (l.arrow) this.drawArrowHead(ctx, l.x1, l.y1, l.x2, l.y2, isDelHover ? '#dc3545' : l.color);
+        if (isSel || isDelHover) {
+            ctx.setLineDash([4, 3]);
+            const minX = Math.min(l.x1, l.x2) - 5, minY = Math.min(l.y1, l.y2) - 5;
+            ctx.strokeRect(minX, minY, Math.abs(l.x2 - l.x1) + 10, Math.abs(l.y2 - l.y1) + 10);
+            ctx.setLineDash([]);
+        }
+    }
+
+    drawAnnotation(ctx, a) {
+        const isSel = this.selectedElement && this.selectedElement.type === 'annotation' && this.selectedElement.id === a.id;
+        const isDelHover = this.deleteHover && this.deleteHover.type === 'annotation' && this.deleteHover.id === a.id;
+        const w = Math.max(40, a.text.length * 8);
+        if (isSel || isDelHover) {
+            ctx.strokeStyle = isDelHover ? '#dc3545' : '#0d6efd'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+            ctx.strokeRect(a.x - w / 2, a.y - 12, w, 24); ctx.setLineDash([]);
+        }
+        ctx.fillStyle = isDelHover ? '#dc3545' : a.color; ctx.font = '13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(a.text, a.x, a.y);
+    }
+
+    drawDeleteHover(ctx) {
+        // 已在各 draw 方法中统一用红色高亮，无需额外绘制
+    }
+
+    // ---------- 选择控制点 ----------
+    drawSelectionHandles(ctx, element) {
+        const color = '#0d6efd', fill = '#fff', size = 7;
+        const drawHandle = (x, y) => {
+            ctx.fillStyle = fill; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+            ctx.fillRect(x - size / 2, y - size / 2, size, size);
+            ctx.strokeRect(x - size / 2, y - size / 2, size, size);
+        };
+        if (element.type === 'vertex') {
+            const v = element.el;
+            drawHandle(v.x - v.radius, v.y); drawHandle(v.x + v.radius, v.y);
+            drawHandle(v.x, v.y - v.radius); drawHandle(v.x, v.y + v.radius);
+        } else if (element.type === 'shape') {
+            const s = element.el;
+            drawHandle(s.x, s.y); drawHandle(s.x + s.width / 2, s.y); drawHandle(s.x + s.width, s.y);
+            drawHandle(s.x + s.width, s.y + s.height / 2);
+            drawHandle(s.x + s.width, s.y + s.height); drawHandle(s.x + s.width / 2, s.y + s.height); drawHandle(s.x, s.y + s.height);
+            drawHandle(s.x, s.y + s.height / 2);
+        } else if (element.type === 'lineShape') {
+            const l = element.el;
+            drawHandle(l.x1, l.y1); drawHandle(l.x2, l.y2);
+            drawHandle((l.x1 + l.x2) / 2, (l.y1 + l.y2) / 2);
+        } else if (element.type === 'freeDraw') {
+            const bbox = this.getFreeDrawBBox(element.el);
+            drawHandle(bbox.x, bbox.y); drawHandle(bbox.x + bbox.w, bbox.y);
+            drawHandle(bbox.x + bbox.w, bbox.y + bbox.h); drawHandle(bbox.x, bbox.y + bbox.h);
+        }
+    }
+
+    getShapeHandleAt(wx, wy, shape) {
+        const handles = [
+            ['nw', shape.x, shape.y],
+            ['n', shape.x + shape.width / 2, shape.y],
+            ['ne', shape.x + shape.width, shape.y],
+            ['e', shape.x + shape.width, shape.y + shape.height / 2],
+            ['se', shape.x + shape.width, shape.y + shape.height],
+            ['s', shape.x + shape.width / 2, shape.y + shape.height],
+            ['sw', shape.x, shape.y + shape.height],
+            ['w', shape.x, shape.y + shape.height / 2]
+        ];
+        for (const [name, x, y] of handles) {
+            if (Math.abs(wx - x) <= 8 && Math.abs(wy - y) <= 8) return name;
+        }
+        return null;
+    }
+
+    getLineHandleAt(wx, wy, line) {
+        if (distSq(wx, wy, line.x1, line.y1) <= 64) return 'p1';
+        if (distSq(wx, wy, line.x2, line.y2) <= 64) return 'p2';
+        if (distSq(wx, wy, (line.x1 + line.x2) / 2, (line.y1 + line.y2) / 2) <= 64) return 'mid';
+        return null;
+    }
+
+    getAnnotationHandleAt(wx, wy, annotation) {
+        const w = Math.max(40, annotation.text.length * 8);
+        const handles = [
+            ['nw', annotation.x - w / 2, annotation.y - 12],
+            ['ne', annotation.x + w / 2, annotation.y - 12],
+            ['sw', annotation.x - w / 2, annotation.y + 12],
+            ['se', annotation.x + w / 2, annotation.y + 12]
+        ];
+        for (const [name, x, y] of handles) {
+            if (Math.abs(wx - x) <= 8 && Math.abs(wy - y) <= 8) return name;
+        }
+        return null;
+    }
+
+    getFreeDrawHandleAt(wx, wy, freeDraw) {
+        const bbox = this.getFreeDrawBBox(freeDraw);
+        const handles = [
+            ['nw', bbox.x, bbox.y],
+            ['ne', bbox.x + bbox.w, bbox.y],
+            ['sw', bbox.x, bbox.y + bbox.h],
+            ['se', bbox.x + bbox.w, bbox.y + bbox.h]
+        ];
+        for (const [name, x, y] of handles) {
+            if (Math.abs(wx - x) <= 8 && Math.abs(wy - y) <= 8) return name;
+        }
+        return null;
+    }
+
+    getVertexHandleAt(wx, wy, vertex) {
+        const handles = [
+            ['n', vertex.x, vertex.y - vertex.radius],
+            ['s', vertex.x, vertex.y + vertex.radius],
+            ['w', vertex.x - vertex.radius, vertex.y],
+            ['e', vertex.x + vertex.radius, vertex.y]
+        ];
+        for (const [name, x, y] of handles) {
+            if (Math.abs(wx - x) <= 8 && Math.abs(wy - y) <= 8) return name;
+        }
+        return null;
+    }
+
+    getFreeDrawBBox(f) {
+        if (f.points.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+        let minX = f.points[0].x, maxX = f.points[0].x, minY = f.points[0].y, maxY = f.points[0].y;
+        for (const p of f.points) {
+            if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+        }
+        return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    }
+
+    // ---------- 元素查找 ----------
+    getVertex(id) { return this.vertices.find(v => v.id === id); }
+    getEdge(id) { return this.edges.find(e => e.id === id); }
+    getAnnotation(id) { return this.annotations.find(a => a.id === id); }
+    getFreeDraw(id) { return this.freeDraws.find(f => f.id === id); }
+    getShape(id) { return this.shapes.find(s => s.id === id); }
+    getLineShape(id) { return this.lineShapes.find(l => l.id === id); }
+
+    findElementAt(wx, wy, preferVertex) {
+        // 顶点命中优先（或强制优先）
+        if (preferVertex) {
+            for (let i = this.vertices.length - 1; i >= 0; i--) {
+                if (this.vertices[i].containsPoint(wx, wy)) return { type: 'vertex', id: this.vertices[i].id, el: this.vertices[i] };
+            }
+        } else {
+            let bestV = null, bestD = Infinity;
+            for (const v of this.vertices) {
+                const d = distSq(wx, wy, v.x, v.y);
+                if (d <= v.radius * v.radius && d < bestD) { bestD = d; bestV = v; }
+            }
+            if (bestV) return { type: 'vertex', id: bestV.id, el: bestV };
+        }
+        for (let i = this.annotations.length - 1; i >= 0; i--) {
+            if (this.annotations[i].containsPoint(wx, wy)) return { type: 'annotation', id: this.annotations[i].id, el: this.annotations[i] };
+        }
+        for (let i = this.shapes.length - 1; i >= 0; i--) {
+            if (this.shapes[i].containsPoint(wx, wy)) return { type: 'shape', id: this.shapes[i].id, el: this.shapes[i] };
+        }
+        for (let i = this.lineShapes.length - 1; i >= 0; i--) {
+            if (this.lineShapes[i].containsPoint(wx, wy)) return { type: 'lineShape', id: this.lineShapes[i].id, el: this.lineShapes[i] };
+        }
+        for (let i = this.freeDraws.length - 1; i >= 0; i--) {
+            if (this.freeDraws[i].containsPoint(wx, wy)) return { type: 'freeDraw', id: this.freeDraws[i].id, el: this.freeDraws[i] };
+        }
+        let bestE = null, bestD = Infinity;
+        for (const e of this.edges) {
+            const d = this.edgeDistSq(wx, wy, e);
+            if (d !== null && d <= 81 && d < bestD) { bestD = d; bestE = e; }
+        }
+        if (bestE) return { type: 'edge', id: bestE.id, el: bestE };
+        return null;
+    }
+
+    edgeDistSq(px, py, e) {
+        const sv = this.getVertex(e.source), tv = this.getVertex(e.target);
+        if (!sv || !tv) return null;
+        if (e.source === e.target) return distSq(px, py, sv.x, sv.y - sv.radius - 18);
+        return pointToSegmentDistSq(px, py, sv.x, sv.y, tv.x, tv.y);
+    }
+
+    // ---------- 事件绑定 ----------
+    bindEvents() {
+        const c = this.canvas;
+        c.addEventListener('mousedown', e => this.onMouseDown(e));
+        c.addEventListener('mousemove', e => this.onMouseMove(e));
+        c.addEventListener('mouseup', e => this.onMouseUp(e));
+        c.addEventListener('wheel', e => this.onWheel(e));
+        c.addEventListener('contextmenu', e => this.onContextMenu(e));
+        c.addEventListener('dblclick', e => this.onDblClick(e));
+        document.addEventListener('keydown', e => {
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            if (e.code === 'Space') { this.spaceDown = true; e.preventDefault(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); this.undo(); }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (this.selectedElement && this.currentTool === 'select') {
+                    e.preventDefault();
+                    this.history.push();
+                    this.deleteElement(this.selectedElement.type, this.selectedElement.id);
+                }
+            }
+        });
+        document.addEventListener('keyup', e => { if (e.code === 'Space') { this.spaceDown = false; this.isPanning = false; } });
+        document.addEventListener('click', e => {
+            const cm = document.getElementById('contextMenu');
+            if (cm && !cm.contains(e.target)) cm.style.display = 'none';
+        });
+
+        document.getElementById('textInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); this.confirmText(); }
+        });
+    }
+
+    getMousePos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    onMouseDown(e) {
+        if (this.modals.isOpen()) return;
+        const pos = this.getMousePos(e);
+        const wp = this.screenToWorld(pos.x, pos.y);
+
+        if (e.button === 1 || (e.button === 0 && this.spaceDown)) {
+            this.isPanning = true;
+            this.panStartX = pos.x - this.offsetX;
+            this.panStartY = pos.y - this.offsetY;
+            this.canvas.style.cursor = 'grabbing';
+            return;
+        }
+        if (e.button !== 0) return;
+
+        if (this.currentTool === 'select') {
+            // 优先检测当前选中元素的控制点
+            let handle = null;
+            if (this.selectedElement) {
+                handle = this.getHandleAt(wp.x, wp.y, this.selectedElement);
+            }
+            if (handle) {
+                this.beginResize(this.selectedElement, handle, wp.x, wp.y);
+            } else {
+                const hit = this.findElementAt(wp.x, wp.y);
+                if (hit) {
+                    this.selectedElement = hit;
+                    this.updatePropPanel();
+                    this.beginDrag(hit, wp.x, wp.y);
+                } else {
+                    this.selectedElement = null;
+                    this.updatePropPanel();
+                    this.isPanning = true;
+                    this.panStartX = pos.x - this.offsetX;
+                    this.panStartY = pos.y - this.offsetY;
+                    this.canvas.style.cursor = 'grabbing';
+                }
+            }
+            this.redraw();
+        } else if (this.currentTool === 'vertex') {
+            this.history.push();
+            this.addVertex(wp.x, wp.y);
+        } else if (this.currentTool === 'edge' || this.currentTool === 'directed_edge') {
+            const hit = this.findElementAt(wp.x, wp.y, true);
+            if (hit && hit.type === 'vertex') {
+                if (!this.edgeStartVertex) {
+                    this.edgeStartVertex = hit.id;
+                    this.redraw();
+                } else if (this.edgeStartVertex === hit.id) {
+                    this.edgeStartVertex = null;
+                    this.redraw();
+                } else {
+                    const startId = this.edgeStartVertex, endId = hit.id;
+                    this.edgeStartVertex = null;
+                    this.history.push();
+                    this.addEdge(startId, endId, this.currentTool === 'directed_edge', null);
+                    this.redraw();
+                }
+            } else {
+                this.edgeStartVertex = null;
+                this.redraw();
+            }
+        } else if (this.currentTool === 'annotation') {
+            const x = wp.x, y = wp.y;
+            this.showTextModal('添加标注', '标注文本', '', (text) => {
+                if (text) { this.history.push(); this.addAnnotation(x, y, text); }
+            });
+        } else if (this.currentTool === 'pen') {
+            this.isDrawing = true;
+            const fd = new FreeDraw(this.nextFId++, [{ x: wp.x, y: wp.y }], this.penColor, this.penWidth);
+            this.freeDraws.push(fd);
+            this.currentDraw = fd;
+            this.redraw();
+        } else if (this.currentTool === 'rect' || this.currentTool === 'ellipse' || this.currentTool === 'diamond') {
+            this.isDrawingShape = true;
+            this.shapeStartX = wp.x; this.shapeStartY = wp.y;
+            this.currentShape = new Shape(this.nextSId++, this.currentTool, wp.x, wp.y, 0, 0);
+            this.redraw();
+        } else if (this.currentTool === 'line' || this.currentTool === 'arrow_line') {
+            this.isDrawingShape = true;
+            this.shapeStartX = wp.x; this.shapeStartY = wp.y;
+            this.currentShape = new LineShape(this.nextLId++, wp.x, wp.y, wp.x, wp.y, this.penColor, this.currentTool === 'arrow_line');
+            this.redraw();
+        } else if (this.currentTool === 'delete') {
+            const hit = this.findElementAt(wp.x, wp.y);
+            if (hit) { this.history.push(); this.deleteElement(hit.type, hit.id); }
+        } else if (this.currentTool === 'eraser') {
+            this.eraserRect = { x: wp.x, y: wp.y, w: 0, h: 0, sx: wp.x, sy: wp.y };
+        }
+    }
+
+    beginDrag(hit, wx, wy) {
+        this.isDragging = true;
+        this.dragType = hit.type;
+        this.dragTarget = hit.el;
+        if (hit.type === 'vertex') { this.dragOffsetX = wx - hit.el.x; this.dragOffsetY = wy - hit.el.y; }
+        else if (hit.type === 'annotation') { this.dragOffsetX = wx - hit.el.x; this.dragOffsetY = wy - hit.el.y; }
+        else if (hit.type === 'freeDraw') { this.dragOffsetX = wx; this.dragOffsetY = wy; this.dragStartPoints = hit.el.points.map(p => ({ x: p.x, y: p.y })); }
+        else if (hit.type === 'shape') { this.dragOffsetX = wx - hit.el.x; this.dragOffsetY = wy - hit.el.y; }
+        else if (hit.type === 'lineShape') { this.dragOffsetX = wx; this.dragOffsetY = wy; this.dragStartPoints = { x1: hit.el.x1, y1: hit.el.y1, x2: hit.el.x2, y2: hit.el.y2 }; }
+        else if (hit.type === 'edge') {
+            const sv = this.getVertex(hit.el.source), tv = this.getVertex(hit.el.target);
+            this.dragOffsetX = wx; this.dragOffsetY = wy;
+            this.dragStartPoints = { sx: sv.x, sy: sv.y, tx: tv.x, ty: tv.y };
+        }
+        this.history.push();
+    }
+
+    getHandleAt(wx, wy, element) {
+        if (!element) return null;
+        if (element.type === 'shape') return this.getShapeHandleAt(wx, wy, element.el);
+        if (element.type === 'lineShape') return this.getLineHandleAt(wx, wy, element.el);
+        if (element.type === 'freeDraw') return this.getFreeDrawHandleAt(wx, wy, element.el);
+        if (element.type === 'vertex') return this.getVertexHandleAt(wx, wy, element.el);
+        return null;
+    }
+
+    beginResize(element, handle, wx, wy) {
+        this.isResizing = true;
+        this.resizeTarget = element;
+        this.resizeHandle = handle;
+        this.resizeStart = { x: wx, y: wy };
+        if (element.type === 'shape') {
+            const s = element.el;
+            this.resizeStart = { x: s.x, y: s.y, width: s.width, height: s.height };
+        } else if (element.type === 'lineShape') {
+            const l = element.el;
+            this.resizeStart = { x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 };
+        } else if (element.type === 'annotation') {
+            const a = element.el;
+            this.resizeStart = { x: a.x, y: a.y, text: a.text };
+        } else if (element.type === 'freeDraw') {
+            const bbox = this.getFreeDrawBBox(element.el);
+            this.resizeStart = { bbox: { ...bbox }, points: element.el.points.map(p => ({ x: p.x, y: p.y })) };
+        } else if (element.type === 'vertex') {
+            const v = element.el;
+            this.resizeStart = { radius: v.radius };
+        }
+        this.history.push();
+    }
+
+    onMouseMove(e) {
+        if (this.modals.isOpen()) return;
+        const pos = this.getMousePos(e);
+        const wp = this.screenToWorld(pos.x, pos.y);
+        this._mouseWorld = wp;
+
+        if (this.isPanning) {
+            this.offsetX = pos.x - this.panStartX;
+            this.offsetY = pos.y - this.panStartY;
+            this.redraw(); return;
+        }
+        if (this.isDragging && this.dragTarget) {
+            if (this.dragType === 'vertex') { this.dragTarget.x = wp.x - this.dragOffsetX; this.dragTarget.y = wp.y - this.dragOffsetY; }
+            else if (this.dragType === 'annotation') { this.dragTarget.x = wp.x - this.dragOffsetX; this.dragTarget.y = wp.y - this.dragOffsetY; }
+            else if (this.dragType === 'freeDraw') {
+                const dx = wp.x - this.dragOffsetX, dy = wp.y - this.dragOffsetY;
+                this.dragTarget.points = this.dragStartPoints.map(p => ({ x: p.x + dx, y: p.y + dy }));
+            } else if (this.dragType === 'shape') { this.dragTarget.x = wp.x - this.dragOffsetX; this.dragTarget.y = wp.y - this.dragOffsetY; }
+            else if (this.dragType === 'lineShape') {
+                const dx = wp.x - this.dragOffsetX, dy = wp.y - this.dragOffsetY;
+                this.dragTarget.x1 = this.dragStartPoints.x1 + dx; this.dragTarget.y1 = this.dragStartPoints.y1 + dy;
+                this.dragTarget.x2 = this.dragStartPoints.x2 + dx; this.dragTarget.y2 = this.dragStartPoints.y2 + dy;
+            } else if (this.dragType === 'edge') {
+                const dx = wp.x - this.dragOffsetX, dy = wp.y - this.dragOffsetY;
+                const sv = this.getVertex(this.dragTarget.source), tv = this.getVertex(this.dragTarget.target);
+                if (sv) { sv.x = this.dragStartPoints.sx + dx; sv.y = this.dragStartPoints.sy + dy; }
+                if (tv) { tv.x = this.dragStartPoints.tx + dx; tv.y = this.dragStartPoints.ty + dy; }
+            }
+            this.redraw(); return;
+        }
+        if (this.isResizing && this.resizeTarget) {
+            const el = this.resizeTarget.el;
+            const rs = this.resizeStart;
+            if (this.resizeTarget.type === 'shape') {
+                const s = el;
+                let nx = rs.x, ny = rs.y, nw = rs.width, nh = rs.height;
+                if (this.resizeHandle.includes('e')) nw = Math.max(10, wp.x - rs.x);
+                if (this.resizeHandle.includes('w')) { nw = Math.max(10, rs.x + rs.width - wp.x); nx = rs.x + rs.width - nw; }
+                if (this.resizeHandle.includes('s')) nh = Math.max(10, wp.y - rs.y);
+                if (this.resizeHandle.includes('n')) { nh = Math.max(10, rs.y + rs.height - wp.y); ny = rs.y + rs.height - nh; }
+                s.x = nx; s.y = ny; s.width = nw; s.height = nh;
+            } else if (this.resizeTarget.type === 'lineShape') {
+                const l = el;
+                if (this.resizeHandle === 'p1') { l.x1 = wp.x; l.y1 = wp.y; }
+                else if (this.resizeHandle === 'p2') { l.x2 = wp.x; l.y2 = wp.y; }
+                else if (this.resizeHandle === 'mid') {
+                    const cx = (rs.x1 + rs.x2) / 2, cy = (rs.y1 + rs.y2) / 2;
+                    const dx = wp.x - cx, dy = wp.y - cy;
+                    l.x1 = rs.x1 + dx; l.y1 = rs.y1 + dy;
+                    l.x2 = rs.x2 + dx; l.y2 = rs.y2 + dy;
+                }
+            } else if (this.resizeTarget.type === 'freeDraw') {
+                const f = el;
+                const bbox = rs.bbox;
+                let sx = 1, sy = 1;
+                if (this.resizeHandle.includes('e')) sx = Math.max(0.1, (wp.x - bbox.x) / bbox.w);
+                if (this.resizeHandle.includes('w')) sx = Math.max(0.1, (bbox.x + bbox.w - wp.x) / bbox.w);
+                if (this.resizeHandle.includes('s')) sy = Math.max(0.1, (wp.y - bbox.y) / bbox.h);
+                if (this.resizeHandle.includes('n')) sy = Math.max(0.1, (bbox.y + bbox.h - wp.y) / bbox.h);
+                f.points = rs.points.map(p => ({ x: bbox.x + (p.x - bbox.x) * sx, y: bbox.y + (p.y - bbox.y) * sy }));
+            } else if (this.resizeTarget.type === 'vertex') {
+                const v = el;
+                const d = Math.sqrt(distSq(wp.x, wp.y, v.x, v.y));
+                v.radius = Math.max(10, Math.min(60, d));
+            }
+            this.redraw(); return;
+        }
+        if (this.isDrawing && this.currentDraw) {
+            this.currentDraw.points.push({ x: wp.x, y: wp.y });
+            this.redraw(); return;
+        }
+        if (this.isDrawingShape && this.currentShape) {
+            if (this.currentShape.type === 'line' || this.currentShape.type === 'arrow_line') {
+                this.currentShape.x2 = wp.x; this.currentShape.y2 = wp.y;
+            } else {
+                this.currentShape.width = wp.x - this.shapeStartX; this.currentShape.height = wp.y - this.shapeStartY;
+            }
+            this.redraw(); return;
+        }
+        if (this.eraserRect) {
+            this.eraserRect.w = wp.x - this.eraserRect.sx; this.eraserRect.h = wp.y - this.eraserRect.sy;
+            this.redraw(); return;
+        }
+
+        // hover 高亮
+        let needRedraw = false;
+        if (this.edgeStartVertex) needRedraw = true;
+        if (this.currentTool === 'edge' || this.currentTool === 'directed_edge') {
+            const hit = this.findElementAt(wp.x, wp.y, true);
+            const newHover = (hit && hit.type === 'vertex') ? hit.id : null;
+            if (newHover !== this.hoverVertex) { this.hoverVertex = newHover; needRedraw = true; }
+        } else if (this.currentTool === 'delete') {
+            const hit = this.findElementAt(wp.x, wp.y);
+            if (hit) {
+                if (!this.deleteHover || this.deleteHover.type !== hit.type || this.deleteHover.id !== hit.id) {
+                    this.deleteHover = { type: hit.type, id: hit.id };
+                    this.canvas.style.cursor = 'pointer';
+                    needRedraw = true;
+                }
+            } else if (this.deleteHover) {
+                this.deleteHover = null;
+                this.canvas.style.cursor = 'crosshair';
+                needRedraw = true;
+            }
+        } else if (this.currentTool === 'select') {
+            let cursor = 'default';
+            if (this.selectedElement) {
+                const handle = this.getHandleAt(wp.x, wp.y, this.selectedElement);
+                if (handle) {
+                    const cursors = {
+                        nw: 'nw-resize', n: 'n-resize', ne: 'ne-resize',
+                        e: 'e-resize', se: 'se-resize', s: 's-resize',
+                        sw: 'sw-resize', w: 'w-resize',
+                        p1: 'move', p2: 'move', mid: 'move'
+                    };
+                    cursor = cursors[handle] || 'move';
+                } else if (this.findElementAt(wp.x, wp.y)) {
+                    cursor = 'move';
+                }
+            } else if (this.findElementAt(wp.x, wp.y)) {
+                cursor = 'move';
+            }
+            this.canvas.style.cursor = cursor;
+            if (this.hoverVertex !== null) { this.hoverVertex = null; needRedraw = true; }
+            if (this.deleteHover) { this.deleteHover = null; needRedraw = true; }
+        } else {
+            if (this.hoverVertex !== null) { this.hoverVertex = null; needRedraw = true; }
+            if (this.deleteHover) { this.deleteHover = null; needRedraw = true; }
+        }
+        if (needRedraw) this.redraw();
+    }
+
+    onMouseUp(e) {
+        if (this.modals.isOpen()) return;
+        if (this.isPanning) {
+            this.isPanning = false;
+            this.canvas.style.cursor = '';
+            this.updateCursor();
+        }
+        if (this.isDragging) {
+            this.isDragging = false;
+            this.dragTarget = null;
+            this.dragType = null;
+            this.dragStartPoints = null;
+        }
+        if (this.isResizing) {
+            this.isResizing = false;
+            this.resizeTarget = null;
+            this.resizeHandle = null;
+            this.resizeStart = null;
+            this.updatePropPanel();
+        }
+        if (this.isDrawing && this.currentDraw) {
+            this.isDrawing = false;
+            if (this.currentDraw.points.length < 2) {
+                this.freeDraws = this.freeDraws.filter(f => f.id !== this.currentDraw.id);
+                this.nextFId--;
+            } else {
+                this.history.push();
+            }
+            this.currentDraw = null;
+            this.redraw();
+        }
+        if (this.isDrawingShape && this.currentShape) {
+            this.isDrawingShape = false;
+            const isLine = this.currentShape.type === 'line' || this.currentShape.type === 'arrow_line';
+            const minSize = isLine ? 5 : 10;
+            const size = isLine
+                ? Math.sqrt(Math.pow(this.currentShape.x2 - this.currentShape.x1, 2) + Math.pow(this.currentShape.y2 - this.currentShape.y1, 2))
+                : Math.max(Math.abs(this.currentShape.width), Math.abs(this.currentShape.height));
+            if (size >= minSize) {
+                this.history.push();
+                if (isLine) {
+                    this.lineShapes.push(this.currentShape);
+                } else {
+                    if (this.currentShape.width < 0) { this.currentShape.x += this.currentShape.width; this.currentShape.width = Math.abs(this.currentShape.width); }
+                    if (this.currentShape.height < 0) { this.currentShape.y += this.currentShape.height; this.currentShape.height = Math.abs(this.currentShape.height); }
+                    this.shapes.push(this.currentShape);
+                }
+            } else {
+                if (isLine) this.nextLId--;
+                else this.nextSId--;
+            }
+            this.currentShape = null;
+            this.redraw();
+        }
+        if (this.eraserRect) {
+            this.history.push();
+            this.eraseInRect(this.eraserRect);
+            this.eraserRect = null;
+            this.redraw();
+        }
+    }
+
+    onWheel(e) {
+        e.preventDefault();
+        const pos = this.getMousePos(e);
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = Math.max(0.2, Math.min(5, this.scale * delta));
+        const ratio = newScale / this.scale;
+        this.offsetX = pos.x - (pos.x - this.offsetX) * ratio;
+        this.offsetY = pos.y - (pos.y - this.offsetY) * ratio;
+        this.scale = newScale;
+        this.redraw();
+    }
+
+    onContextMenu(e) {
+        e.preventDefault();
+        const pos = this.getMousePos(e);
+        const wp = this.screenToWorld(pos.x, pos.y);
+        const hit = this.findElementAt(wp.x, wp.y);
+        if (hit) {
+            this.selectedElement = hit;
+            this.updatePropPanel();
+            this.redraw();
+            const cm = document.getElementById('contextMenu');
+            cm.style.display = 'block';
+            cm.style.left = e.clientX + 'px';
+            cm.style.top = e.clientY + 'px';
+        }
+    }
+
+    onDblClick(e) {
+        const pos = this.getMousePos(e);
+        const wp = this.screenToWorld(pos.x, pos.y);
+        const hit = this.findElementAt(wp.x, wp.y);
+        if (!hit) return;
+        if (hit.type === 'vertex') {
+            const el = hit.el;
+            this.showTextModal('编辑标签', '标签文本', el.label, (text) => {
+                if (text !== null && text !== '') { el.label = text; this.redraw(); }
+            });
+        } else if (hit.type === 'annotation') {
+            const el = hit.el;
+            this.showTextModal('编辑标注', '标注文本', el.text, (text) => {
+                if (text !== null) { el.text = text; this.redraw(); }
+            });
+        } else if (hit.type === 'edge') {
+            const el = hit.el;
+            this.showTextModal('编辑权重', '权重值', el.weight !== null ? el.weight : '', (text) => {
+                if (text !== null) { el.weight = text === '' ? null : (isNaN(Number(text)) ? null : Number(text)); this.redraw(); }
+            });
+        }
+    }
+
+    // ---------- 元素操作 ----------
+    addVertex(x, y, label, skipRedraw) {
+        const v = new Vertex(this.nextVId++, x, y, label || String(this.nextVId - 1));
+        this.vertices.push(v);
+        if (!skipRedraw) this.redraw();
+        return v;
+    }
+
+    addEdge(sourceId, targetId, directed, weight, skipRedraw) {
+        const dup = this.edges.find(e => e.source === sourceId && e.target === targetId && e.directed === directed && !e.highlighted);
+        if (dup) return dup;
+        const e = new Edge(this.nextEId++, sourceId, targetId, directed, weight);
+        this.edges.push(e);
+        if (!skipRedraw) this.redraw();
+        return e;
+    }
+
+    addAnnotation(x, y, text) {
+        const a = new Annotation(this.nextAId++, x, y, text);
+        this.annotations.push(a);
+        this.redraw();
+        return a;
+    }
+
+    deleteElement(type, id) {
+        if (type === 'vertex') {
+            this.edges = this.edges.filter(e => e.source !== id && e.target !== id);
+            this.vertices = this.vertices.filter(v => v.id !== id);
+        } else if (type === 'edge') {
+            this.edges = this.edges.filter(e => e.id !== id);
+        } else if (type === 'annotation') {
+            this.annotations = this.annotations.filter(a => a.id !== id);
+        } else if (type === 'freeDraw') {
+            this.freeDraws = this.freeDraws.filter(f => f.id !== id);
+        } else if (type === 'shape') {
+            this.shapes = this.shapes.filter(s => s.id !== id);
+        } else if (type === 'lineShape') {
+            this.lineShapes = this.lineShapes.filter(l => l.id !== id);
+        }
+        if (this.selectedElement && this.selectedElement.type === type && this.selectedElement.id === id) this.selectedElement = null;
+        if (this.deleteHover && this.deleteHover.type === type && this.deleteHover.id === id) this.deleteHover = null;
+        this.updatePropPanel();
+        this.redraw();
+    }
+
+    eraseInRect(r) {
+        const x1 = Math.min(r.x, r.x + r.w), y1 = Math.min(r.y, r.y + r.h);
+        const x2 = Math.max(r.x, r.x + r.w), y2 = Math.max(r.y, r.y + r.h);
+        this.vertices = this.vertices.filter(v => !(v.x >= x1 && v.x <= x2 && v.y >= y1 && v.y <= y2));
+        this.annotations = this.annotations.filter(a => !(a.x >= x1 && a.x <= x2 && a.y >= y1 && a.y <= y2));
+        this.freeDraws = this.freeDraws.filter(f => !f.points.some(p => p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2));
+        this.shapes = this.shapes.filter(s => {
+            const cx = s.x + s.width / 2, cy = s.y + s.height / 2;
+            return !(cx >= x1 && cx <= x2 && cy >= y1 && cy <= y2);
+        });
+        this.lineShapes = this.lineShapes.filter(l => {
+            const mx = (l.x1 + l.x2) / 2, my = (l.y1 + l.y2) / 2;
+            return !(mx >= x1 && mx <= x2 && my >= y1 && my <= y2);
+        });
+        const vids = new Set(this.vertices.map(v => v.id));
+        this.edges = this.edges.filter(e => vids.has(e.source) && vids.has(e.target));
+    }
+
+    clearAll() {
+        if (!confirm('确定清空画布？')) return;
+        this.history.push();
+        this.vertices = []; this.edges = []; this.annotations = []; this.freeDraws = []; this.shapes = []; this.lineShapes = [];
+        this.nextVId = 1; this.nextEId = 1; this.nextAId = 1; this.nextFId = 1; this.nextSId = 1; this.nextLId = 1;
+        this.selectedElement = null; this.edgeStartVertex = null; this.deleteHover = null;
+        this.clearAnimationTimers();
+        this.updatePropPanel();
+        this.redraw();
+    }
+
+    // ---------- 模态框与回调 ----------
+    showTextModal(title, label, defaultValue, callback) {
+        document.getElementById('textModalTitle').textContent = title;
+        document.getElementById('textModalLabel').textContent = label;
+        document.getElementById('textInput').value = defaultValue || '';
+        this.textCallback = callback;
+        this.modals.open('textModal', () => this.focusInput('textInput', true));
+    }
+
+    confirmText() {
+        if (!this.textCallback) return;
+        const cb = this.textCallback;
+        this.textCallback = null;
+        const text = document.getElementById('textInput').value;
+        this.modals.close('textModal');
+        cb(text);
+    }
+
+    focusInput(id, select) {
+        const input = document.getElementById(id);
+        if (!input) return;
+        const doFocus = () => { try { input.focus(); if (select) input.select(); } catch (err) {} };
+        requestAnimationFrame(doFocus);
+        setTimeout(doFocus, 80);
+    }
+
+    // ---------- 属性面板 ----------
+    updatePropPanel() {
+        const panel = document.getElementById('propPanel');
+        const savedScrollTop = panel.scrollTop;
+        try {
+        const sel = this.selectedElement;
+        if (!sel) {
+            panel.innerHTML = `
+                <div style="color:#999;text-align:center;padding:4px 0;font-size:11px;">未选中元素</div>
+                <hr style="margin:5px 0">
+                <label><i class="bi bi-pencil me-1"></i>画笔颜色</label>
+                <input type="color" value="${this.penColor}" onchange="gc.penColor=this.value;gc.redraw()">
+                <label>画笔粗细</label>
+                <div class="pen-width-row">
+                    <input type="range" min="1" max="20" value="${this.penWidth}" oninput="document.getElementById('penWidthVal').textContent=this.value+'px';gc.penWidth=Number(this.value)">
+                    <span class="pen-width-val" id="penWidthVal">${this.penWidth}px</span>
+                </div>
+            `;
+            return;
+        }
+        const el = sel.el;
+        if (sel.type === 'vertex') {
+            panel.innerHTML = `
+                <label>类型</label><input value="顶点" disabled>
+                <label>ID</label><input value="${el.id}" disabled>
+                <label>标签</label><input value="${el.label}" onchange="gc.updateProp('vertex',${el.id},'label',this.value)">
+                <label>颜色</label><input type="color" value="${el.color}" onchange="gc.updateProp('vertex',${el.id},'color',this.value)">
+                <label>半径</label><input type="number" value="${el.radius}" min="10" max="60" onchange="gc.updateProp('vertex',${el.id},'radius',Number(this.value))">
+                <label>X</label><input type="number" value="${Math.round(el.x)}" onchange="gc.updateProp('vertex',${el.id},'x',Number(this.value))">
+                <label>Y</label><input type="number" value="${Math.round(el.y)}" onchange="gc.updateProp('vertex',${el.id},'y',Number(this.value))">
+            `;
+        } else if (sel.type === 'edge') {
+            const sv = this.getVertex(el.source), tv = this.getVertex(el.target);
+            panel.innerHTML = `
+                <label>类型</label><input value="${el.directed ? '有向边' : '无向边'}" disabled>
+                <label>起点</label><input value="${sv ? sv.label : '?' }" disabled>
+                <label>终点</label><input value="${tv ? tv.label : '?' }" disabled>
+                <label>权重</label><input type="number" value="${el.weight !== null ? el.weight : ''}" onchange="gc.updateProp('edge',${el.id},'weight',this.value===''?null:Number(this.value))">
+                <label>颜色</label><input type="color" value="${el.color}" onchange="gc.updateProp('edge',${el.id},'color',this.value)">
+                <label>有向</label><select onchange="gc.updateProp('edge',${el.id},'directed',this.value==='true')">
+                    <option value="false" ${!el.directed ? 'selected' : ''}>否</option>
+                    <option value="true" ${el.directed ? 'selected' : ''}>是</option>
+                </select>
+            `;
+        } else if (sel.type === 'annotation') {
+            panel.innerHTML = `
+                <label>类型</label><input value="标注" disabled>
+                <label>文本</label><input value="${el.text}" onchange="gc.updateProp('annotation',${el.id},'text',this.value)">
+                <label>颜色</label><input type="color" value="${el.color}" onchange="gc.updateProp('annotation',${el.id},'color',this.value)">
+                <label>X</label><input type="number" value="${Math.round(el.x)}" onchange="gc.updateProp('annotation',${el.id},'x',Number(this.value))">
+                <label>Y</label><input type="number" value="${Math.round(el.y)}" onchange="gc.updateProp('annotation',${el.id},'y',Number(this.value))">
+            `;
+        } else if (sel.type === 'freeDraw') {
+            panel.innerHTML = `
+                <label>类型</label><input value="画笔路径" disabled>
+                <label>ID</label><input value="${el.id}" disabled>
+                <label>颜色</label><input type="color" value="${el.color}" onchange="gc.updateProp('freeDraw',${el.id},'color',this.value)">
+                <label>粗细</label><input type="number" min="1" max="20" value="${el.width}" onchange="gc.updateProp('freeDraw',${el.id},'width',Number(this.value))">
+                <label>点数</label><input value="${el.points.length}" disabled>
+            `;
+        } else if (sel.type === 'shape') {
+            panel.innerHTML = `
+                <label>类型</label><input value="${el.type === 'rect' ? '矩形' : el.type === 'ellipse' ? '椭圆' : '菱形'}" disabled>
+                <label>ID</label><input value="${el.id}" disabled>
+                <label>填充色</label><input type="color" value="${el.strokeColor}" onchange="gc.updateProp('shape',${el.id},'strokeColor',this.value)">
+                <label>X</label><input type="number" value="${Math.round(el.x)}" onchange="gc.updateProp('shape',${el.id},'x',Number(this.value))">
+                <label>Y</label><input type="number" value="${Math.round(el.y)}" onchange="gc.updateProp('shape',${el.id},'y',Number(this.value))">
+                <label>宽度</label><input type="number" value="${Math.round(el.width)}" onchange="gc.updateProp('shape',${el.id},'width',Number(this.value))">
+                <label>高度</label><input type="number" value="${Math.round(el.height)}" onchange="gc.updateProp('shape',${el.id},'height',Number(this.value))">
+            `;
+        } else if (sel.type === 'lineShape') {
+            panel.innerHTML = `
+                <label>类型</label><input value="${el.arrow ? '箭头线' : '直线'}" disabled>
+                <label>ID</label><input value="${el.id}" disabled>
+                <label>颜色</label><input type="color" value="${el.color}" onchange="gc.updateProp('lineShape',${el.id},'color',this.value)">
+                <label>粗细</label><input type="number" min="1" max="20" value="${el.strokeWidth}" onchange="gc.updateProp('lineShape',${el.id},'strokeWidth',Number(this.value))">
+                <label>X1</label><input type="number" value="${Math.round(el.x1)}" onchange="gc.updateProp('lineShape',${el.id},'x1',Number(this.value))">
+                <label>Y1</label><input type="number" value="${Math.round(el.y1)}" onchange="gc.updateProp('lineShape',${el.id},'y1',Number(this.value))">
+                <label>X2</label><input type="number" value="${Math.round(el.x2)}" onchange="gc.updateProp('lineShape',${el.id},'x2',Number(this.value))">
+                <label>Y2</label><input type="number" value="${Math.round(el.y2)}" onchange="gc.updateProp('lineShape',${el.id},'y2',Number(this.value))">
+            `;
+        }
+        } finally {
+            panel.scrollTop = savedScrollTop;
+        }
+    }
+
+    updateProp(type, id, prop, value) {
+        let el;
+        if (type === 'vertex') el = this.getVertex(id);
+        else if (type === 'edge') el = this.getEdge(id);
+        else if (type === 'annotation') el = this.getAnnotation(id);
+        else if (type === 'freeDraw') el = this.getFreeDraw(id);
+        else if (type === 'shape') el = this.getShape(id);
+        else if (type === 'lineShape') el = this.getLineShape(id);
+        if (el) { el[prop] = value; this.redraw(); }
+    }
+
+    // ---------- 右键菜单 ----------
+    ctxEditLabel() {
+        document.getElementById('contextMenu').style.display = 'none';
+        const sel = this.selectedElement;
+        if (!sel) return;
+        if (sel.type === 'vertex') {
+            const el = sel.el;
+            this.showTextModal('编辑标签', '标签文本', el.label, (text) => {
+                if (text !== null && text !== '') { el.label = text; this.redraw(); }
+            });
+        } else if (sel.type === 'annotation') {
+            const el = sel.el;
+            this.showTextModal('编辑标注', '标注文本', el.text, (text) => {
+                if (text !== null) { el.text = text; this.redraw(); }
+            });
+        } else if (sel.type === 'edge') {
+            const el = sel.el;
+            this.showTextModal('编辑权重', '权重值', el.weight !== null ? el.weight : '', (text) => {
+                if (text !== null) { el.weight = text === '' ? null : (isNaN(Number(text)) ? null : Number(text)); this.redraw(); }
+            });
+        }
+    }
+
+    ctxChangeColor() {
+        document.getElementById('contextMenu').style.display = 'none';
+        const sel = this.selectedElement;
+        if (!sel) return;
+        const el = sel.el;
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = el.color || '#2E8B57';
+        input.style.position = 'fixed'; input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.addEventListener('change', () => {
+            el.color = input.value;
+            document.body.removeChild(input);
+            this.redraw();
+        });
+        input.click();
+    }
+
+    ctxDelete() {
+        document.getElementById('contextMenu').style.display = 'none';
+        if (this.selectedElement) {
+            this.history.push();
+            this.deleteElement(this.selectedElement.type, this.selectedElement.id);
+        }
+    }
+
+    // ---------- 导出 ----------
+    exportPNG() {
+        const sel = this.selectedElement;
+        const hover = this.hoverVertex;
+        this.selectedElement = null;
+        this.hoverVertex = null;
+        this.redraw();
+        const link = document.createElement('a');
+        link.download = 'graph.png';
+        link.href = this.canvas.toDataURL('image/png');
+        link.click();
+        this.selectedElement = sel;
+        this.hoverVertex = hover;
+        this.redraw();
+    }
+
+    // ==================== 图算法 ====================
+    clearHighlight() {
+        this.clearAnimationTimers();
+        this.vertices.forEach(v => { v.highlighted = false; v.highlightColor = null; v.visitOrder = null; });
+        this.edges.forEach(e => { e.highlighted = false; e.highlightColor = null; });
+        this.redraw();
+    }
+
+    clearAnimationTimers() {
+        this.animationTimers.forEach(t => clearTimeout(t));
+        this.animationTimers = [];
+    }
+
+    getAdjList(directed) {
+        const adj = {};
+        this.vertices.forEach(v => adj[v.id] = []);
+        this.edges.forEach(e => {
+            adj[e.source].push({ target: e.target, weight: e.weight, edgeId: e.id });
+            if (!directed || !e.directed) adj[e.target].push({ target: e.source, weight: e.weight, edgeId: e.id });
+        });
+        return adj;
+    }
+
+    getVertexByLabel(label) { return this.vertices.find(v => v.label === label); }
+
+    runKruskal() {
+        if (this.vertices.length < 2) { this.showToast('至少需要2个顶点'); return; }
+        this.modals.close('algoResultModal');
+        this.clearHighlight(); this.clearAnimationTimers();
+        const edges = this.edges.filter(e => e.weight !== null).map(e => ({ ...e })).sort((a, b) => (a.weight || 0) - (b.weight || 0));
+        const parent = {};
+        this.vertices.forEach(v => parent[v.id] = v.id);
+        const find = x => parent[x] === x ? x : (parent[x] = find(parent[x]));
+        const union = (a, b) => { parent[find(a)] = find(b); };
+        const mstEdges = []; let totalWeight = 0;
+        for (const e of edges) {
+            if (find(e.source) !== find(e.target)) {
+                union(e.source, e.target); mstEdges.push(e); totalWeight += (e.weight || 0);
+            }
+        }
+        let i = 0;
+        const animate = () => {
+            if (i >= mstEdges.length) {
+                this.showAlgoResult('Kruskal 最小生成树', `总权重: ${totalWeight}\n选中的边: ${mstEdges.map(e => {
+                    const sv = this.getVertex(e.source), tv = this.getVertex(e.target);
+                    return `${sv.label}-${tv.label}(${e.weight})`;
+                }).join(', ')}`);
+                return;
+            }
+            const e = this.getEdge(mstEdges[i].id);
+            const sv = this.getVertex(e.source), tv = this.getVertex(e.target);
+            if (e) { e.highlighted = true; e.highlightColor = '#FF9800'; }
+            if (sv) { sv.highlighted = true; sv.highlightColor = 'rgba(255,152,0,0.3)'; }
+            if (tv) { tv.highlighted = true; tv.highlightColor = 'rgba(255,152,0,0.3)'; }
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 600));
+        };
+        animate();
+    }
+
+    runPrim() {
+        if (this.vertices.length < 2) { this.showToast('至少需要2个顶点'); return; }
+        this.modals.close('algoResultModal');
+        this.clearHighlight(); this.clearAnimationTimers();
+        const adj = this.getAdjList(false);
+        const visited = new Set();
+        const first = this.vertices[0];
+        visited.add(first.id);
+        first.highlighted = true; first.highlightColor = 'rgba(255,152,0,0.3)';
+        const mstEdges = []; let totalWeight = 0;
+        while (visited.size < this.vertices.length) {
+            let minEdge = null, minW = Infinity, minTarget = null;
+            for (const vid of visited) {
+                for (const nb of (adj[vid] || [])) {
+                    if (!visited.has(nb.target) && nb.weight !== null && nb.weight < minW) {
+                        minW = nb.weight; minEdge = nb.edgeId; minTarget = nb.target;
+                    }
+                }
+            }
+            if (!minEdge) break;
+            visited.add(minTarget); mstEdges.push({ edgeId: minEdge, weight: minW, target: minTarget }); totalWeight += minW;
+        }
+        let i = 0;
+        const animate = () => {
+            if (i >= mstEdges.length) {
+                this.showAlgoResult('Prim 最小生成树', `总权重: ${totalWeight}\n选中的边: ${mstEdges.map(e => {
+                    const edge = this.getEdge(e.edgeId);
+                    return `${this.getVertex(edge.source).label}-${this.getVertex(edge.target).label}(${e.weight})`;
+                }).join(', ')}`);
+                return;
+            }
+            const me = mstEdges[i];
+            const e = this.getEdge(me.edgeId);
+            const tv = this.getVertex(me.target);
+            if (e) { e.highlighted = true; e.highlightColor = '#FF9800'; }
+            if (tv) { tv.highlighted = true; tv.highlightColor = 'rgba(255,152,0,0.3)'; }
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 600));
+        };
+        animate();
+    }
+
+    runDijkstra() {
+        if (this.vertices.length < 2) { this.showToast('至少需要2个顶点'); return; }
+        this.modals.close('algoResultModal');
+        document.getElementById('dijkstraStart').value = this.vertices[0].label;
+        this.modals.open('dijkstraModal');
+    }
+
+    doDijkstra() {
+        this.modals.close('dijkstraModal');
+        this.modals.close('algoResultModal');
+        const startLabel = document.getElementById('dijkstraStart').value.trim();
+        const startV = this.getVertexByLabel(startLabel);
+        if (!startV) { this.showToast('找不到起始顶点'); return; }
+        this.clearHighlight(); this.clearAnimationTimers();
+        const adj = this.getAdjList(false);
+        const dist = {}, prev = {}, visited = new Set();
+        this.vertices.forEach(v => { dist[v.id] = Infinity; prev[v.id] = null; });
+        dist[startV.id] = 0;
+        while (true) {
+            let u = null, minD = Infinity;
+            for (const v of this.vertices) if (!visited.has(v.id) && dist[v.id] < minD) { minD = dist[v.id]; u = v.id; }
+            if (u === null) break;
+            visited.add(u);
+            for (const nb of (adj[u] || [])) {
+                if (!visited.has(nb.target) && nb.weight !== null) {
+                    const nd = dist[u] + nb.weight;
+                    if (nd < dist[nb.target]) { dist[nb.target] = nd; prev[nb.target] = { from: u, edgeId: nb.edgeId }; }
+                }
+            }
+        }
+        const order = [...visited];
+        let i = 0;
+        const animate = () => {
+            if (i >= order.length) {
+                const lines = this.vertices.map(v => `${v.label}: ${dist[v.id] === Infinity ? '∞' : dist[v.id]}`).join('\n');
+                this.showAlgoResult('Dijkstra 最短路径', `从 ${startV.label} 出发:\n${lines}`);
+                return;
+            }
+            const vid = order[i];
+            const v = this.getVertex(vid);
+            if (v) { v.highlighted = true; v.highlightColor = 'rgba(33,150,243,0.3)'; v.visitOrder = i + 1; }
+            if (prev[vid]) { const e = this.getEdge(prev[vid].edgeId); if (e) { e.highlighted = true; e.highlightColor = '#2196F3'; } }
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 500));
+        };
+        animate();
+    }
+
+    runBFS() {
+        if (this.vertices.length < 1) { this.showToast('至少需要1个顶点'); return; }
+        this.modals.close('algoResultModal');
+        document.getElementById('traversalTitle').textContent = 'BFS 遍历';
+        document.getElementById('traversalStart').value = this.vertices[0].label;
+        document.getElementById('traversalConfirm').onclick = () => this.doTraversal('bfs');
+        this.modals.open('traversalModal');
+    }
+
+    runDFS() {
+        if (this.vertices.length < 1) { this.showToast('至少需要1个顶点'); return; }
+        this.modals.close('algoResultModal');
+        document.getElementById('traversalTitle').textContent = 'DFS 遍历';
+        document.getElementById('traversalStart').value = this.vertices[0].label;
+        document.getElementById('traversalConfirm').onclick = () => this.doTraversal('dfs');
+        this.modals.open('traversalModal');
+    }
+
+    runBellmanFord() {
+        if (this.vertices.length < 2) { this.showToast('至少需要2个顶点'); return; }
+        this.modals.close('algoResultModal');
+        document.getElementById('traversalTitle').textContent = 'Bellman-Ford 最短路径';
+        document.getElementById('traversalStart').value = this.vertices[0].label;
+        document.getElementById('traversalConfirm').onclick = () => this.doBellmanFord();
+        this.modals.open('traversalModal');
+    }
+
+    doBellmanFord() {
+        this.modals.close('traversalModal');
+        this.modals.close('algoResultModal');
+        const startLabel = document.getElementById('traversalStart').value.trim();
+        const startV = this.getVertexByLabel(startLabel);
+        if (!startV) { this.showToast('找不到起始顶点'); return; }
+        this.clearHighlight(); this.clearAnimationTimers();
+        const adj = this.getAdjList(true);
+        const dist = {}, prev = {};
+        this.vertices.forEach(v => { dist[v.id] = Infinity; prev[v.id] = null; });
+        dist[startV.id] = 0;
+        const updates = [];
+        for (let i = 0; i < this.vertices.length - 1; i++) {
+            let updated = false;
+            for (const u of this.vertices) {
+                if (dist[u.id] === Infinity) continue;
+                for (const nb of (adj[u.id] || [])) {
+                    if (nb.weight !== null && dist[nb.target] > dist[u.id] + nb.weight) {
+                        dist[nb.target] = dist[u.id] + nb.weight;
+                        prev[nb.target] = { from: u.id, edgeId: nb.edgeId };
+                        updates.push({ type: 'relax', vid: nb.target, edgeId: nb.edgeId });
+                        updated = true;
+                    }
+                }
+            }
+            if (!updated) break;
+        }
+        let hasNegativeCycle = false;
+        for (const u of this.vertices) {
+            if (dist[u.id] === Infinity) continue;
+            for (const nb of (adj[u.id] || [])) {
+                if (nb.weight !== null && dist[nb.target] > dist[u.id] + nb.weight) {
+                    hasNegativeCycle = true;
+                    break;
+                }
+            }
+            if (hasNegativeCycle) break;
+        }
+        if (hasNegativeCycle) {
+            this.showAlgoResult('Bellman-Ford 最短路径', '检测到负权回路，无法计算最短路径');
+            return;
+        }
+        let i = 0;
+        const animate = () => {
+            if (i >= updates.length) {
+                const lines = this.vertices.map(v => `${v.label}: ${dist[v.id] === Infinity ? '∞' : dist[v.id]}`).join('\n');
+                this.showAlgoResult('Bellman-Ford 最短路径', `从 ${startV.label} 出发:\n${lines}`);
+                return;
+            }
+            const update = updates[i];
+            const v = this.getVertex(update.vid);
+            const e = this.getEdge(update.edgeId);
+            if (v) { v.highlighted = true; v.highlightColor = 'rgba(255,152,0,0.3)'; }
+            if (e) { e.highlighted = true; e.highlightColor = '#FF9800'; }
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 400));
+        };
+        animate();
+    }
+
+    runFloydWarshall() {
+        if (this.vertices.length < 2) { this.showToast('至少需要2个顶点'); return; }
+        this.modals.close('algoResultModal');
+        this.clearHighlight(); this.clearAnimationTimers();
+        const n = this.vertices.length;
+        const idx = {}; this.vertices.forEach((v, i) => idx[v.id] = i);
+        const dist = Array(n).fill(null).map(() => Array(n).fill(Infinity));
+        const next = Array(n).fill(null).map(() => Array(n).fill(-1));
+        for (let i = 0; i < n; i++) dist[i][i] = 0;
+        this.edges.forEach(e => {
+            if (e.weight !== null) {
+                const i = idx[e.source], j = idx[e.target];
+                dist[i][j] = Math.min(dist[i][j], e.weight);
+                next[i][j] = j;
+                if (!e.directed) { dist[j][i] = Math.min(dist[j][i], e.weight); next[j][i] = i; }
+            }
+        });
+        const steps = [];
+        for (let k = 0; k < n; k++) {
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    if (dist[i][k] !== Infinity && dist[k][j] !== Infinity && dist[i][j] > dist[i][k] + dist[k][j]) {
+                        dist[i][j] = dist[i][k] + dist[k][j];
+                        next[i][j] = next[i][k];
+                        steps.push({ k: this.vertices[k], i: this.vertices[i], j: this.vertices[j] });
+                    }
+                }
+            }
+        }
+        let i = 0;
+        const animate = () => {
+            if (i >= steps.length) {
+                let result = '所有顶点对最短路径：\n';
+                for (let pi = 0; pi < n; pi++) {
+                    for (let pj = 0; pj < n; pj++) {
+                        if (pi !== pj) {
+                            result += `${this.vertices[pi].label}→${this.vertices[pj].label}: ${dist[pi][pj] === Infinity ? '∞' : dist[pi][pj]}\n`;
+                        }
+                    }
+                }
+                this.showAlgoResult('Floyd-Warshall 最短路径', result);
+                return;
+            }
+            const step = steps[i];
+            step.k.highlighted = true; step.k.highlightColor = 'rgba(156,39,176,0.5)';
+            step.i.highlighted = true; step.i.highlightColor = 'rgba(33,150,243,0.3)';
+            step.j.highlighted = true; step.j.highlightColor = 'rgba(33,150,243,0.3)';
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 500));
+        };
+        animate();
+    }
+
+    runTopologicalSort() {
+        if (this.vertices.length < 1) { this.showToast('至少需要1个顶点'); return; }
+        this.modals.close('algoResultModal');
+        this.clearHighlight(); this.clearAnimationTimers();
+        const adj = this.getAdjList(true);
+        const inDegree = {};
+        this.vertices.forEach(v => inDegree[v.id] = 0);
+        this.edges.forEach(e => { if (e.directed) inDegree[e.target] = (inDegree[e.target] || 0) + 1; });
+        const queue = [];
+        const result = [];
+        this.vertices.forEach(v => { if (inDegree[v.id] === 0) queue.push(v.id); });
+        while (queue.length > 0) {
+            const u = queue.shift();
+            result.push(u);
+            for (const nb of (adj[u] || [])) {
+                if (nb.target) {
+                    inDegree[nb.target]--;
+                    if (inDegree[nb.target] === 0) queue.push(nb.target);
+                }
+            }
+        }
+        if (result.length !== this.vertices.length) {
+            this.showAlgoResult('拓扑排序', '图中存在环，无法进行拓扑排序');
+            return;
+        }
+        let i = 0;
+        const animate = () => {
+            if (i >= result.length) {
+                const labels = result.map((id, idx) => `${idx + 1}. ${this.getVertex(id).label}`).join('\n');
+                this.showAlgoResult('拓扑排序', `排序结果:\n${labels}`);
+                return;
+            }
+            const v = this.getVertex(result[i]);
+            if (v) { v.highlighted = true; v.highlightColor = 'rgba(76,175,80,0.3)'; v.visitOrder = i + 1; }
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 500));
+        };
+        animate();
+    }
+
+    runEulerCycle() {
+        if (this.vertices.length < 2) { this.showToast('至少需要2个顶点'); return; }
+        this.modals.close('algoResultModal');
+        this.clearHighlight(); this.clearAnimationTimers();
+        const undirectedEdges = this.edges.filter(e => !e.directed);
+        const directedEdges = this.edges.filter(e => e.directed);
+        let hasEulerCycle = false;
+        let hasEulerPath = false;
+        let result = '';
+        if (undirectedEdges.length > 0 && directedEdges.length === 0) {
+            const degree = {};
+            this.vertices.forEach(v => degree[v.id] = 0);
+            undirectedEdges.forEach(e => { degree[e.source]++; degree[e.target]++; });
+            const oddDegree = Object.values(degree).filter(d => d % 2 !== 0).length;
+            if (oddDegree === 0) {
+                hasEulerCycle = true;
+                result = '这是一个欧拉图，存在欧拉回路。';
+            } else if (oddDegree === 2) {
+                hasEulerPath = true;
+                const startV = Object.keys(degree).find(k => degree[k] % 2 === 1);
+                result = `存在欧拉路径（非回路），起点为 ${this.getVertex(parseInt(startV)).label}。`;
+            } else {
+                result = `无奇度顶点数为 ${oddDegree}，不存在欧拉路径或回路。`;
+            }
+        } else if (directedEdges.length > 0 && undirectedEdges.length === 0) {
+            const inDeg = {}, outDeg = {};
+            this.vertices.forEach(v => { inDeg[v.id] = 0; outDeg[v.id] = 0; });
+            directedEdges.forEach(e => { outDeg[e.source]++; inDeg[e.target]++; });
+            let balance = 0;
+            let startNode = null;
+            for (const v of this.vertices) {
+                const diff = outDeg[v.id] - inDeg[v.id];
+                if (diff === 1) { balance++; startNode = v; }
+                else if (diff === -1) balance++;
+                else if (diff !== 0) { balance = Infinity; break; }
+            }
+            if (balance === 0) {
+                hasEulerCycle = true;
+                result = '这是一个有向欧拉图，存在有向欧拉回路。';
+            } else if (balance === 2 && startNode) {
+                hasEulerPath = true;
+                result = `存在有向欧拉路径（非回路），起点为 ${startNode.label}。`;
+            } else {
+                result = '不存在有向欧拉路径或回路。';
+            }
+        } else {
+            result = '图中同时存在有向边和无向边，请使用纯有向图或纯无向图。';
+        }
+        if (hasEulerCycle) {
+            this.showAlgoResult('欧拉回路检测', result);
+        } else {
+            this.showAlgoResult('欧拉回路检测', result);
+        }
+    }
+
+    doTraversal(type) {
+        this.modals.close('traversalModal');
+        this.modals.close('algoResultModal');
+        const startLabel = document.getElementById('traversalStart').value.trim();
+        const startV = this.getVertexByLabel(startLabel);
+        if (!startV) { this.showToast('找不到起始顶点'); return; }
+        this.clearHighlight(); this.clearAnimationTimers();
+        const adj = this.getAdjList(false);
+        const visited = new Set();
+        const order = []; const edgeOrder = [];
+        if (type === 'bfs') {
+            const queue = [startV.id];
+            visited.add(startV.id);
+            while (queue.length) {
+                const u = queue.shift();
+                order.push(u);
+                for (const nb of (adj[u] || [])) {
+                    if (!visited.has(nb.target)) {
+                        visited.add(nb.target); edgeOrder.push(nb.edgeId); queue.push(nb.target);
+                    }
+                }
+            }
+        } else {
+            const dfsVisit = (u) => {
+                visited.add(u); order.push(u);
+                for (const nb of (adj[u] || [])) {
+                    if (!visited.has(nb.target)) { edgeOrder.push(nb.edgeId); dfsVisit(nb.target); }
+                }
+            };
+            dfsVisit(startV.id);
+        }
+        let i = 0;
+        const animate = () => {
+            if (i >= order.length) {
+                const labels = order.map((id, idx) => `${idx + 1}. ${this.getVertex(id).label}`).join('\n');
+                this.showAlgoResult(`${type === 'bfs' ? 'BFS' : 'DFS'} 遍历`, `遍历顺序:\n${labels}`);
+                return;
+            }
+            const vid = order[i];
+            const v = this.getVertex(vid);
+            if (v) { v.highlighted = true; v.highlightColor = 'rgba(76,175,80,0.3)'; v.visitOrder = i + 1; }
+            if (i > 0 && i - 1 < edgeOrder.length) { const e = this.getEdge(edgeOrder[i - 1]); if (e) { e.highlighted = true; e.highlightColor = '#4CAF50'; } }
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 500));
+        };
+        animate();
+    }
+
+    // ==================== 树算法 ====================
+    generateBinaryTree(values) {
+        this.history.push();
+        this.history.suspend();
+        this.vertices = []; this.edges = []; this.annotations = []; this.freeDraws = []; this.shapes = []; this.lineShapes = [];
+        this.nextVId = 1; this.nextEId = 1; this.nextAId = 1; this.nextFId = 1; this.nextSId = 1; this.nextLId = 1;
+        this.selectedElement = null; this.clearAnimationTimers();
+        const baseX = this.canvas.width / 2 / this.scale - this.offsetX / this.scale;
+        const baseY = 60, hSpacing = 80, vSpacing = 70;
+        const buildTree = (arr, idx, x, y, depth) => {
+            if (idx >= arr.length) return null;
+            const v = this.addVertex(x, y, null, true);
+            v.label = String(arr[idx]);
+            const leftIdx = 2 * idx + 1, rightIdx = 2 * idx + 2;
+            const offset = hSpacing / Math.pow(1.4, depth);
+            if (leftIdx < arr.length) {
+                const lv = buildTree(arr, leftIdx, x - offset, y + vSpacing, depth + 1);
+                if (lv) this.addEdge(v.id, lv.id, true, null, true);
+            }
+            if (rightIdx < arr.length) {
+                const rv = buildTree(arr, rightIdx, x + offset, y + vSpacing, depth + 1);
+                if (rv) this.addEdge(v.id, rv.id, true, null, true);
+            }
+            return v;
+        };
+        buildTree(values, 0, baseX, baseY, 0);
+        this.history.resume();
+        this.redraw();
+    }
+
+    generateCompleteBinaryTree(levels) {
+        this.history.push();
+        this.history.suspend();
+        this.vertices = []; this.edges = []; this.annotations = []; this.freeDraws = []; this.shapes = []; this.lineShapes = [];
+        this.nextVId = 1; this.nextEId = 1; this.nextAId = 1; this.nextFId = 1; this.nextSId = 1; this.nextLId = 1;
+        this.selectedElement = null; this.clearAnimationTimers();
+        const count = Math.pow(2, levels) - 1;
+        const baseY = 60;
+        const vSpacing = Math.min(80, (this.canvas.height / this.scale - 80) / Math.max(1, levels - 1));
+        const canvasWidth = this.canvas.width / this.scale;
+        const baseX = canvasWidth / 2 - this.offsetX / this.scale;
+        const bottomNodeCount = Math.pow(2, levels - 1);
+        const bottomSpacing = bottomNodeCount > 1 ? Math.min(70, (canvasWidth - 80) / (bottomNodeCount - 1)) : 0;
+        const nodes = [];
+        for (let i = 0; i < count; i++) {
+            const depth = Math.floor(Math.log2(i + 1));
+            const posInLevel = i - (Math.pow(2, depth) - 1);
+            const levelCount = Math.pow(2, depth);
+            const levelSpacing = bottomSpacing * Math.pow(2, levels - 1 - depth);
+            const x = baseX - (levelCount - 1) * levelSpacing / 2 + posInLevel * levelSpacing;
+            const y = baseY + depth * vSpacing;
+            const v = this.addVertex(x, y, null, true);
+            v.label = String(i + 1); nodes.push(v);
+            if (i > 0) { const parentIdx = Math.floor((i - 1) / 2); this.addEdge(nodes[parentIdx].id, v.id, true, null, true); }
+        }
+        this.history.resume();
+        this.redraw();
+    }
+
+    getBinaryTreeRoot() {
+        const inDegree = {};
+        this.vertices.forEach(v => inDegree[v.id] = 0);
+        this.edges.forEach(e => { if (e.directed) inDegree[e.target] = (inDegree[e.target] || 0) + 1; });
+        const roots = this.vertices.filter(v => inDegree[v.id] === 0);
+        return roots.length === 1 ? roots[0] : this.vertices[0];
+    }
+
+    getChildren(vid) {
+        const childIds = this.edges.filter(e => e.source === vid && e.directed).map(e => e.target);
+        const children = childIds.map(id => this.getVertex(id)).filter(v => v);
+        children.sort((a, b) => a.x - b.x);
+        return children.map(v => v.id);
+    }
+
+    getLeftChild(vid) {
+        const v = this.getVertex(vid);
+        if (!v) return undefined;
+        const vVal = Number(v.label);
+        if (isNaN(vVal)) return undefined;
+        const childIds = this.edges.filter(e => e.source === vid && e.directed).map(e => e.target);
+        for (const cid of childIds) {
+            const c = this.getVertex(cid);
+            if (c && Number(c.label) < vVal) return cid;
+        }
+        return undefined;
+    }
+
+    getRightChild(vid) {
+        const v = this.getVertex(vid);
+        if (!v) return undefined;
+        const vVal = Number(v.label);
+        if (isNaN(vVal)) return undefined;
+        const childIds = this.edges.filter(e => e.source === vid && e.directed).map(e => e.target);
+        for (const cid of childIds) {
+            const c = this.getVertex(cid);
+            if (c && Number(c.label) > vVal) return cid;
+        }
+        return undefined;
+    }
+
+    runPreorder() { this.runTreeTraversal('preorder', '前序遍历'); }
+    runInorder() { this.runTreeTraversal('inorder', '中序遍历'); }
+    runPostorder() { this.runTreeTraversal('postorder', '后序遍历'); }
+
+    runTreeTraversal(mode, name) {
+        this.modals.close('algoResultModal');
+        this.clearHighlight(); this.clearAnimationTimers();
+        const root = this.getBinaryTreeRoot();
+        if (!root) { this.showToast('没有顶点'); return; }
+        const order = [];
+        const traverse = (vid) => {
+            const ch = this.getChildren(vid);
+            const left = ch[0], right = ch[1];
+            if (mode === 'preorder') order.push(vid);
+            if (left !== undefined) traverse(left);
+            if (mode === 'inorder') order.push(vid);
+            if (right !== undefined) traverse(right);
+            if (mode === 'postorder') order.push(vid);
+        };
+        traverse(root.id);
+        this.animateTraversal(order, name);
+    }
+
+    animateTraversal(order, name) {
+        let i = 0;
+        const animate = () => {
+            if (i >= order.length) {
+                const labels = order.map((id, idx) => `${idx + 1}. ${this.getVertex(id).label}`).join('\n');
+                this.showAlgoResult(name, `遍历顺序:\n${labels}`);
+                return;
+            }
+            const v = this.getVertex(order[i]);
+            if (v) { v.highlighted = true; v.highlightColor = 'rgba(156,39,176,0.3)'; v.visitOrder = i + 1; }
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 500));
+        };
+        animate();
+    }
+
+    bstInsert(value) {
+        this.history.push();
+        this.history.suspend();
+        if (this.vertices.length === 0) {
+            const v = this.addVertex(this.canvas.width / 2 / this.scale - this.offsetX / this.scale, 60);
+            v.label = String(value);
+        } else {
+            const root = this.getBinaryTreeRoot();
+            const hSpacing = 80, vSpacing = 70;
+            const insertNode = (vid, val, depth) => {
+                const v = this.getVertex(vid);
+                const vVal = Number(v.label);
+                const leftChild = this.getLeftChild(vid);
+                const rightChild = this.getRightChild(vid);
+                const offset = hSpacing / Math.pow(1.4, depth);
+                if (val < vVal) {
+                    if (leftChild !== undefined) insertNode(leftChild, val, depth + 1);
+                    else { const nv = this.addVertex(v.x - offset, v.y + vSpacing, null, true); nv.label = String(val); this.addEdge(vid, nv.id, true, null, true); }
+                } else if (val > vVal) {
+                    if (rightChild !== undefined) insertNode(rightChild, val, depth + 1);
+                    else { const nv = this.addVertex(v.x + offset, v.y + vSpacing, null, true); nv.label = String(val); this.addEdge(vid, nv.id, true, null, true); }
+                } else { this.showToast('值已存在，未插入'); }
+            };
+            insertNode(root.id, value, 0);
+        }
+        this.history.resume();
+        this.redraw();
+    }
+
+    bstSearch(value) {
+        this.modals.close('algoResultModal');
+        this.clearHighlight(); this.clearAnimationTimers();
+        if (this.vertices.length === 0) { this.showToast('树为空'); return; }
+        const root = this.getBinaryTreeRoot();
+        const order = [];
+        const searchNode = (vid, val) => {
+            const v = this.getVertex(vid);
+            if (!v) return false;
+            order.push(vid);
+            const vVal = Number(v.label);
+            if (val === vVal) return true;
+            if (val < vVal) { const left = this.getLeftChild(vid); if (left !== undefined) return searchNode(left, val); }
+            else { const right = this.getRightChild(vid); if (right !== undefined) return searchNode(right, val); }
+            return false;
+        };
+        const found = searchNode(root.id, value);
+        let i = 0;
+        const animate = () => {
+            if (i >= order.length) { this.showAlgoResult('BST 查找', found ? `找到值 ${value}` : `未找到值 ${value}`); return; }
+            const v = this.getVertex(order[i]);
+            if (v) { v.highlighted = true; v.highlightColor = Number(v.label) === value ? 'rgba(76,175,80,0.5)' : 'rgba(255,152,0,0.3)'; v.visitOrder = i + 1; }
+            this.redraw(); i++;
+            this.animationTimers.push(setTimeout(animate, 600));
+        };
+        animate();
+    }
+
+    bstDelete(value) {
+        this.modals.close('algoResultModal');
+        this.clearHighlight(); this.clearAnimationTimers();
+        if (this.vertices.length === 0) { this.showToast('树为空'); return; }
+        const root = this.getBinaryTreeRoot();
+        let targetVid = null, parentVid = null;
+        const findNode = (vid, parent, val) => {
+            const v = this.getVertex(vid);
+            if (!v) return;
+            const vVal = Number(v.label);
+            if (val === vVal) { targetVid = vid; parentVid = parent; return; }
+            if (val < vVal) { const left = this.getLeftChild(vid); if (left !== undefined) findNode(left, vid, val); }
+            else { const right = this.getRightChild(vid); if (right !== undefined) findNode(right, vid, val); }
+        };
+        findNode(root.id, null, value);
+        if (targetVid === null) { this.showToast(`未找到值 ${value}`); return; }
+        this.history.push();
+        this.history.suspend();
+        const leftChild = this.getLeftChild(targetVid);
+        const rightChild = this.getRightChild(targetVid);
+        if (leftChild === undefined && rightChild === undefined) {
+            this.deleteElement('vertex', targetVid);
+        } else if (leftChild !== undefined && rightChild === undefined) {
+            if (parentVid !== null) {
+                this.edges = this.edges.filter(e => !(e.source === parentVid && e.target === targetVid));
+                this.addEdge(parentVid, leftChild, true, null);
+            }
+            this.deleteElement('vertex', targetVid);
+        } else if (leftChild === undefined && rightChild !== undefined) {
+            if (parentVid !== null) {
+                this.edges = this.edges.filter(e => !(e.source === parentVid && e.target === targetVid));
+                this.addEdge(parentVid, rightChild, true, null);
+            }
+            this.deleteElement('vertex', targetVid);
+        } else {
+            let minVid = rightChild, minParent = targetVid;
+            while (true) { const minLeft = this.getLeftChild(minVid); if (minLeft !== undefined) { minParent = minVid; minVid = minLeft; } else break; }
+            const minV = this.getVertex(minVid);
+            const tv = this.getVertex(targetVid);
+            tv.label = minV.label;
+            this.edges = this.edges.filter(e => !(e.source === minParent && e.target === minVid));
+            const minRight = this.getRightChild(minVid);
+            if (minRight !== undefined) this.addEdge(minParent, minRight, true, null);
+            this.deleteElement('vertex', minVid);
+        }
+        this.history.resume();
+        this.redraw();
+        this.showAlgoResult('BST 删除', `已删除值 ${value}`);
+    }
+
+    // ==================== 保存/加载 ====================
+    toJSON() {
+        return {
+            name: '', type: 'graph',
+            vertices: this.vertices.map(v => v.toJSON()),
+            edges: this.edges.map(e => e.toJSON()),
+            annotations: this.annotations.map(a => a.toJSON()),
+            freeDraws: this.freeDraws.map(f => f.toJSON()),
+            shapes: this.shapes.map(s => s.toJSON()),
+            lineShapes: this.lineShapes.map(l => l.toJSON())
+        };
+    }
+
+    fromJSON(data) {
+        this.history.push();
+        this.history.suspend();
+        this.vertices = []; this.edges = []; this.annotations = []; this.freeDraws = []; this.shapes = []; this.lineShapes = [];
+        this.nextVId = 1; this.nextEId = 1; this.nextAId = 1; this.nextFId = 1; this.nextSId = 1; this.nextLId = 1;
+        this.selectedElement = null; this.clearAnimationTimers();
+        if (data.vertices) { this.vertices = data.vertices.map(d => Vertex.fromJSON(d)); this.nextVId = Math.max(0, ...this.vertices.map(v => v.id)) + 1; }
+        if (data.edges) { this.edges = data.edges.map(d => Edge.fromJSON(d)); this.nextEId = Math.max(0, ...this.edges.map(e => e.id)) + 1; }
+        if (data.annotations) { this.annotations = data.annotations.map(d => Annotation.fromJSON(d)); this.nextAId = Math.max(0, ...this.annotations.map(a => a.id)) + 1; }
+        if (data.freeDraws) { this.freeDraws = data.freeDraws.map(d => FreeDraw.fromJSON(d)); this.nextFId = Math.max(0, ...this.freeDraws.map(f => f.id)) + 1; }
+        if (data.shapes) { this.shapes = data.shapes.map(d => Shape.fromJSON(d)); this.nextSId = Math.max(0, ...this.shapes.map(s => s.id)) + 1; }
+        if (data.lineShapes) { this.lineShapes = data.lineShapes.map(d => LineShape.fromJSON(d)); this.nextLId = Math.max(0, ...this.lineShapes.map(l => l.id)) + 1; }
+        this.history.resume();
+        this.updatePropPanel();
+        this.redraw();
+    }
+
+    saveGraph() {
+        document.getElementById('saveName').value = '';
+        this.modals.open('saveModal');
+    }
+
+    doSave() {
+        const name = document.getElementById('saveName').value.trim();
+        const type = document.getElementById('saveType').value;
+        if (!name) { this.showToast('请输入名称'); return; }
+        const data = this.toJSON();
+        data.name = name; data.type = type;
+        fetch('/canvas/api/save', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, type, data_json: JSON.stringify(data) })
+        }).then(r => r.json()).then(res => {
+            this.modals.close('saveModal');
+            if (res.error) this.showToast(res.error);
+            else { this.showToast('保存成功'); this.loadGraphList(); }
+        }).catch(err => { this.showToast('保存失败: ' + err); });
+    }
+
+    loadGraphList() {
+        fetch('/canvas/api/list').then(r => r.json()).then(data => {
+            const list = document.getElementById('graphList');
+            if (!data.length) { list.innerHTML = '<div style="color:#999;text-align:center;">暂无保存的图形</div>'; return; }
+            list.innerHTML = data.map(g => `
+                <div class="graph-list-item" onclick="gc.loadGraphById(${g.id})">
+                    <div><strong>${g.name}</strong><br><small class="text-muted">${g.type === 'tree' ? '树' : '图'} · ${g.created_at}</small></div>
+                    <span class="del-btn" onclick="event.stopPropagation();gc.deleteGraphById(${g.id})"><i class="bi bi-x-lg"></i></span>
+                </div>
+            `).join('');
+        });
+    }
+
+    loadGraphById(id) {
+        fetch(`/canvas/api/load/${id}`).then(r => r.json()).then(data => {
+            if (data.data_json) {
+                const parsed = JSON.parse(data.data_json);
+                this.fromJSON(parsed);
+                this.showToast(`已加载: ${data.name}`);
+            }
+        });
+    }
+
+    deleteGraphById(id) {
+        if (!confirm('确定删除？')) return;
+        fetch(`/canvas/api/delete/${id}`, { method: 'DELETE' }).then(r => r.json()).then(() => {
+            this.showToast('已删除');
+            this.loadGraphList();
+        });
+    }
+
+    // ==================== UI 辅助 ====================
+    showToast(msg) {
+        const container = document.getElementById('toastContainer');
+        const div = document.createElement('div');
+        div.className = 'alert alert-success py-2 px-3 mb-2 shadow-sm';
+        div.style.cssText = 'font-size:13px;border-radius:6px;min-width:150px;';
+        div.textContent = msg;
+        container.appendChild(div);
+        setTimeout(() => div.remove(), 2500);
+    }
+
+    showAlgoResult(title, body) {
+        document.getElementById('algoResultTitle').textContent = title;
+        document.getElementById('algoResultBody').textContent = body;
+        this.modals.open('algoResultModal');
+    }
+
+    generateGraphWithAI(description) {
+        this.showToast('正在生成图形...');
+        const graphData = generateGraphFromDescription(description);
+        if (!graphData || graphData.vertices.length === 0) {
+            this.showToast('无法解析图形描述，请尝试更清晰的描述');
+            return;
+        }
+        this.history.push();
+        this.history.suspend();
+        this.vertices = []; this.edges = []; this.annotations = [];
+        this.freeDraws = []; this.shapes = []; this.lineShapes = [];
+        this.nextVId = 1; this.nextEId = 1; this.nextAId = 1;
+        this.nextFId = 1; this.nextSId = 1; this.nextLId = 1;
+        this.selectedElement = null; this.clearAnimationTimers();
+        const labelToId = {};
+        for (const v of graphData.vertices) {
+            const vertex = this.addVertex(v.x, v.y, v.label, true);
+            labelToId[v.label] = vertex.id;
+        }
+        for (const e of graphData.edges) {
+            const sourceId = labelToId[e.source];
+            const targetId = labelToId[e.target];
+            if (sourceId && targetId) {
+                this.addEdge(sourceId, targetId, e.directed, e.weight, true);
+            }
+        }
+        this.history.resume();
+        this.updatePropPanel();
+        this.redraw();
+        this.showToast(`已生成图形：${graphData.vertices.length}个顶点，${graphData.edges.length}条边`);
+    }
+}
+
+// ==================== 初始化 ====================
+const gc = new GraphCanvas('graphCanvas');
+
+document.querySelectorAll('#toolbar .tool-btn[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => gc.setTool(btn.dataset.tool));
+});
+
+function showGenTreeModal(type) {
+    const title = document.getElementById('genTreeTitle');
+    const body = document.getElementById('genTreeBody');
+    const confirm = document.getElementById('genTreeConfirm');
+    if (type === 'binary') {
+        title.textContent = '生成二叉树';
+        body.innerHTML = '<label class="form-label">节点值（逗号分隔）</label><input type="text" class="form-control form-control-sm" id="treeValues" value="1,2,3,4,5,6,7">';
+        confirm.onclick = () => {
+            const vals = document.getElementById('treeValues').value.split(',').map(s => s.trim()).filter(s => s).map(Number);
+            gc.generateBinaryTree(vals);
+            gc.modals.close('genTreeModal');
+        };
+    } else {
+        title.textContent = '生成完全二叉树';
+        body.innerHTML = '<label class="form-label">层数</label><input type="number" class="form-control form-control-sm" id="treeLevels" value="3" min="1" max="5">';
+        confirm.onclick = () => {
+            const levels = Number(document.getElementById('treeLevels').value);
+            gc.generateCompleteBinaryTree(levels);
+            gc.modals.close('genTreeModal');
+        };
+    }
+    gc.modals.open('genTreeModal');
+}
+
+function showBSTModal(op) {
+    const title = document.getElementById('bstTitle');
+    const valueInput = document.getElementById('bstValue');
+    const confirm = document.getElementById('bstConfirm');
+    valueInput.value = '';
+    if (op === 'insert') {
+        title.textContent = 'BST 插入';
+        confirm.onclick = () => { const val = Number(valueInput.value); if (!isNaN(val)) gc.bstInsert(val); gc.modals.close('bstModal'); };
+    } else if (op === 'search') {
+        title.textContent = 'BST 查找';
+        confirm.onclick = () => { const val = Number(valueInput.value); if (!isNaN(val)) gc.bstSearch(val); gc.modals.close('bstModal'); };
+    } else {
+        title.textContent = 'BST 删除';
+        confirm.onclick = () => { const val = Number(valueInput.value); if (!isNaN(val)) gc.bstDelete(val); gc.modals.close('bstModal'); };
+    }
+    gc.modals.open('bstModal');
+}
+
+gc.loadGraphList();
+
+['saveModal', 'textModal', 'genTreeModal', 'bstModal', 'algoResultModal', 'dijkstraModal', 'traversalModal', 'aiGenModal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        const closeBtn = el.querySelector('.btn-close');
+        if (closeBtn) {
+            closeBtn.onclick = () => gc.modals.close(id);
+        }
+    }
+});
+
+function showAIGenModal() {
+    document.getElementById('aiGenPrompt').value = '';
+    document.getElementById('aiGenConfirm').onclick = () => {
+        const prompt = document.getElementById('aiGenPrompt').value.trim();
+        if (!prompt) { gc.showToast('请输入图形描述'); return; }
+        gc.generateGraphWithAI(prompt);
+        gc.modals.close('aiGenModal');
+    };
+    gc.modals.open('aiGenModal');
+}
+
+function parseGraphData(data) {
+    if (!data || typeof data !== 'object') return null;
+    const result = { vertices: [], edges: [] };
+    if (Array.isArray(data.vertices)) {
+        result.vertices = data.vertices.map(v => ({
+            label: String(v.label || v.id || ''),
+            x: v.x || 0,
+            y: v.y || 0
+        }));
+    }
+    if (Array.isArray(data.edges)) {
+        result.edges = data.edges.map(e => ({
+            source: e.source || '',
+            target: e.target || '',
+            directed: !!e.directed,
+            weight: e.weight !== undefined && e.weight !== null ? e.weight : null
+        }));
+    }
+    return result;
+}
+
+function generateGraphFromDescription(description) {
+    const result = { vertices: [], edges: [] };
+    const labelMatch = description.match(/([ABCDEFGHIJKLMNOPQRSTUVWXYZ][0-9]*(?:[,、]\s*[ABCDEFGHIJKLMNOPQRSTUVWXYZ][0-9]*)*)/);
+    if (labelMatch) {
+        const labels = labelMatch[1].split(/[,、]\s*/).filter(s => s.trim());
+        const count = Math.min(labels.length, 10);
+        const centerX = 400, centerY = 300, radius = 150;
+        for (let i = 0; i < count; i++) {
+            const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+            result.vertices.push({
+                label: labels[i].trim(),
+                x: centerX + radius * Math.cos(angle),
+                y: centerY + radius * Math.sin(angle)
+            });
+        }
+    } else {
+        const countMatch = description.match(/(\d+)\s*个顶点/);
+        const count = countMatch ? Math.min(parseInt(countMatch[1]), 10) : 5;
+        const centerX = 400, centerY = 300, radius = 150;
+        for (let i = 0; i < count; i++) {
+            const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+            result.vertices.push({
+                label: String.fromCharCode(65 + i),
+                x: centerX + radius * Math.cos(angle),
+                y: centerY + radius * Math.sin(angle)
+            });
+        }
+    }
+    if (description.includes('完全图') || description.includes('K5')) {
+        for (let i = 0; i < result.vertices.length; i++) {
+            for (let j = i + 1; j < result.vertices.length; j++) {
+                result.edges.push({
+                    source: result.vertices[i].label,
+                    target: result.vertices[j].label,
+                    directed: description.includes('有向'),
+                    weight: Math.floor(Math.random() * 10) + 1
+                });
+            }
+        }
+    } else if (description.includes('二叉') || description.includes('树')) {
+        const valuesMatch = description.match(/([\d,、\s]+)/);
+        let values = [];
+        if (valuesMatch) {
+            values = valuesMatch[1].split(/[,、\s]+/).filter(s => s.trim()).map(Number).filter(n => !isNaN(n));
+        }
+        if (values.length === 0) values = [15, 10, 20, 8, 12, 18, 25];
+        result.vertices = [];
+        result.edges = [];
+        const buildBST = (vals, parentLabel, x, y, depth) => {
+            if (vals.length === 0) return;
+            const mid = Math.floor(vals.length / 2);
+            const val = vals[mid];
+            const label = String(val);
+            result.vertices.push({ label, x, y });
+            if (parentLabel) {
+                result.edges.push({ source: parentLabel, target: label, directed: true, weight: null });
+            }
+            const offset = 80 / Math.pow(1.4, depth);
+            buildBST(vals.slice(0, mid), label, x - offset, y + 60, depth + 1);
+            buildBST(vals.slice(mid + 1), label, x + offset, y + 60, depth + 1);
+        };
+        values.sort((a, b) => a - b);
+        buildBST(values, null, 400, 80, 0);
+    } else if (description.includes('有向无环图') || description.includes('DAG')) {
+        for (let i = 0; i < result.vertices.length - 1; i++) {
+            for (let j = i + 1; j < result.vertices.length; j++) {
+                if (Math.random() > 0.5) {
+                    result.edges.push({
+                        source: result.vertices[i].label,
+                        target: result.vertices[j].label,
+                        directed: true,
+                        weight: null
+                    });
+                }
+            }
+        }
+    } else {
+        for (let i = 0; i < result.vertices.length; i++) {
+            const next = (i + 1) % result.vertices.length;
+            result.edges.push({
+                source: result.vertices[i].label,
+                target: result.vertices[next].label,
+                directed: description.includes('有向'),
+                weight: Math.floor(Math.random() * 10) + 1
+            });
+        }
+        for (let i = 0; i < result.vertices.length; i++) {
+            if (Math.random() > 0.6) {
+                const j = (i + 2) % result.vertices.length;
+                if (i !== j) {
+                    result.edges.push({
+                        source: result.vertices[i].label,
+                        target: result.vertices[j].label,
+                        directed: description.includes('有向'),
+                        weight: Math.floor(Math.random() * 10) + 1
+                    });
+                }
+            }
+        }
+    }
+    return result;
+}
+</script>
+{% endblock %}

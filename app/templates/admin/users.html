@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-avatar {
+        width: 38px; height: 38px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--seagreen), var(--teal));
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .table thead th {
+        white-space: nowrap;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .action-btn {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+    <div class="d-flex align-items-center">
+        <div class="icon-wrapper me-3" style="width:54px;height:54px;">
+            <i class="bi bi-people-fill" style="font-size:1.6rem;"></i>
+        </div>
+        <div>
+            <h2 class="mb-0 text-dark-green">用户管理</h2>
+            <p class="text-ink-gray mb-0">
+                <i class="bi bi-card-list me-1"></i>共 {{ users | length }} 位用户
+            </p>
+        </div>
+    </div>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-seagreen">
+        <i class="bi bi-arrow-left me-1"></i>返回后台首页
+    </a>
+</div>
+
+<!-- 搜索 -->
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form method="get" action="{{ url_for('admin.users') }}" class="row g-2 align-items-center">
+            <div class="col-md-8">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="keyword"
+                           value="{{ keyword }}" placeholder="按用户名或邮箱搜索...">
+                </div>
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-seagreen flex-grow-1">
+                    <i class="bi bi-search me-1"></i>搜索
+                </button>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 用户表格 -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">ID</th>
+                        <th>用户</th>
+                        <th>邮箱</th>
+                        <th>角色</th>
+                        <th>API 服务商</th>
+                        <th>API Key</th>
+                        <th>注册时间</th>
+                        <th class="text-center" style="width:280px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>{{ u.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="user-avatar me-2">{{ u.username[0] | upper }}</div>
+                                <div>
+                                    <div class="fw-semibold">{{ u.username }}</div>
+                                    <small class="text-muted">#{{ u.id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if u.email %}
+                                <a href="mailto:{{ u.email }}">{{ u.email }}</a>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.is_admin %}
+                                <span class="badge bg-seagreen"><i class="bi bi-shield-fill-check me-1"></i>管理员</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-person me-1"></i>普通用户</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.api_provider %}
+                                <span class="badge bg-light text-dark border">
+                                    {% if u.api_provider == 'qwen' %}通义千问
+                                    {% elif u.api_provider == 'deepseek' %}DeepSeek
+                                    {% elif u.api_provider == 'openai' %}OpenAI
+                                    {% else %}{{ u.api_provider }}{% endif %}
+                                </span>
+                                {% if u.api_model %}
+                                    <small class="text-muted d-block mt-1">{{ u.api_model }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.api_key %}
+                                <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>已配置</span>
+                            {% else %}
+                                <span class="text-muted"><i class="bi bi-x-circle me-1"></i>未配置</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ u.created_at.strftime('%Y-%m-%d %H:%M') if u.created_at else '-' }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1 justify-content-center">
+                                <a href="{{ url_for('admin.edit_user', user_id=u.id) }}"
+                                   class="btn btn-outline-seagreen action-btn" title="编辑">
+                                    <i class="bi bi-pencil-square"></i> 编辑
+                                </a>
+                                <form method="post" action="{{ url_for('admin.toggle_admin', user_id=u.id) }}"
+                                      onsubmit="return confirm('确定要{{ '撤销' if u.is_admin else '授予' }}用户 {{ u.username }} 的管理员权限吗？');"
+                                      style="display:inline;">
+                                    {% if u.is_admin %}
+                                        <button type="submit" class="btn btn-outline-warning action-btn" title="撤销管理员">
+                                            <i class="bi bi-shield-minus"></i> 撤销管理
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-outline-success action-btn" title="设为管理员">
+                                            <i class="bi bi-shield-plus"></i> 设为管理
+                                        </button>
+                                    {% endif %}
+                                </form>
+                                <form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}"
+                                      onsubmit="return confirm('确定要删除用户 {{ u.username }} 吗？此操作不可恢复！');"
+                                      style="display:inline;">
+                                    <button type="submit" class="btn btn-outline-danger action-btn" title="删除">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            {% if keyword %}
+                                未找到匹配「{{ keyword }}」的用户
+                            {% else %}
+                                暂无用户数据
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

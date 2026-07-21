@@ -1,0 +1,770 @@
+{% extends "base.html" %}
+
+{% block title %}证明训练器 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+.proof-container {
+    display: flex;
+    gap: 24px;
+    min-height: calc(100vh - 200px);
+}
+
+.proof-sidebar {
+    width: 280px;
+    background: linear-gradient(180deg, #E8F5E9 0%, #F1F8E9 100%);
+    border-radius: 12px;
+    padding: 16px;
+    overflow-y: auto;
+    position: sticky;
+    top: 80px;
+}
+
+.proof-sidebar-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #C8E6C9;
+}
+
+.proof-filter {
+    margin-bottom: 16px;
+}
+
+.proof-filter label {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 6px;
+    display: block;
+}
+
+.proof-filter select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #C8E6C9;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.85rem;
+}
+
+.proof-list {
+    margin-top: 8px;
+}
+
+.proof-item {
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.proof-item:hover {
+    background: rgba(46, 139, 87, 0.08);
+    border-left-color: var(--seagreen);
+}
+
+.proof-item.active {
+    background: rgba(46, 139, 87, 0.12);
+    border-left-color: var(--seagreen);
+}
+
+.proof-item .proof-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--dark-green);
+}
+
+.proof-item .proof-meta {
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 4px;
+}
+
+.proof-item .difficulty-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    float: right;
+}
+
+.difficulty-easy {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.difficulty-medium {
+    background: #FFF8E1;
+    color: #F57C00;
+}
+
+.difficulty-hard {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.proof-main {
+    flex: 1;
+}
+
+.proof-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.proof-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.proof-card-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    margin: 0;
+}
+
+.proof-card-meta {
+    display: flex;
+    gap: 8px;
+}
+
+.theorem-box {
+    background: linear-gradient(135deg, rgba(46,139,87,0.06), rgba(0,137,123,0.06));
+    border: 1px dashed var(--border-green);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.theorem-box h4 {
+    font-size: 0.9rem;
+    color: var(--seagreen);
+    margin-bottom: 8px;
+}
+
+.theorem-box p {
+    font-size: 0.95rem;
+    color: var(--ink-color);
+    margin: 0;
+    line-height: 1.6;
+}
+
+.progress-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.progress-step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+}
+
+.progress-step-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #E8F5E9;
+    color: var(--seagreen);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.progress-step.active .progress-step-number {
+    background: var(--seagreen);
+    color: #fff;
+}
+
+.progress-step.completed .progress-step-number {
+    background: var(--medium-seagreen);
+    color: #fff;
+}
+
+.progress-step-label {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.progress-step.active .progress-step-label {
+    color: var(--dark-green);
+    font-weight: 600;
+}
+
+.progress-line {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    right: -50%;
+    height: 2px;
+    background: #C8E6C9;
+    z-index: -1;
+}
+
+.progress-step.completed .progress-line {
+    background: var(--seagreen);
+}
+
+.question-box {
+    background: #FAFAFA;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.question-box h5 {
+    font-size: 0.85rem;
+    color: var(--seagreen);
+    margin-bottom: 10px;
+}
+
+.question-box p {
+    font-size: 1rem;
+    color: var(--ink-color);
+    margin: 0;
+    line-height: 1.6;
+}
+
+.answer-area {
+    margin-bottom: 20px;
+}
+
+.answer-area textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 2px solid #C8E6C9;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+}
+
+.answer-area textarea:focus {
+    outline: none;
+    border-color: var(--seagreen);
+}
+
+.feedback-box {
+    display: none;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.feedback-box.show {
+    display: block;
+}
+
+.feedback-box.correct {
+    background: #E8F5E9;
+    border: 1px solid #C8E6C9;
+}
+
+.feedback-box.incorrect {
+    background: #FFEBEE;
+    border: 1px solid #FFCDD2;
+}
+
+.feedback-box .feedback-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.feedback-box.correct .feedback-title {
+    color: #2E7D32;
+}
+
+.feedback-box.incorrect .feedback-title {
+    color: #C62828;
+}
+
+.feedback-box .feedback-content {
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.hint-box {
+    background: #FFF8E1;
+    border: 1px solid #FFE0B2;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 16px;
+    display: none;
+}
+
+.hint-box.show {
+    display: block;
+}
+
+.hint-box p {
+    font-size: 0.85rem;
+    color: #F57C00;
+    margin: 0;
+}
+
+.proof-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-hint {
+    background: #FFF8E1;
+    color: #F57C00;
+    border: 1px solid #FFE0B2;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.btn-hint:hover {
+    background: #FFE0B2;
+}
+
+.btn-submit {
+    background: var(--seagreen);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.btn-submit:hover {
+    background: var(--medium-seagreen);
+}
+
+.btn-next {
+    background: var(--medium-seagreen);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.btn-next:hover {
+    background: #1B5E20;
+}
+
+.summary-box {
+    background: linear-gradient(135deg, rgba(46,139,87,0.08), rgba(0,137,123,0.08));
+    border: 1px solid #C8E6C9;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.summary-box h4 {
+    font-size: 1rem;
+    color: var(--dark-green);
+    margin-bottom: 12px;
+}
+
+.summary-box p {
+    font-size: 0.9rem;
+    color: var(--ink-color);
+    line-height: 1.7;
+    margin: 0;
+}
+
+.completion-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>证明训练器</h1>
+    <p class="text-muted">分步练习图论定理证明，通过引导式提问掌握证明方法</p>
+</div>
+
+<div class="proof-container">
+    <div class="proof-sidebar">
+        <div class="proof-sidebar-title"><i class="fas fa-graduation-cap"></i> 证明题库</div>
+
+        <div class="proof-filter">
+            <label>章节</label>
+            <select id="chapter-select">
+                <option value="">全部章节</option>
+            </select>
+        </div>
+
+        <div class="proof-filter">
+            <label>难度</label>
+            <select id="difficulty-select">
+                <option value="">全部难度</option>
+                <option value="easy">简单</option>
+                <option value="medium">中等</option>
+                <option value="hard">困难</option>
+            </select>
+        </div>
+
+        <div class="proof-list" id="proof-list">
+            <div class="text-center text-muted" style="padding: 20px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p style="margin-top: 8px;">加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="proof-main">
+        <div id="proof-content">
+            <div class="text-center text-muted" style="padding: 60px;">
+                <i class="fas fa-book-open" style="font-size: 4rem; color: #C8E6C9; margin-bottom: 12px;"></i>
+                <p>请从左侧选择一道证明题开始练习</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class ProofTrainer {
+    constructor() {
+        this.proofs = [];
+        this.currentProof = null;
+        this.currentStep = 0;
+        this.completedSteps = [];
+
+        this.init();
+    }
+
+    async init() {
+        await this.loadProofs();
+        this.bindEvents();
+    }
+
+    async loadProofs() {
+        const response = await fetch('/knowledge/api/proofs');
+        const data = await response.json();
+        this.proofs = data.proofs;
+
+        const chapterSelect = document.getElementById('chapter-select');
+        data.chapters.forEach(chapter => {
+            const option = document.createElement('option');
+            option.value = chapter;
+            option.textContent = chapter;
+            chapterSelect.appendChild(option);
+        });
+
+        this.renderProofList();
+    }
+
+    renderProofList() {
+        const list = document.getElementById('proof-list');
+        const chapter = document.getElementById('chapter-select').value;
+        const difficulty = document.getElementById('difficulty-select').value;
+
+        let filtered = this.proofs;
+        if (chapter) {
+            filtered = filtered.filter(p => p.chapter === chapter);
+        }
+        if (difficulty) {
+            filtered = filtered.filter(p => p.difficulty === difficulty);
+        }
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="text-center text-muted" style="padding: 20px;">暂无匹配的证明题</div>';
+            return;
+        }
+
+        list.innerHTML = filtered.map(proof => `
+            <div class="proof-item" data-id="${proof.id}">
+                <div class="proof-title">${proof.title}
+                    <span class="difficulty-badge difficulty-${proof.difficulty}">${this.getDifficultyLabel(proof.difficulty)}</span>
+                </div>
+                <div class="proof-meta">${proof.chapter}</div>
+            </div>
+        `).join('');
+
+        list.querySelectorAll('.proof-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const proofId = parseInt(item.dataset.id);
+                this.selectProof(proofId);
+            });
+        });
+    }
+
+    getDifficultyLabel(difficulty) {
+        const labels = { easy: '简单', medium: '中等', hard: '困难' };
+        return labels[difficulty] || difficulty;
+    }
+
+    async selectProof(proofId) {
+        const response = await fetch(`/knowledge/api/proofs/${proofId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            this.currentProof = data.proof;
+            this.currentStep = 0;
+            this.completedSteps = [];
+            this.renderProof();
+        }
+    }
+
+    renderProof() {
+        if (!this.currentProof) return;
+
+        const content = document.getElementById('proof-content');
+        content.innerHTML = `
+            <div class="proof-card">
+                <div class="proof-card-header">
+                    <div>
+                        <h2 class="proof-card-title">${this.currentProof.title}</h2>
+                        <div class="proof-card-meta">
+                            <span class="difficulty-badge difficulty-${this.currentProof.difficulty}">${this.getDifficultyLabel(this.currentProof.difficulty)}</span>
+                            <span class="difficulty-badge" style="background: #E3F2FD; color: #1565C0;">${this.currentProof.chapter}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="theorem-box">
+                    <h4><i class="fas fa-theater-masks"></i> 定理</h4>
+                    <p>${this.currentProof.theorem}</p>
+                </div>
+
+                <div class="theorem-box">
+                    <h4><i class="fas fa-file-alt"></i> 证明目标</h4>
+                    <p>${this.currentProof.description}</p>
+                </div>
+
+                <div class="progress-bar">
+                    ${this.currentProof.steps.map((_, index) => `
+                        <div class="progress-step ${index === this.currentStep ? 'active' : ''} ${this.completedSteps.includes(index) ? 'completed' : ''}">
+                            <div class="progress-step-number">${index + 1}</div>
+                            <div class="progress-step-label">步骤 ${index + 1}</div>
+                            ${index < this.currentProof.steps.length - 1 ? '<div class="progress-line"></div>' : ''}
+                        </div>
+                    `).join('')}
+                </div>
+
+                ${this.renderCurrentStep()}
+
+                ${this.currentStep === this.currentProof.steps.length ? this.renderCompletion() : ''}
+            </div>
+        `;
+
+        this.bindStepEvents();
+    }
+
+    renderCurrentStep() {
+        if (this.currentStep >= this.currentProof.steps.length) return '';
+
+        const step = this.currentProof.steps[this.currentStep];
+        const isCompleted = this.completedSteps.includes(this.currentStep);
+
+        return `
+            <div class="question-box">
+                <h5><i class="fas fa-question-circle"></i> 第 ${step.step} 步</h5>
+                <p>${step.prompt}</p>
+            </div>
+
+            ${!isCompleted ? `
+                <div class="answer-area">
+                    <textarea id="answer-input" placeholder="请输入你的回答..."></textarea>
+                </div>
+
+                <div class="hint-box" id="hint-box">
+                    <p><i class="fas fa-lightbulb"></i> ${step.hint}</p>
+                </div>
+
+                <div class="feedback-box" id="feedback-box">
+                    <div class="feedback-title" id="feedback-title"></div>
+                    <div class="feedback-content" id="feedback-content"></div>
+                </div>
+
+                <div class="proof-actions">
+                    <button class="btn-hint" id="btn-hint"><i class="fas fa-lightbulb"></i> 提示</button>
+                    <button class="btn-submit" id="btn-submit"><i class="fas fa-check"></i> 提交答案</button>
+                </div>
+            ` : `
+                <div class="feedback-box show correct">
+                    <div class="feedback-title"><i class="fas fa-check-circle"></i> 回答正确！</div>
+                    <div class="feedback-content">
+                        <p><strong>你的回答：</strong>${this.getUserAnswer(this.currentStep)}</p>
+                        <p><strong>标准答案：</strong>${step.answer}</p>
+                    </div>
+                </div>
+
+                <div class="proof-actions">
+                    ${this.currentStep < this.currentProof.steps.length - 1 ? `
+                        <button class="btn-next" id="btn-next"><i class="fas fa-arrow-right"></i> 下一步</button>
+                    ` : `
+                        <button class="btn-next" id="btn-summary"><i class="fas fa-flag"></i> 查看总结</button>
+                    `}
+                </div>
+            `}
+        `;
+    }
+
+    renderCompletion() {
+        return `
+            <div class="completion-badge">
+                <i class="fas fa-trophy"></i> 恭喜完成证明！
+            </div>
+
+            <div class="summary-box">
+                <h4><i class="fas fa-bookmark"></i> 证明总结</h4>
+                <p>${this.currentProof.summary}</p>
+            </div>
+
+            <div class="summary-box">
+                <h4><i class="fas fa-tags"></i> 相关标签</h4>
+                <p>${this.currentProof.tags}</p>
+            </div>
+
+            <div class="proof-actions">
+                <button class="btn-submit" id="btn-back"><i class="fas fa-arrow-left"></i> 返回题库</button>
+            </div>
+        `;
+    }
+
+    bindStepEvents() {
+        const btnHint = document.getElementById('btn-hint');
+        const btnSubmit = document.getElementById('btn-submit');
+        const btnNext = document.getElementById('btn-next');
+        const btnSummary = document.getElementById('btn-summary');
+        const btnBack = document.getElementById('btn-back');
+
+        if (btnHint) {
+            btnHint.addEventListener('click', () => {
+                document.getElementById('hint-box').classList.toggle('show');
+            });
+        }
+
+        if (btnSubmit) {
+            btnSubmit.addEventListener('click', () => this.submitAnswer());
+        }
+
+        if (btnNext) {
+            btnNext.addEventListener('click', () => {
+                this.currentStep++;
+                this.renderProof();
+            });
+        }
+
+        if (btnSummary) {
+            btnSummary.addEventListener('click', () => {
+                this.currentStep = this.currentProof.steps.length;
+                this.renderProof();
+            });
+        }
+
+        if (btnBack) {
+            btnBack.addEventListener('click', () => {
+                this.currentProof = null;
+                document.getElementById('proof-content').innerHTML = `
+                    <div class="text-center text-muted" style="padding: 60px;">
+                        <i class="fas fa-book-open" style="font-size: 4rem; color: #C8E6C9; margin-bottom: 12px;"></i>
+                        <p>请从左侧选择一道证明题开始练习</p>
+                    </div>
+                `;
+            });
+        }
+    }
+
+    async submitAnswer() {
+        const answer = document.getElementById('answer-input').value.trim();
+        if (!answer) {
+            alert('请输入答案');
+            return;
+        }
+
+        const response = await fetch('/knowledge/api/proofs/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                proof_id: this.currentProof.id,
+                step_index: this.currentStep,
+                answer: answer
+            })
+        });
+
+        const data = await response.json();
+
+        const feedbackBox = document.getElementById('feedback-box');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackContent = document.getElementById('feedback-content');
+
+        feedbackBox.classList.add('show');
+
+        if (data.is_correct) {
+            feedbackBox.className = 'feedback-box show correct';
+            feedbackTitle.innerHTML = `<i class="fas fa-check-circle"></i> 回答正确！得分：${data.score}/100`;
+            feedbackContent.innerHTML = `<p><strong>标准答案：</strong>${data.correct_answer}</p>`;
+
+            if (!this.completedSteps.includes(this.currentStep)) {
+                this.completedSteps.push(this.currentStep);
+            }
+
+            setTimeout(() => {
+                if (this.currentStep < this.currentProof.steps.length - 1) {
+                    this.currentStep++;
+                    this.renderProof();
+                } else {
+                    this.currentStep = this.currentProof.steps.length;
+                    this.renderProof();
+                }
+            }, 1500);
+        } else {
+            feedbackBox.className = 'feedback-box show incorrect';
+            feedbackTitle.innerHTML = `<i class="fas fa-times-circle"></i> 回答不正确，得分：${data.score}/100`;
+            feedbackContent.innerHTML = `
+                <p><strong>标准答案：</strong>${data.correct_answer}</p>
+                <p><strong>提示：</strong>${data.next_hint}</p>
+            `;
+        }
+    }
+
+    getUserAnswer(stepIndex) {
+        return '已完成';
+    }
+
+    bindEvents() {
+        document.getElementById('chapter-select').addEventListener('change', () => {
+            this.renderProofList();
+        });
+
+        document.getElementById('difficulty-select').addEventListener('change', () => {
+            this.renderProofList();
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new ProofTrainer();
+});
+</script>
+{% endblock %}

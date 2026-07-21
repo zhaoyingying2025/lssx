@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}登录 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 登录页面水墨画装饰 */
+    .auth-wrap {
+        position: relative;
+        min-height: calc(100vh - 220px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 0;
+    }
+
+    /* 背景多层水墨晕染 */
+    .auth-wrap::before {
+        content: '';
+        position: absolute;
+        top: -20px; left: 0; right: 0; bottom: -20px;
+        background:
+            radial-gradient(ellipse 320px 220px at 12% 18%, rgba(46, 139, 87, 0.12) 0%, transparent 60%),
+            radial-gradient(ellipse 300px 200px at 88% 82%, rgba(0, 137, 123, 0.12) 0%, transparent 60%),
+            radial-gradient(ellipse 240px 160px at 70% 28%, rgba(60, 179, 113, 0.08) 0%, transparent 60%),
+            radial-gradient(ellipse 200px 140px at 30% 75%, rgba(27, 94, 32, 0.06) 0%, transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* 水墨山形装饰 */
+    .auth-wrap::after {
+        content: '';
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 100px;
+        background:
+            radial-gradient(ellipse 220px 60px at 10% 100%, rgba(27, 94, 32, 0.28) 0%, transparent 70%),
+            radial-gradient(ellipse 300px 80px at 50% 100%, rgba(46, 139, 87, 0.22) 0%, transparent 70%),
+            radial-gradient(ellipse 240px 65px at 88% 100%, rgba(0, 137, 123, 0.24) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.75;
+    }
+
+    /* 顶部水墨竹叶装饰（极简抽象） */
+    .ink-bamboo {
+        position: absolute;
+        top: 30px;
+        right: 40px;
+        width: 60px;
+        height: 120px;
+        opacity: 0.18;
+        pointer-events: none;
+        background:
+            linear-gradient(180deg, transparent 0%, var(--dark-green) 50%, transparent 100%);
+        border-radius: 4px;
+        transform: rotate(-15deg);
+        z-index: 0;
+    }
+    .ink-bamboo::before, .ink-bamboo::after {
+        content: '';
+        position: absolute;
+        background: var(--seagreen);
+        border-radius: 50% 0 50% 0;
+        opacity: 0.7;
+    }
+    .ink-bamboo::before {
+        top: 25px; left: -25px;
+        width: 40px; height: 12px;
+        transform: rotate(-30deg);
+    }
+    .ink-bamboo::after {
+        top: 60px; right: -25px;
+        width: 38px; height: 11px;
+        transform: rotate(30deg);
+    }
+
+    .auth-card {
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--border-green);
+        border-radius: 16px;
+        box-shadow: 0 12px 40px rgba(27, 94, 32, 0.18);
+        padding: 2.5rem 2.5rem 2rem;
+        max-width: 440px;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+    }
+
+    .auth-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--seagreen), var(--teal), var(--medium-seagreen));
+        border-radius: 16px 16px 0 0;
+    }
+
+    .auth-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 72px; height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--light-green-bg), #C8E6C9);
+        color: var(--seagreen);
+        box-shadow: 0 4px 14px rgba(46, 139, 87, 0.25);
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--dark-green);
+    }
+
+    .input-group-text {
+        background: var(--light-green-bg);
+        border-color: #dce8dc;
+        color: var(--seagreen);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="ink-bamboo"></div>
+    <div class="auth-card">
+        <div class="text-center mb-4">
+            <div class="auth-icon">
+                <i class="bi bi-box-arrow-in-right" style="font-size: 2.2rem;"></i>
+            </div>
+            <h3 class="text-dark-green mb-1">欢迎登录</h3>
+            <p class="text-ink-gray mb-0">离散数学智能教学体</p>
+            <div class="ink-divider mx-auto mt-3"></div>
+        </div>
+
+        <form method="post" action="{{ url_for('auth.login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}" novalidate>
+            {% if request.args.get('next') %}
+                <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+            {% endif %}
+
+            <div class="mb-3">
+                <label for="username" class="form-label">
+                    <i class="bi bi-person-fill me-1"></i>用户名
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" class="form-control" id="username" name="username"
+                           placeholder="请输入用户名" required autofocus>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="password" class="form-label">
+                    <i class="bi bi-lock-fill me-1"></i>密码
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-key"></i></span>
+                    <input type="password" class="form-control" id="password" name="password"
+                           placeholder="请输入密码" required>
+                    <button class="btn btn-outline-secondary" type="button" tabindex="-1"
+                            onclick="togglePwd('password', this)">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-seagreen btn-lg">
+                    <i class="bi bi-check2-circle me-2"></i>登录
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center mt-4">
+            <span class="text-ink-gray">还没有账号？</span>
+            <a href="{{ url_for('auth.register') }}" class="text-seagreen fw-semibold">
+                <i class="bi bi-person-plus-fill me-1"></i>立即注册
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePwd(id, btn) {
+        const inp = document.getElementById(id);
+        const icon = btn.querySelector('i');
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            inp.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    }
+</script>
+{% endblock %}

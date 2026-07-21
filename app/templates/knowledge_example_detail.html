@@ -1,0 +1,1045 @@
+{% extends "base.html" %}
+
+{% block title %}{{ example.title }} - 典型例题 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ===== 步骤动画：淡入+上移 ===== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulseGreen {
+    0% { box-shadow: 0 0 0 0 rgba(46, 139, 87, 0.5); }
+    70% { box-shadow: 0 0 0 12px rgba(46, 139, 87, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(46, 139, 87, 0); }
+}
+
+/* ===== 页面布局 ===== */
+.detail-header {
+    background: linear-gradient(135deg, var(--light-green-bg) 0%, var(--light-green-bg-2) 100%);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    border-left: 5px solid var(--seagreen);
+    box-shadow: 0 2px 12px rgba(46, 139, 87, 0.08);
+}
+
+.detail-header .chapter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--seagreen);
+    color: #fff;
+    font-size: 0.78rem;
+    padding: 3px 12px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+}
+
+.detail-header h1 {
+    font-size: 1.6rem;
+    color: var(--dark-green);
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.detail-header .badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.detail-header .type-badge, .detail-header .diff-badge {
+    font-size: 0.75rem;
+    padding: 3px 12px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.detail-header .type-badge {
+    background: rgba(0, 137, 123, 0.15);
+    color: var(--teal);
+}
+
+.detail-header .diff-badge.easy {
+    background: rgba(76, 175, 80, 0.18);
+    color: #2E7D32;
+}
+
+.detail-header .diff-badge.medium {
+    background: rgba(255, 152, 0, 0.18);
+    color: #E65100;
+}
+
+.detail-header .diff-badge.hard {
+    background: rgba(244, 67, 54, 0.18);
+    color: #C62828;
+}
+
+.detail-header .question-box {
+    background: #fff;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-top: 12px;
+    border-left: 3px solid var(--medium-seagreen);
+}
+
+.detail-header .question-box .q-label {
+    color: var(--seagreen);
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+}
+
+.detail-header .question-box .q-text {
+    color: var(--text-dark);
+    line-height: 1.8;
+    font-size: 0.98rem;
+}
+
+.detail-header .tags-row {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.detail-header .tag {
+    font-size: 0.72rem;
+    color: var(--ink-gray);
+    background: rgba(255,255,255,0.7);
+    padding: 2px 10px;
+    border-radius: 4px;
+}
+
+/* ===== 主体两栏布局 ===== */
+.detail-body {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.steps-panel {
+    flex: 1;
+    min-width: 0;
+}
+
+.graph-panel {
+    width: 380px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 80px;
+}
+
+/* ===== 进度指示器 ===== */
+.progress-bar-wrapper {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.progress-info .progress-label {
+    font-weight: 600;
+    color: var(--dark-green);
+    font-size: 0.95rem;
+}
+
+.progress-info .progress-count {
+    color: var(--seagreen);
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.progress-info .progress-count .total {
+    color: var(--ink-gray);
+    font-weight: 400;
+}
+
+.progress-track {
+    height: 8px;
+    background: #E8F5E9;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--seagreen), var(--teal));
+    border-radius: 4px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+}
+
+.progress-dots {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.progress-dot {
+    width: 26px;
+    height: 4px;
+    background: #E0E0E0;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.progress-dot:hover {
+    background: var(--medium-seagreen);
+    transform: scaleY(1.5);
+}
+
+.progress-dot.done {
+    background: var(--seagreen);
+}
+
+.progress-dot.current {
+    background: var(--teal);
+    transform: scaleY(2);
+    animation: pulseGreen 1.6s infinite;
+}
+
+/* ===== 步骤卡片 ===== */
+.step-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--seagreen);
+    display: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.step-card.active {
+    display: block;
+    animation: fadeInUp 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--seagreen), var(--teal), var(--medium-seagreen));
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.step-number {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(46, 139, 87, 0.3);
+}
+
+.step-title {
+    font-size: 1.18rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    flex: 1;
+    line-height: 1.4;
+}
+
+.step-content {
+    color: var(--text-dark);
+    font-size: 0.98rem;
+    line-height: 1.9;
+    padding-left: 58px;
+    white-space: pre-wrap;
+}
+
+/* ===== 导航按钮 ===== */
+.step-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    margin-bottom: 24px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.nav-btn {
+    padding: 10px 22px;
+    border-radius: 24px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: 1.5px solid var(--seagreen);
+    background: #fff;
+    color: var(--seagreen);
+    cursor: pointer;
+    font-size: 0.92rem;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: var(--seagreen);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(46, 139, 87, 0.3);
+}
+
+.nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.nav-btn.next {
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    color: #fff;
+    border-color: transparent;
+}
+
+.nav-btn.next:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--medium-seagreen), var(--teal));
+}
+
+.step-jumper {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.jump-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid #C8E6C9;
+    background: #fff;
+    color: var(--ink-gray);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.jump-btn:hover {
+    border-color: var(--seagreen);
+    color: var(--seagreen);
+}
+
+.jump-btn.active {
+    background: var(--seagreen);
+    color: #fff;
+    border-color: var(--seagreen);
+}
+
+.jump-btn.done {
+    background: var(--light-green-bg);
+    color: var(--seagreen);
+    border-color: var(--seagreen);
+}
+
+/* ===== 答案与总结 ===== */
+.answer-card {
+    background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%);
+    border-radius: 14px;
+    padding: 22px 28px;
+    margin-top: 24px;
+    border-left: 5px solid var(--medium-seagreen);
+    display: none;
+    animation: fadeInUp 0.6s ease;
+}
+
+.answer-card.show {
+    display: block;
+}
+
+.answer-card .a-label {
+    color: var(--dark-green);
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+}
+
+.answer-card .a-label i {
+    margin-right: 6px;
+}
+
+.answer-card .a-text {
+    color: var(--text-dark);
+    font-size: 1.02rem;
+    line-height: 1.8;
+    font-weight: 500;
+}
+
+.summary-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-top: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border-top: 3px solid var(--teal);
+    display: none;
+    animation: fadeInUp 0.6s ease;
+}
+
+.summary-card.show {
+    display: block;
+}
+
+.summary-card .s-label {
+    color: var(--teal);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.summary-card .s-text {
+    color: var(--text-dark);
+    font-size: 0.95rem;
+    line-height: 1.8;
+}
+
+/* ===== 图形联动面板 ===== */
+.graph-card {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border: 2px solid var(--seagreen);
+}
+
+.graph-card .g-header {
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    color: #fff;
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.graph-card .g-body {
+    padding: 16px;
+    background: #FAFAF5;
+    min-height: 300px;
+}
+
+#graphSvg {
+    width: 100%;
+    height: 100%;
+    min-height: 280px;
+}
+
+#graphSvg .vertex-circle {
+    fill: var(--seagreen);
+    stroke: var(--dark-green);
+    stroke-width: 2;
+    cursor: pointer;
+    transition: fill 0.2s ease;
+}
+
+#graphSvg .vertex-circle:hover {
+    fill: var(--medium-seagreen);
+}
+
+#graphSvg .vertex-label {
+    fill: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+    user-select: none;
+}
+
+#graphSvg .edge-line {
+    stroke: #555;
+    stroke-width: 2;
+}
+
+#graphSvg .edge-arrow {
+    fill: #555;
+}
+
+#graphSvg .edge-weight {
+    fill: var(--dark-green);
+    font-size: 12px;
+    font-weight: 600;
+    text-anchor: middle;
+    user-select: none;
+}
+
+.graph-card .g-tip {
+    font-size: 0.78rem;
+    color: var(--ink-gray);
+    text-align: center;
+    padding: 8px;
+    background: #F1F8E9;
+    border-top: 1px solid #C8E6C9;
+}
+
+.graph-empty {
+    text-align: center;
+    padding: 50px 20px;
+    color: #999;
+}
+
+.graph-empty i {
+    font-size: 3rem;
+    color: #C8E6C9;
+}
+
+.graph-empty p {
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+/* ===== 上下题导航 ===== */
+.prev-next-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid #C8E6C9;
+    gap: 12px;
+}
+
+.pn-link {
+    flex: 1;
+    padding: 12px 18px;
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #C8E6C9;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pn-link:hover {
+    border-color: var(--seagreen);
+    box-shadow: 0 4px 12px rgba(46, 139, 87, 0.15);
+    transform: translateY(-2px);
+}
+
+.pn-link.prev {
+    text-align: left;
+}
+
+.pn-link.next {
+    text-align: right;
+    justify-content: flex-end;
+}
+
+.pn-link .pn-label {
+    font-size: 0.78rem;
+    color: var(--ink-gray);
+}
+
+.pn-link .pn-title {
+    font-size: 0.92rem;
+    color: var(--dark-green);
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.pn-link.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.pn-link .pn-icon {
+    font-size: 1.2rem;
+    color: var(--seagreen);
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 992px) {
+    .detail-body {
+        flex-direction: column;
+    }
+    .graph-panel {
+        width: 100%;
+        position: static;
+        order: -1;
+        margin-bottom: 20px;
+    }
+    .step-content {
+        padding-left: 0;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<div class="mb-3">
+    <a href="{{ url_for('knowledge.examples_list') }}" class="text-decoration-none">
+        <i class="bi bi-arrow-left me-1"></i>返回例题列表
+    </a>
+</div>
+
+<!-- 题目头部 -->
+<div class="detail-header">
+    <span class="chapter-tag">
+        <i class="bi bi-bookmark-fill"></i>
+        {{ example.chapter }}
+    </span>
+    <h1><i class="bi bi-lightbulb me-2"></i>{{ example.title }}</h1>
+    <div class="badges">
+        {% if example.question_type == 'choice' %}
+        <span class="type-badge">选择题</span>
+        {% elif example.question_type == 'fill' %}
+        <span class="type-badge">填空题</span>
+        {% elif example.question_type == 'proof' %}
+        <span class="type-badge">证明题</span>
+        {% else %}
+        <span class="type-badge">计算题</span>
+        {% endif %}
+        {% if example.difficulty == 'easy' %}
+        <span class="diff-badge easy">简单</span>
+        {% elif example.difficulty == 'medium' %}
+        <span class="diff-badge medium">中等</span>
+        {% else %}
+        <span class="diff-badge hard">困难</span>
+        {% endif %}
+    </div>
+    <div class="question-box">
+        <div class="q-label"><i class="bi bi-question-circle me-1"></i>题目</div>
+        <div class="q-text">{{ example.question }}</div>
+    </div>
+    {% if example.tags %}
+    <div class="tags-row">
+        {% for tag in example.tags.split(',') if tag.strip() %}
+        <span class="tag">#{{ tag.strip() }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- 主体：左步骤 + 右图形 -->
+<div class="detail-body">
+    <!-- 左：分步讲解 -->
+    <div class="steps-panel">
+        {% if steps|length > 0 %}
+        <!-- 进度条 -->
+        <div class="progress-bar-wrapper">
+            <div class="progress-info">
+                <span class="progress-label">
+                    <i class="bi bi-list-ol me-1"></i>分步解析
+                </span>
+                <span class="progress-count">
+                    <span id="currentStepNum">1</span> <span class="total">/ {{ steps|length }}</span>
+                </span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-dots" id="progressDots">
+                {% for step in steps %}
+                <div class="progress-dot {% if loop.first %}current{% endif %}" data-step="{{ loop.index0 }}" onclick="jumpToStep({{ loop.index0 }})"></div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 步骤卡片 -->
+        <div id="stepCards">
+            {% for step in steps %}
+            <div class="step-card {% if loop.first %}active{% endif %}" data-step="{{ loop.index0 }}">
+                <div class="step-header">
+                    <div class="step-number">{{ loop.index }}</div>
+                    <div class="step-title">{{ step.title }}</div>
+                </div>
+                <div class="step-content">{{ step.content }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- 步骤跳转 -->
+        <div class="step-jumper">
+            {% for step in steps %}
+            <button class="jump-btn {% if loop.first %}active{% endif %}" onclick="jumpToStep({{ loop.index0 }})" title="步骤 {{ loop.index }}">{{ loop.index }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- 导航按钮 -->
+        <div class="step-nav">
+            <button class="nav-btn prev" id="btnPrev" onclick="prevStep()" disabled>
+                <i class="bi bi-arrow-left me-1"></i>上一步
+            </button>
+            <button class="nav-btn next" id="btnNext" onclick="nextStep()">
+                下一步<i class="bi bi-arrow-right ms-1"></i>
+            </button>
+        </div>
+
+        <!-- 答案 -->
+        {% if example.answer %}
+        <div class="answer-card" id="answerCard">
+            <div class="a-label"><i class="bi bi-check2-circle"></i>最终答案</div>
+            <div class="a-text">{{ example.answer }}</div>
+        </div>
+        {% endif %}
+
+        <!-- 总结 -->
+        {% if example.summary %}
+        <div class="summary-card" id="summaryCard">
+            <div class="s-label"><i class="bi bi-bookmark-star me-1"></i>方法总结</div>
+            <div class="s-text">{{ example.summary }}</div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h5>暂无分步解析</h5>
+            <p>该例题尚未配置分步解析步骤。</p>
+        </div>
+        {% endif %}
+
+        <!-- 上下题导航 -->
+        <div class="prev-next-nav">
+            {% if prev_example %}
+            <a href="{{ url_for('knowledge.example_detail', example_id=prev_example.id) }}" class="pn-link prev">
+                <i class="bi bi-chevron-left pn-icon"></i>
+                <div>
+                    <div class="pn-label">上一题</div>
+                    <div class="pn-title">{{ prev_example.title }}</div>
+                </div>
+            </a>
+            {% else %}
+            <div class="pn-link prev disabled">
+                <i class="bi bi-chevron-left pn-icon"></i>
+                <div>
+                    <div class="pn-label">上一题</div>
+                    <div class="pn-title">已是第一题</div>
+                </div>
+            </div>
+            {% endif %}
+            {% if next_example %}
+            <a href="{{ url_for('knowledge.example_detail', example_id=next_example.id) }}" class="pn-link next">
+                <div>
+                    <div class="pn-label">下一题</div>
+                    <div class="pn-title">{{ next_example.title }}</div>
+                </div>
+                <i class="bi bi-chevron-right pn-icon"></i>
+            </a>
+            {% else %}
+            <div class="pn-link next disabled">
+                <div>
+                    <div class="pn-label">下一题</div>
+                    <div class="pn-title">已是最后一题</div>
+                </div>
+                <i class="bi bi-chevron-right pn-icon"></i>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 右：图形联动 -->
+    <div class="graph-panel">
+        <div class="graph-card">
+            <div class="g-header">
+                <span><i class="bi bi-diagram-3 me-1"></i>图形联动</span>
+                {% if graph_data %}
+                <span class="badge bg-light text-dark" id="graphTypeBadge">图</span>
+                {% endif %}
+            </div>
+            <div class="g-body">
+                {% if graph_data %}
+                <svg id="graphSvg" viewBox="0 0 700 420"></svg>
+                {% else %}
+                <div class="graph-empty">
+                    <i class="bi bi-diagram-3"></i>
+                    <p>该例题暂无关联图形<br>可前往 <a href="{{ url_for('canvas.index') }}">画板</a> 自行绘制</p>
+                </div>
+                {% endif %}
+            </div>
+            {% if graph_data %}
+            <div class="g-tip">关联图已自动加载 · 可拖拽至画板进一步操作</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TOTAL_STEPS = {{ steps|length }};
+let currentStep = 0;
+let answered = false;
+
+const GRAPH_DATA = {% if graph_data %}{{ graph_data|safe }}{% else %}null{% endif %};
+
+function updateStep() {
+    // 切换激活卡片
+    document.querySelectorAll('.step-card').forEach((card, i) => {
+        card.classList.toggle('active', i === currentStep);
+    });
+
+    // 更新计数
+    document.getElementById('currentStepNum').textContent = currentStep + 1;
+
+    // 更新进度条
+    const progress = ((currentStep + 1) / TOTAL_STEPS) * 100;
+    document.getElementById('progressFill').style.width = progress + '%';
+
+    // 更新进度点
+    document.querySelectorAll('.progress-dot').forEach((dot, i) => {
+        dot.classList.remove('current', 'done');
+        if (i < currentStep) dot.classList.add('done');
+        else if (i === currentStep) dot.classList.add('current');
+    });
+
+    // 更新跳转按钮
+    document.querySelectorAll('.jump-btn').forEach((btn, i) => {
+        btn.classList.remove('active', 'done');
+        if (i < currentStep) btn.classList.add('done');
+        else if (i === currentStep) btn.classList.add('active');
+    });
+
+    // 更新按钮可用状态
+    document.getElementById('btnPrev').disabled = (currentStep === 0);
+    const btnNext = document.getElementById('btnNext');
+    if (currentStep === TOTAL_STEPS - 1) {
+        btnNext.innerHTML = '查看答案<i class="bi bi-check2-circle ms-1"></i>';
+    } else {
+        btnNext.innerHTML = '下一步<i class="bi bi-arrow-right ms-1"></i>';
+    }
+}
+
+function nextStep() {
+    if (currentStep < TOTAL_STEPS - 1) {
+        currentStep++;
+        updateStep();
+        // 平滑滚动到顶部
+        document.querySelector('.progress-bar-wrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        // 已是最后一步，显示答案与总结
+        const ansCard = document.getElementById('answerCard');
+        const sumCard = document.getElementById('summaryCard');
+        if (ansCard && !answered) {
+            ansCard.classList.add('show');
+            if (sumCard) sumCard.classList.add('show');
+            answered = true;
+            ansCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (answered) {
+            // 已显示答案，再次点击则收起
+            if (ansCard) ansCard.classList.remove('show');
+            if (sumCard) sumCard.classList.remove('show');
+            answered = false;
+        }
+    }
+}
+
+function prevStep() {
+    if (currentStep > 0) {
+        currentStep--;
+        updateStep();
+        document.querySelector('.progress-bar-wrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function jumpToStep(idx) {
+    if (idx >= 0 && idx < TOTAL_STEPS) {
+        currentStep = idx;
+        updateStep();
+    }
+}
+
+// 键盘快捷键
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextStep();
+    } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevStep();
+    }
+});
+
+// ===== 图形渲染（基于 SVG 的简单渲染器） =====
+function renderGraph(data) {
+    const svg = document.getElementById('graphSvg');
+    if (!svg || !data) return;
+
+    svg.innerHTML = '';
+    if (!data.vertices || data.vertices.length === 0) {
+        svg.innerHTML = '<text x="350" y="210" text-anchor="middle" fill="#999">无图形数据</text>';
+        return;
+    }
+
+    // 更新类型徽章
+    const badge = document.getElementById('graphTypeBadge');
+    if (badge) badge.textContent = (data.type === 'tree') ? '树' : '图';
+
+    // 计算 viewBox 边界
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    data.vertices.forEach(v => {
+        minX = Math.min(minX, v.x);
+        minY = Math.min(minY, v.y);
+        maxX = Math.max(maxX, v.x);
+        maxY = Math.max(maxY, v.y);
+    });
+    const pad = 50;
+    const w = Math.max(700, (maxX - minX) + pad * 2);
+    const h = Math.max(420, (maxY - minY) + pad * 2);
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+    const ns = 'http://www.w3.org/2000/svg';
+
+    // 渲染边
+    if (data.edges) {
+        data.edges.forEach(e => {
+            const src = data.vertices.find(v => v.id === e.source);
+            const tgt = data.vertices.find(v => v.id === e.target);
+            if (!src || !tgt) return;
+
+            const line = document.createElementNS(ns, 'line');
+            line.setAttribute('x1', src.x);
+            line.setAttribute('y1', src.y);
+            line.setAttribute('x2', tgt.x);
+            line.setAttribute('y2', tgt.y);
+            line.setAttribute('class', 'edge-line');
+            svg.appendChild(line);
+
+            // 有向边：箭头
+            if (e.directed) {
+                const dx = tgt.x - src.x;
+                const dy = tgt.y - src.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return;
+                const r = tgt.radius || 22;
+                const ux = dx / len;
+                const uy = dy / len;
+                // 箭头终点（顶点边缘）
+                const tipX = tgt.x - ux * r;
+                const tipY = tgt.y - uy * r;
+                // 箭头两翼
+                const arrowSize = 10;
+                const px = -uy;
+                const py = ux;
+                const p1x = tipX - ux * arrowSize + px * arrowSize * 0.5;
+                const p1y = tipY - uy * arrowSize + py * arrowSize * 0.5;
+                const p2x = tipX - ux * arrowSize - px * arrowSize * 0.5;
+                const p2y = tipY - uy * arrowSize - py * arrowSize * 0.5;
+
+                const arrow = document.createElementNS(ns, 'polygon');
+                arrow.setAttribute('points', `${tipX},${tipY} ${p1x},${p1y} ${p2x},${p2y}`);
+                arrow.setAttribute('class', 'edge-arrow');
+                svg.appendChild(arrow);
+            }
+
+            // 权重标签
+            if (e.weight !== null && e.weight !== undefined) {
+                const mx = (src.x + tgt.x) / 2;
+                const my = (src.y + tgt.y) / 2;
+                // 背景圆角矩形
+                const text = String(e.weight);
+                const rectW = text.length * 8 + 8;
+                const rect = document.createElementNS(ns, 'rect');
+                rect.setAttribute('x', mx - rectW / 2);
+                rect.setAttribute('y', my - 10);
+                rect.setAttribute('width', rectW);
+                rect.setAttribute('height', 20);
+                rect.setAttribute('rx', 10);
+                rect.setAttribute('fill', '#fff');
+                rect.setAttribute('stroke', '#C8E6C9');
+                rect.setAttribute('stroke-width', 1);
+                svg.appendChild(rect);
+
+                const wt = document.createElementNS(ns, 'text');
+                wt.setAttribute('x', mx);
+                wt.setAttribute('y', my);
+                wt.setAttribute('class', 'edge-weight');
+                wt.setAttribute('dy', '0.35em');
+                wt.textContent = text;
+                svg.appendChild(wt);
+            }
+        });
+    }
+
+    // 渲染顶点
+    data.vertices.forEach(v => {
+        const r = v.radius || 22;
+        const circle = document.createElementNS(ns, 'circle');
+        circle.setAttribute('cx', v.x);
+        circle.setAttribute('cy', v.y);
+        circle.setAttribute('r', r);
+        circle.setAttribute('fill', v.color || '#2E8B57');
+        circle.setAttribute('stroke', '#1B5E20');
+        circle.setAttribute('stroke-width', 2);
+        circle.setAttribute('class', 'vertex-circle');
+        svg.appendChild(circle);
+
+        const label = document.createElementNS(ns, 'text');
+        label.setAttribute('x', v.x);
+        label.setAttribute('y', v.y);
+        label.setAttribute('class', 'vertex-label');
+        label.setAttribute('dy', '0.35em');
+        label.textContent = v.label || '';
+        svg.appendChild(label);
+    });
+
+    // 渲染标注（如果有）
+    if (data.annotations) {
+        data.annotations.forEach(a => {
+            const t = document.createElementNS(ns, 'text');
+            t.setAttribute('x', a.x);
+            t.setAttribute('y', a.y);
+            t.setAttribute('fill', a.color || '#1B5E20');
+            t.setAttribute('font-size', 14);
+            t.textContent = a.text || '';
+            svg.appendChild(t);
+        });
+    }
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    if (TOTAL_STEPS > 0) updateStep();
+    if (GRAPH_DATA) renderGraph(GRAPH_DATA);
+});
+</script>
+{% endblock %}

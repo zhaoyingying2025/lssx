@@ -1,0 +1,952 @@
+{% extends "base.html" %}
+
+{% block title %}试题库 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 试卷预览样式 */
+.exam-paper { font-family: 'Noto Serif SC', serif; }
+.exam-header { text-align: center; margin-bottom: 16px; }
+.exam-double-line { border-top: 3px double #333; margin: 8px 0; }
+.exam-main-title { font-size: 1.8rem; font-weight: 700; margin: 8px 0 4px; }
+.exam-sub-title { font-size: 1.3rem; font-weight: 600; margin: 4px 0; }
+.exam-info { color: #555; font-size: 0.95rem; margin: 4px 0; }
+.exam-student-info { margin: 16px 0; font-size: 1rem; }
+.exam-section { margin: 16px 0; }
+.exam-section h3 { font-size: 1.1rem; font-weight: 700; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+.exam-question { margin: 8px 0; line-height: 1.7; }
+.exam-options { padding-left: 24px; margin: 4px 0; }
+.exam-option { margin: 2px 0; line-height: 1.6; }
+.exam-answers { margin-top: 32px; padding-top: 16px; border-top: 3px double #333; }
+.exam-answer-title { text-align: center; font-size: 1.4rem; font-weight: 700; margin: 8px 0; }
+.exam-answer-section { margin: 12px 0; }
+.exam-answer-section h4 { font-size: 1rem; font-weight: 700; }
+.exam-answer-items { padding-left: 12px; line-height: 1.8; }
+.exam-answer-item { margin-right: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-dark-green mb-0"><i class="bi bi-patch-question-fill me-2"></i>题库练习</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-seagreen" href="{{ url_for('quiz.practice') }}" id="btn-practice">
+            <i class="bi bi-controller me-1"></i>在线刷题
+        </a>
+        <button class="btn btn-outline-seagreen" onclick="openAddQuestionModal()" id="btn-add-question">
+            <i class="bi bi-plus-circle me-1"></i>添加题目
+        </button>
+        <button class="btn btn-outline-danger" onclick="resetQuizBank()" id="btn-reset-quiz">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>重置题库
+        </button>
+        <button class="btn btn-seagreen" onclick="randomQuiz()" id="btn-random">
+            <i class="bi bi-shuffle me-1"></i>随机抽题
+        </button>
+    </div>
+</div>
+
+<!-- 状态提示 -->
+<div id="import-status" class="alert alert-info d-none" role="alert">
+    <div class="d-flex align-items-center">
+        <div class="spinner-border spinner-border-sm me-2" role="status" id="import-spinner">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <span id="import-message">正在处理...</span>
+    </div>
+</div>
+
+<!-- 统计栏 -->
+<div class="row g-3 mb-4" id="stats-bar">
+    <div class="col-md-6">
+        <div class="card text-center module-card">
+            <div class="card-body py-2">
+                <h6 class="mb-0" id="stat-total">-</h6>
+                <small class="text-muted">总题目数</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card text-center module-card">
+            <div class="card-body py-2">
+                <h6 class="mb-0"><span class="text-success" id="stat-easy">-</span> / <span class="text-warning" id="stat-medium-diff">-</span> / <span class="text-danger" id="stat-hard">-</span></h6>
+                <small class="text-muted">简单/中等/困难</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 标签页 -->
+<ul class="nav nav-tabs mb-3" id="mainTabs">
+    <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#tab-questions">
+            <i class="bi bi-list-ul me-1"></i>题目列表
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tab-exam">
+            <i class="bi bi-file-earmark-text me-1"></i>组卷
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- ===== 题目列表标签页 ===== -->
+    <div class="tab-pane fade show active" id="tab-questions">
+        <!-- 筛选栏 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3" id="filter-form">
+                    <div class="col-md-2">
+                        <label class="form-label">章节</label>
+                        <select class="form-select" name="chapter">
+                            <option value="">全部</option>
+                            {% for ch in chapters %}
+                            <option value="{{ ch }}" {% if chapter == ch %}selected{% endif %}>{{ ch }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">题型</label>
+                        <select class="form-select" name="question_type">
+                            <option value="">全部</option>
+                            <option value="choice" {% if question_type == 'choice' %}selected{% endif %}>选择题</option>
+                            <option value="true_false" {% if question_type == 'true_false' %}selected{% endif %}>判断题</option>
+                            <option value="fill" {% if question_type == 'fill' %}selected{% endif %}>填空题</option>
+                            <option value="proof" {% if question_type == 'proof' %}selected{% endif %}>证明题</option>
+                            <option value="calc" {% if question_type == 'calc' %}selected{% endif %}>计算题</option>
+                            <option value="short_answer" {% if question_type == 'short_answer' %}selected{% endif %}>简答题</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">难度</label>
+                        <select class="form-select" name="difficulty">
+                            <option value="">全部</option>
+                            <option value="easy" {% if difficulty == 'easy' %}selected{% endif %}>简单</option>
+                            <option value="medium" {% if difficulty == 'medium' %}selected{% endif %}>中等</option>
+                            <option value="hard" {% if difficulty == 'hard' %}selected{% endif %}>困难</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">知识点标签</label>
+                        <select class="form-select" name="tag">
+                            <option value="">全部</option>
+                            {% for t in all_tags %}
+                            <option value="{{ t }}" {% if tag == t %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-seagreen me-2"><i class="bi bi-search me-1"></i>筛选</button>
+                        <a href="{{ url_for('quiz.index') }}" class="btn btn-outline-seagreen">重置</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 试题列表 -->
+        {% if quizzes %}
+        <div class="row g-4">
+            {% for q in quizzes %}
+            <div class="col-12">
+                <div class="card module-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex gap-2 mb-2 flex-wrap">
+                                    {% if q.chapter %}<span class="badge bg-seagreen">{{ q.chapter }}</span>{% endif %}
+                                    {% if q.section %}<span class="badge bg-medium-seagreen">{{ q.section }}</span>{% endif %}
+                                    {% if q.question_number %}<span class="badge bg-info">No.{{ q.question_number }}</span>{% endif %}
+                                    {% if q.difficulty %}
+                                    <span class="badge {% if q.difficulty == 'easy' %}bg-success{% elif q.difficulty == 'hard' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                        {% if q.difficulty == 'easy' %}简单{% elif q.difficulty == 'medium' %}中等{% else %}困难{% endif %}
+                                    </span>
+                                    {% endif %}
+                                    <span class="badge bg-teal">
+                                        {% if q.question_type == 'choice' %}选择题{% elif q.question_type == 'true_false' %}判断题{% elif q.question_type == 'fill' %}填空题{% elif q.question_type == 'proof' %}证明题{% elif q.question_type == 'calc' %}计算题{% else %}简答题{% endif %}
+                                    </span>
+                                    {% if q.tags %}
+                                    {% for tg in q.tags.split(',') %}
+                                    {% if tg.strip() %}
+                                    <span class="badge bg-light text-dark border"><i class="bi bi-tag me-1"></i>{{ tg.strip() }}</span>
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% endif %}
+                                </div>
+                                <p class="mb-2">{{ q.question_text }}</p>
+                                <details id="answer-detail-{{ q.id }}">
+                                    <summary class="text-seagreen cursor-pointer">查看答案</summary>
+                                    <div class="mt-2 p-3 bg-light-green rounded">
+                                        <p class="mb-1"><strong>答案：</strong>{{ q.answer }}</p>
+                                    </div>
+                                </details>
+                            </div>
+                            <div class="d-flex flex-column align-items-end gap-1">
+                                {% if q.source_page %}<small class="text-muted">P{{ q.source_page }}</small>{% endif %}
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button class="btn btn-sm btn-outline-seagreen" onclick="editQuestion({{ q.id }})" title="编辑题目">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteQuestion({{ q.id }})" title="删除题目">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-patch-question" style="font-size: 3rem; color: var(--border-green);"></i>
+            <p class="text-ink-gray mt-3">暂无试题，请重置题库导入内置 200 道离散数学题目。</p>
+            <button class="btn btn-seagreen mt-2" onclick="resetQuizBank()">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>重置题库
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ===== 组卷标签页 ===== -->
+    <div class="tab-pane fade" id="tab-exam">
+        <!-- 组卷表单 -->
+        <div id="exam-form-section">
+            <div class="row">
+                <!-- 左侧：组卷参数 -->
+                <div class="col-lg-8">
+                    <div class="card module-card mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3"><i class="bi bi-gear me-2 text-seagreen"></i>组卷参数</h5>
+
+                            <!-- 试卷标题 -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">试卷标题</label>
+                                <input type="text" class="form-control" id="exam-title" value="期末考试试卷" placeholder="请输入试卷标题">
+                            </div>
+
+                            <!-- 章节选择 -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">选择章节</label>
+                                <div class="d-flex gap-2 mb-2">
+                                    <button class="btn btn-sm btn-outline-seagreen" onclick="examSelectAllChapters()">全选</button>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="examDeselectAllChapters()">全不选</button>
+                                </div>
+                                <div class="row g-2" id="exam-chapters-container">
+                                    <div class="text-muted">加载中...</div>
+                                </div>
+                            </div>
+
+                            <!-- 题型选择 -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">选择题型</label>
+                                <div class="d-flex gap-2 mb-2">
+                                    <button class="btn btn-sm btn-outline-seagreen" onclick="examSelectAllTypes()">全选</button>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="examDeselectAllTypes()">全不选</button>
+                                </div>
+                                <div class="row g-2" id="exam-types-container">
+                                    <div class="text-muted">加载中...</div>
+                                </div>
+                            </div>
+
+                            <!-- 难度分布 -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">难度分布</label>
+                                <div class="row g-3 align-items-center">
+                                    <div class="col-md-4">
+                                        <label class="form-label mb-0">简单 <span class="badge bg-success" id="diff-easy-val">30%</span></label>
+                                        <input type="range" class="form-range" id="diff-easy" min="0" max="100" value="30" oninput="updateDiffDisplay()">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label mb-0">中等 <span class="badge bg-warning text-dark" id="diff-medium-val">50%</span></label>
+                                        <input type="range" class="form-range" id="diff-medium" min="0" max="100" value="50" oninput="updateDiffDisplay()">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label mb-0">困难 <span class="badge bg-danger" id="diff-hard-val">20%</span></label>
+                                        <input type="range" class="form-range" id="diff-hard" min="0" max="100" value="20" oninput="updateDiffDisplay()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 总题数 -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">总题数</label>
+                                <input type="number" class="form-control" id="exam-total-count" value="20" min="1" max="200" style="max-width:200px;">
+                                <small class="text-muted" id="exam-available-hint">题库中可用题目数：加载中...</small>
+                            </div>
+
+                            <!-- 是否包含答案 -->
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="exam-include-answers" checked>
+                                    <label class="form-check-label fw-bold" for="exam-include-answers">包含参考答案</label>
+                                </div>
+                            </div>
+
+                            <!-- 答案语言 -->
+                            <div class="mb-3" id="exam-lang-section">
+                                <label class="form-label fw-bold">答案语言</label>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="exam-answer-lang" id="lang-cn" value="cn" checked>
+                                    <label class="btn btn-outline-seagreen" for="lang-cn">中文</label>
+                                    <input type="radio" class="btn-check" name="exam-answer-lang" id="lang-en" value="en">
+                                    <label class="btn btn-outline-seagreen" for="lang-en">英文</label>
+                                    <input type="radio" class="btn-check" name="exam-answer-lang" id="lang-both" value="both">
+                                    <label class="btn btn-outline-seagreen" for="lang-both">中英双语</label>
+                                </div>
+                            </div>
+
+                            <!-- 生成按钮 -->
+                            <div class="d-grid gap-2 d-md-block">
+                                <button class="btn btn-seagreen btn-lg" onclick="generateExam()" id="btn-generate-exam">
+                                    <i class="bi bi-magic me-2"></i>生成试卷
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：已生成试卷列表 -->
+                <div class="col-lg-4">
+                    <div class="card module-card">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3"><i class="bi bi-list-check me-2 text-seagreen"></i>已生成试卷</h5>
+                            <div id="exam-list-container">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-seagreen" role="status"></div>
+                                    <p class="text-muted mt-2 small">加载中...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 试卷预览 -->
+        <div id="exam-preview-section" class="d-none">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0"><i class="bi bi-eye me-2 text-seagreen"></i>试卷预览</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-seagreen" onclick="backToExamForm()">
+                        <i class="bi bi-arrow-left me-1"></i>返回修改
+                    </button>
+                    <button class="btn btn-seagreen" onclick="downloadExamPdf()" id="btn-download-pdf">
+                        <i class="bi bi-download me-1"></i>下载PDF
+                    </button>
+                </div>
+            </div>
+            <!-- 警告信息 -->
+            <div id="exam-warnings" class="d-none"></div>
+            <!-- 预览内容 -->
+            <div class="card">
+                <div class="card-body bg-paper" id="exam-preview-content">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 题目编辑/添加模态框 ===== -->
+<div class="modal fade" id="questionModal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-dark-green" id="questionModalLabel">
+                    <i class="bi bi-plus-circle me-1"></i>添加题目
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="question-form">
+                    <input type="hidden" id="qf-id" value="">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">章节 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="qf-chapter" placeholder="如：第1章 逻辑与证明" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">小节</label>
+                            <input type="text" class="form-control" id="qf-section" placeholder="如：1.2 命题逻辑">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">题型 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="qf-question-type">
+                                <option value="choice">选择题</option>
+                                <option value="true_false">判断题</option>
+                                <option value="fill">填空题</option>
+                                <option value="proof">证明题</option>
+                                <option value="calc">计算题</option>
+                                <option value="short_answer">简答题</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">难度</label>
+                            <select class="form-select" id="qf-difficulty">
+                                <option value="easy">简单</option>
+                                <option value="medium" selected>中等</option>
+                                <option value="hard">困难</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">知识点标签</label>
+                            <input type="text" class="form-control" id="qf-tags" placeholder="多个标签用逗号分隔，如：命题逻辑,真值表,等值演算">
+                            <small class="text-muted">用于按知识点筛选，多个用英文逗号分隔</small>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">题目内容 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="qf-question-text" rows="3" placeholder="请输入题目内容" required></textarea>
+                        </div>
+                        <div class="col-12" id="qf-options-wrap">
+                            <label class="form-label">选项（选择题/判断题填写）</label>
+                            <textarea class="form-control" id="qf-options" rows="4" placeholder='JSON格式，如：{"A":"选项A","B":"选项B","C":"选项C","D":"选项D"}&#10;判断题示例：{"T":"正确","F":"错误"}'></textarea>
+                            <small class="text-muted">仅选择题/判断题需要填写</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">答案 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="qf-answer" placeholder="如：B 或 正确 或 具体答案" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-seagreen" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-seagreen" onclick="saveQuestion()" id="btn-save-question">
+                    <i class="bi bi-check-lg me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 通用结果模态框 -->
+<div class="modal fade" id="algoResultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark-green text-white">
+                <h6 class="modal-title" id="algoResultTitle">结果</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="algoResultBody" style="max-height:60vh;overflow-y:auto;"></div>
+            <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">关闭</button></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ===== 通用工具 =====
+function showStatus(message, isLoading, type) {
+    const statusEl = document.getElementById('import-status');
+    const msgEl = document.getElementById('import-message');
+    const spinnerEl = document.getElementById('import-spinner');
+    msgEl.textContent = message;
+    spinnerEl.classList.toggle('d-none', !isLoading);
+    statusEl.classList.remove('d-none', 'alert-info', 'alert-success', 'alert-danger', 'alert-warning');
+    if (type === 'success') statusEl.classList.add('alert-success');
+    else if (type === 'danger') statusEl.classList.add('alert-danger');
+    else if (type === 'warning') statusEl.classList.add('alert-warning');
+    else statusEl.classList.add('alert-info');
+}
+
+function hideStatus() {
+    document.getElementById('import-status').classList.add('d-none');
+}
+
+// ===== 统计信息 =====
+function loadStats() {
+    fetch('/quiz/api/list?per_page=1')
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById('stat-total').textContent = data.total || 0;
+    })
+    .catch(() => {});
+
+    // 获取难度分布
+    fetch('/quiz/api/list?per_page=200')
+    .then(res => res.json())
+    .then(data => {
+        const items = data.items || [];
+        const easy = items.filter(q => q.difficulty === 'easy').length;
+        const medium = items.filter(q => q.difficulty === 'medium').length;
+        const hard = items.filter(q => q.difficulty === 'hard').length;
+        const elEasy = document.getElementById('stat-easy');
+        const elMed = document.getElementById('stat-medium-diff');
+        const elHard = document.getElementById('stat-hard');
+        if (elEasy) elEasy.textContent = easy;
+        if (elMed) elMed.textContent = medium;
+        if (elHard) elHard.textContent = hard;
+    })
+    .catch(() => {});
+}
+
+// ===== 导入答案 =====
+function importAnswers() {
+    const btn = document.getElementById('btn-import-answers');
+    if (btn) btn.disabled = true;
+    showStatus('正在从答案册PDF导入数据，请稍候...', true);
+    fetch('/quiz/import-answers', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+        if (btn) btn.disabled = false;
+        if (data.success) {
+            showStatus(data.message, false, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showStatus(data.message, false, 'danger');
+        }
+    })
+    .catch(err => {
+        if (btn) btn.disabled = false;
+        showStatus('请求失败: ' + err, false, 'danger');
+    });
+}
+
+// ===== 重置题库 =====
+function resetQuizBank() {
+    if (!confirm('警告：此操作将清空所有现有题目并导入内置的 200 道离散数学题目！\n\n确定要继续吗？')) return;
+    const btn = document.getElementById('btn-reset-quiz');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>重置中...';
+    }
+    showStatus('正在重置题库，导入 200 道内置题目，请稍候...', true);
+    fetch('/quiz/api/reset', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-counterclockwise me-1"></i>重置题库';
+        }
+        if (data.success) {
+            showStatus(data.message, false, 'success');
+            loadStats();
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showStatus(data.message, false, 'danger');
+        }
+    })
+    .catch(err => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-counterclockwise me-1"></i>重置题库';
+        }
+        showStatus('重置失败: ' + err, false, 'danger');
+    });
+}
+
+// ===== 题目管理：添加/编辑/删除 =====
+let questionModalInstance = null;
+
+function getQuestionModal() {
+    if (!questionModalInstance) {
+        const modalEl = document.getElementById('questionModal');
+        questionModalInstance = new bootstrap.Modal(modalEl);
+    }
+    return questionModalInstance;
+}
+
+function openAddQuestionModal() {
+    document.getElementById('questionModalLabel').innerHTML = '<i class="bi bi-plus-circle me-1"></i>添加题目';
+    document.getElementById('qf-id').value = '';
+    document.getElementById('qf-chapter').value = '';
+    document.getElementById('qf-section').value = '';
+    document.getElementById('qf-question-type').value = 'choice';
+    document.getElementById('qf-difficulty').value = 'medium';
+    document.getElementById('qf-tags').value = '';
+    document.getElementById('qf-question-text').value = '';
+    document.getElementById('qf-options').value = '';
+    document.getElementById('qf-answer').value = '';
+    getQuestionModal().show();
+}
+
+function editQuestion(quizId) {
+    fetch(`/quiz/api/detail/${quizId}`)
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            showStatus(data.message || '获取题目详情失败', false, 'danger');
+            return;
+        }
+        const q = data.item;
+        document.getElementById('questionModalLabel').innerHTML = '<i class="bi bi-pencil-square me-1"></i>编辑题目 #' + q.id;
+        document.getElementById('qf-id').value = q.id;
+        document.getElementById('qf-chapter').value = q.chapter || '';
+        document.getElementById('qf-section').value = q.section || '';
+        document.getElementById('qf-question-type').value = q.question_type || 'choice';
+        document.getElementById('qf-difficulty').value = q.difficulty || 'medium';
+        document.getElementById('qf-tags').value = q.tags || '';
+        document.getElementById('qf-question-text').value = q.question_text || '';
+        document.getElementById('qf-options').value = q.options || '';
+        document.getElementById('qf-answer').value = q.answer || '';
+        getQuestionModal().show();
+    })
+    .catch(err => showStatus('获取题目失败: ' + err, false, 'danger'));
+}
+
+function saveQuestion() {
+    const id = document.getElementById('qf-id').value;
+    const payload = {
+        chapter: document.getElementById('qf-chapter').value.trim(),
+        section: document.getElementById('qf-section').value.trim(),
+        question_type: document.getElementById('qf-question-type').value,
+        difficulty: document.getElementById('qf-difficulty').value,
+        tags: document.getElementById('qf-tags').value.trim(),
+        question_text: document.getElementById('qf-question-text').value.trim(),
+        options: document.getElementById('qf-options').value.trim(),
+        answer: document.getElementById('qf-answer').value.trim(),
+    };
+
+    if (!payload.question_text) { showStatus('请输入题目内容', false, 'warning'); return; }
+    if (!payload.answer) { showStatus('请输入答案', false, 'warning'); return; }
+
+    const btn = document.getElementById('btn-save-question');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
+
+    const url = id ? `/quiz/api/update/${id}` : '/quiz/api/create';
+    const method = id ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>保存';
+        if (data.success) {
+            getQuestionModal().hide();
+            showStatus(data.message, false, 'success');
+            loadStats();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showStatus(data.message || '保存失败', false, 'danger');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>保存';
+        showStatus('保存失败: ' + err, false, 'danger');
+    });
+}
+
+function deleteQuestion(quizId) {
+    if (!confirm('确定要删除此题目吗？此操作不可恢复。')) return;
+    fetch(`/quiz/api/delete/${quizId}`, { method: 'DELETE' })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('题目已删除', false, 'success');
+            loadStats();
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showStatus(data.message || '删除失败', false, 'danger');
+        }
+    })
+    .catch(err => showStatus('删除失败: ' + err, false, 'danger'));
+}
+
+// ===== 随机抽题 =====
+function randomQuiz() {
+    const btn = document.getElementById('btn-random');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>抽题中...';
+    }
+    fetch('/quiz/api/random?count=5')
+    .then(res => res.json())
+    .then(data => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-shuffle me-1"></i>随机抽题';
+        }
+        if (data.length === 0) {
+            showStatus('暂无试题', false, 'warning');
+            return;
+        }
+        // 用模态框展示抽题结果，答案默认隐藏，点击展开
+        let html = '<div style="max-height:60vh;overflow-y:auto;">';
+        data.forEach((q, i) => {
+            const typeMap = {choice:'选择题',true_false:'判断题',fill:'填空题',proof:'证明题',calc:'计算题',short_answer:'简答题'};
+            const typeText = typeMap[q.question_type] || q.question_type;
+            let optionsHtml = '';
+            if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+                optionsHtml = '<div class="mt-2 mb-2 small" style="color:#555;">';
+                q.options.forEach((opt, idx) => {
+                    const letter = String.fromCharCode(65 + idx);
+                    optionsHtml += `<div>${letter}. ${opt}</div>`;
+                });
+                optionsHtml += '</div>';
+            } else if (q.question_type === 'true_false') {
+                optionsHtml = '<div class="mt-2 mb-2 small" style="color:#555;">○ 正确　○ 错误</div>';
+            }
+            html += `<div class="card mb-2"><div class="card-body py-2">
+                <div class="d-flex justify-content-between">
+                    <span class="badge bg-seagreen">${typeText}</span>
+                    <small class="text-muted">第${q.chapter || '?'}章</small>
+                </div>
+                <p class="mt-1 mb-1"><strong>${i+1}.</strong> ${q.question_text}</p>
+                ${optionsHtml}
+                <div style="margin-top:6px;">
+                    <button class="btn btn-sm btn-outline-seagreen" onclick="this.nextElementSibling.classList.toggle('d-none'); this.textContent = this.nextElementSibling.classList.contains('d-none') ? '显示答案' : '隐藏答案';">显示答案</button>
+                    <div class="d-none mt-2 text-success"><i class="bi bi-check-circle me-1"></i>答案: ${q.answer || ''}</div>
+                </div>
+            </div></div>`;
+        });
+        html += '</div>';
+        document.getElementById('algoResultBody').innerHTML = html;
+        document.getElementById('algoResultTitle').textContent = '随机抽题结果';
+        new bootstrap.Modal(document.getElementById('algoResultModal')).show();
+    })
+    .catch(err => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-shuffle me-1"></i>随机抽题';
+        }
+        showStatus('抽题失败: ' + err, false, 'danger');
+    });
+}
+
+// ===== 标签页切换事件 =====
+document.getElementById('mainTabs').addEventListener('shown.bs.tab', function(event) {
+    if (event.target.getAttribute('href') === '#tab-exam') {
+        loadExamFormData();
+        loadExamList();
+    }
+});
+
+// ===== 页面初始化 =====
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+});
+
+// ===== 组卷模块 =====
+let examFormData = null;
+let currentPreviewPaperId = null;
+
+function loadExamFormData() {
+    fetch('/quiz/api/exam-form')
+    .then(res => res.json())
+    .then(data => {
+        examFormData = data;
+        renderExamChapters(data.chapters);
+        renderExamTypes(data.question_types);
+        document.getElementById('exam-available-hint').textContent =
+            `题库中可用题目数：${data.total_available}`;
+    })
+    .catch(() => {});
+}
+
+function renderExamChapters(chapters) {
+    const container = document.getElementById('exam-chapters-container');
+    if (!chapters || chapters.length === 0) {
+        container.innerHTML = '<div class="text-muted">暂无章节数据</div>';
+        return;
+    }
+    let html = '';
+    chapters.forEach(ch => {
+        html += `<div class="col-auto">
+            <div class="form-check">
+                <input class="form-check-input exam-chapter-cb" type="checkbox" value="${ch}" id="ch-${ch.replace(/\s/g,'-')}" checked>
+                <label class="form-check-label" for="ch-${ch.replace(/\s/g,'-')}">${ch}</label>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function renderExamTypes(types) {
+    const container = document.getElementById('exam-types-container');
+    if (!types || types.length === 0) {
+        container.innerHTML = '<div class="text-muted">暂无题型数据</div>';
+        return;
+    }
+    let html = '';
+    types.forEach(t => {
+        html += `<div class="col-auto">
+            <div class="form-check">
+                <input class="form-check-input exam-type-cb" type="checkbox" value="${t.value}" id="type-${t.value}" checked>
+                <label class="form-check-label" for="type-${t.value}">${t.label}</label>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function examSelectAllChapters() {
+    document.querySelectorAll('.exam-chapter-cb').forEach(cb => cb.checked = true);
+}
+function examDeselectAllChapters() {
+    document.querySelectorAll('.exam-chapter-cb').forEach(cb => cb.checked = false);
+}
+function examSelectAllTypes() {
+    document.querySelectorAll('.exam-type-cb').forEach(cb => cb.checked = true);
+}
+function examDeselectAllTypes() {
+    document.querySelectorAll('.exam-type-cb').forEach(cb => cb.checked = false);
+}
+
+function updateDiffDisplay() {
+    const easy = parseInt(document.getElementById('diff-easy').value);
+    const medium = parseInt(document.getElementById('diff-medium').value);
+    const hard = parseInt(document.getElementById('diff-hard').value);
+    const total = easy + medium + hard || 1;
+    document.getElementById('diff-easy-val').textContent = Math.round(easy * 100 / total) + '%';
+    document.getElementById('diff-medium-val').textContent = Math.round(medium * 100 / total) + '%';
+    document.getElementById('diff-hard-val').textContent = Math.round(hard * 100 / total) + '%';
+}
+
+function generateExam() {
+    const title = document.getElementById('exam-title').value.trim() || '离散数学试卷';
+    const chapters = Array.from(document.querySelectorAll('.exam-chapter-cb:checked')).map(cb => cb.value);
+    const questionTypes = Array.from(document.querySelectorAll('.exam-type-cb:checked')).map(cb => cb.value);
+    const totalCount = parseInt(document.getElementById('exam-total-count').value) || 20;
+    const includeAnswers = document.getElementById('exam-include-answers').checked;
+    const langRadio = document.querySelector('input[name="exam-answer-lang"]:checked');
+    const answerLanguage = langRadio ? langRadio.value : 'cn';
+
+    const easy = parseInt(document.getElementById('diff-easy').value) || 0;
+    const medium = parseInt(document.getElementById('diff-medium').value) || 0;
+    const hard = parseInt(document.getElementById('diff-hard').value) || 0;
+
+    if (questionTypes.length === 0) {
+        showStatus('请至少选择一种题型', false, 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btn-generate-exam');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>生成中...';
+
+    fetch('/quiz/api/generate-exam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title: title,
+            chapters: chapters,
+            question_types: questionTypes,
+            difficulty: { easy: easy, medium: medium, hard: hard },
+            total_count: totalCount,
+            include_answers: includeAnswers,
+            answer_language: answerLanguage,
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-magic me-2"></i>生成试卷';
+        if (data.success) {
+            currentPreviewPaperId = data.paper_id;
+            document.getElementById('exam-preview-content').innerHTML = data.html_preview;
+            // 显示警告
+            if (data.warnings && data.warnings.length > 0) {
+                const warnEl = document.getElementById('exam-warnings');
+                warnEl.classList.remove('d-none');
+                warnEl.innerHTML = data.warnings.map(w =>
+                    `<div class="alert alert-warning py-2 mb-1"><i class="bi bi-exclamation-triangle me-1"></i>${w}</div>`
+                ).join('');
+            } else {
+                document.getElementById('exam-warnings').classList.add('d-none');
+            }
+            document.getElementById('exam-form-section').classList.add('d-none');
+            document.getElementById('exam-preview-section').classList.remove('d-none');
+            showStatus(data.message, false, 'success');
+        } else {
+            showStatus(data.message, false, 'danger');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-magic me-2"></i>生成试卷';
+        showStatus('生成失败: ' + err, false, 'danger');
+    });
+}
+
+function backToExamForm() {
+    document.getElementById('exam-form-section').classList.remove('d-none');
+    document.getElementById('exam-preview-section').classList.add('d-none');
+    loadExamList();
+}
+
+function downloadExamPdf() {
+    if (currentPreviewPaperId) {
+        window.open('/quiz/api/exam-pdf/' + currentPreviewPaperId, '_blank');
+    }
+}
+
+function loadExamList() {
+    fetch('/quiz/api/exam-list')
+    .then(res => res.json())
+    .then(data => {
+        const container = document.getElementById('exam-list-container');
+        if (!data.items || data.items.length === 0) {
+            container.innerHTML = '<div class="text-center py-3"><i class="bi bi-inbox text-muted" style="font-size:2rem;"></i><p class="text-muted mt-2 small">暂无试卷</p></div>';
+            return;
+        }
+        const typeMap = {choice:'选择题',true_false:'判断题',fill:'填空题',proof:'证明题',calc:'计算题',short_answer:'简答题'};
+        let html = '';
+        data.items.forEach(p => {
+            const created = p.created_at ? new Date(p.created_at).toLocaleString('zh-CN') : '';
+            const typesStr = (p.question_types || []).map(t => typeMap[t] || t).join('、');
+            html += `<div class="card mb-2" style="border:1px solid var(--border-green);">
+                <div class="card-body py-2 px-3">
+                    <h6 class="mb-1 text-dark-green">${p.title}</h6>
+                    <small class="text-muted d-block mb-1">${typesStr || '无题型'} | ${p.total_count}题</small>
+                    <small class="text-muted d-block mb-2">${created}</small>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-seagreen" onclick="previewExam(${p.id})">
+                            <i class="bi bi-eye"></i> 预览
+                        </button>
+                        <a class="btn btn-sm btn-outline-seagreen" href="/quiz/api/exam-pdf/${p.id}" target="_blank">
+                            <i class="bi bi-download"></i> PDF
+                        </a>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteExam(${p.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+    })
+    .catch(() => {
+        document.getElementById('exam-list-container').innerHTML = '<div class="text-muted text-center py-3 small">加载失败</div>';
+    });
+}
+
+function previewExam(paperId) {
+    fetch('/quiz/api/exam-preview/' + paperId)
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            currentPreviewPaperId = paperId;
+            document.getElementById('exam-preview-content').innerHTML = data.html_preview;
+            document.getElementById('exam-form-section').classList.add('d-none');
+            document.getElementById('exam-preview-section').classList.remove('d-none');
+            document.getElementById('exam-warnings').classList.add('d-none');
+        } else {
+            showStatus(data.message, false, 'danger');
+        }
+    })
+    .catch(err => showStatus('预览失败: ' + err, false, 'danger'));
+}
+
+function deleteExam(paperId) {
+    if (!confirm('确定要删除此试卷吗？')) return;
+    fetch('/quiz/api/exam-delete/' + paperId, { method: 'DELETE' })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('试卷已删除', false, 'success');
+            loadExamList();
+        } else {
+            showStatus(data.message, false, 'danger');
+        }
+    })
+    .catch(err => showStatus('删除失败: ' + err, false, 'danger'));
+}
+</script>
+{% endblock %}

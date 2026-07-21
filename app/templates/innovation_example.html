@@ -1,0 +1,1044 @@
+{% extends "base.html" %}
+
+{% block title %}交互式例题讲解 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+.example-layout {
+    display: flex;
+    gap: 20px;
+    min-height: calc(100vh - 200px);
+}
+
+.example-sidebar {
+    width: 280px;
+    min-width: 280px;
+}
+
+.example-main {
+    flex: 1;
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border-green);
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+}
+
+.example-card {
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border-green);
+    padding: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    position: relative;
+    overflow: hidden;
+}
+
+.example-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--seagreen), var(--teal));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.example-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 16px rgba(46,139,87,0.12);
+}
+
+.example-card.active {
+    border-color: var(--seagreen);
+    background: var(--light-green-bg);
+}
+
+.example-card.active::before {
+    opacity: 1;
+}
+
+.example-card .ec-icon {
+    font-size: 1.5rem;
+    color: var(--seagreen);
+    margin-bottom: 8px;
+}
+
+.example-card .ec-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--dark-green);
+    margin-bottom: 4px;
+}
+
+.example-card .ec-desc {
+    font-size: 0.78rem;
+    color: var(--ink-gray);
+}
+
+.example-card .ec-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 1px 8px;
+    border-radius: 8px;
+    background: var(--light-green-bg);
+    color: var(--seagreen);
+    margin-top: 6px;
+    font-weight: 600;
+}
+
+/* 进度条 */
+.progress-bar-wrapper {
+    background: var(--light-green-bg);
+    border-radius: 20px;
+    height: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--seagreen), var(--teal));
+    border-radius: 20px;
+    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+
+.step-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.step-info .si-current {
+    font-size: 0.85rem;
+    color: var(--seagreen);
+    font-weight: 700;
+}
+
+.step-info .si-total {
+    font-size: 0.8rem;
+    color: var(--ink-gray);
+}
+
+/* 步骤导航点 */
+.step-dots {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border-green);
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ink-gray);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.step-dot.completed {
+    background: var(--medium-seagreen);
+    border-color: var(--medium-seagreen);
+    color: #fff;
+}
+
+.step-dot.active {
+    background: var(--seagreen);
+    border-color: var(--seagreen);
+    color: #fff;
+    transform: scale(1.2);
+    box-shadow: 0 0 0 4px rgba(46,139,87,0.2);
+}
+
+/* 步骤内容 */
+.step-content {
+    flex: 1;
+    min-height: 300px;
+    background: var(--light-green-bg-2);
+    border-radius: 12px;
+    border: 1px solid var(--border-green);
+    padding: 24px;
+    overflow-y: auto;
+    animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.step-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.step-title .step-badge {
+    font-size: 0.7rem;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: var(--seagreen);
+    color: #fff;
+}
+
+.step-desc {
+    font-size: 0.92rem;
+    color: var(--ink-color);
+    line-height: 1.7;
+    margin-bottom: 16px;
+}
+
+.step-desc .highlight {
+    background: rgba(46,139,87,0.12);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    color: var(--dark-green);
+}
+
+.step-desc .formula {
+    display: inline-block;
+    background: var(--white);
+    border: 1.5px solid var(--border-green);
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--seagreen);
+    margin: 0 2px;
+}
+
+/* 真值表 */
+.truth-table {
+    border-collapse: collapse;
+    margin: 10px auto;
+    font-size: 0.9rem;
+}
+
+.truth-table th, .truth-table td {
+    border: 1.5px solid var(--border-green);
+    padding: 8px 16px;
+    text-align: center;
+}
+
+.truth-table th {
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    color: #fff;
+    font-weight: 600;
+}
+
+.truth-table td {
+    background: var(--white);
+    transition: all 0.3s ease;
+}
+
+.truth-table td.current {
+    background: #FFF3E0;
+    font-weight: 700;
+    animation: pulse 0.5s ease;
+}
+
+.truth-table td.result {
+    background: rgba(76,175,80,0.15);
+    font-weight: 700;
+    color: var(--dark-green);
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+/* Venn 图 */
+.venn-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.venn-svg circle {
+    transition: all 0.5s ease;
+}
+
+.venn-label {
+    font-size: 14px;
+    font-weight: 700;
+    fill: var(--dark-green);
+}
+
+.venn-element {
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.5s ease;
+}
+
+/* 图论可视化 */
+.graph-viz {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+}
+
+.graph-viz svg {
+    max-width: 100%;
+}
+
+.graph-viz .gv-node {
+    transition: all 0.4s ease;
+}
+
+.graph-viz .gv-node.highlight {
+    stroke: #E65100;
+    stroke-width: 3;
+}
+
+.graph-viz .gv-edge {
+    transition: all 0.4s ease;
+}
+
+.graph-viz .gv-edge.selected {
+    stroke: var(--seagreen);
+    stroke-width: 4;
+}
+
+.graph-viz .gv-edge.rejected {
+    stroke: #ccc;
+    stroke-dasharray: 5,3;
+}
+
+.degree-table {
+    border-collapse: collapse;
+    margin: 10px auto;
+    font-size: 0.88rem;
+}
+
+.degree-table th, .degree-table td {
+    border: 1.5px solid var(--border-green);
+    padding: 6px 16px;
+    text-align: center;
+}
+
+.degree-table th {
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    color: #fff;
+}
+
+.degree-table td.odd {
+    background: #FFEBEE;
+    color: #C62828;
+    font-weight: 700;
+}
+
+.degree-table td.even {
+    background: #E8F5E9;
+}
+
+/* 计数问题 */
+.count-formula {
+    background: var(--white);
+    border: 2px solid var(--border-green);
+    border-radius: 10px;
+    padding: 16px 24px;
+    margin: 12px auto;
+    text-align: center;
+    font-size: 1.2rem;
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: var(--dark-green);
+    max-width: 400px;
+}
+
+.count-formula .calc {
+    color: var(--seagreen);
+}
+
+.count-result {
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--seagreen);
+    margin: 16px 0;
+    animation: scaleIn 0.5s ease;
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* 按钮组 */
+.step-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-green);
+}
+
+.step-nav .btn {
+    min-width: 120px;
+}
+
+.conclusion-box {
+    background: linear-gradient(135deg, rgba(46,139,87,0.08), rgba(0,137,123,0.08));
+    border: 2px solid var(--medium-seagreen);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 16px;
+}
+
+.conclusion-box .cb-title {
+    font-weight: 700;
+    color: var(--dark-green);
+    font-size: 1rem;
+    margin-bottom: 6px;
+}
+
+.conclusion-box .cb-text {
+    font-size: 0.92rem;
+    color: var(--ink-color);
+    line-height: 1.6;
+}
+
+.edge-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+}
+
+.edge-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 0.88rem;
+    transition: all 0.3s ease;
+}
+
+.edge-list li.selected {
+    background: rgba(46,139,87,0.12);
+    font-weight: 600;
+}
+
+.edge-list li.rejected {
+    background: rgba(198,40,40,0.08);
+    text-decoration: line-through;
+    color: var(--ink-gray);
+}
+
+.edge-list li.pending {
+    background: var(--light-green-bg);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="text-dark-green mb-0"><i class="bi bi-easel2-fill me-2"></i>交互式例题讲解</h2>
+        <small class="text-ink-gray">通过动画演示解题过程，帮助学生理解解题思路</small>
+    </div>
+    <a href="{{ url_for('innovation.index') }}" class="btn btn-outline-seagreen btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>返回创新点
+    </a>
+</div>
+
+<div class="example-layout">
+    <!-- 左侧：例题列表 -->
+    <div class="example-sidebar">
+        <div class="example-card active" data-example="0">
+            <div class="ec-icon"><i class="bi bi-table"></i></div>
+            <div class="ec-title">真值表构造</div>
+            <div class="ec-desc">逐步构造命题公式的真值表</div>
+            <span class="ec-tag">命题逻辑</span>
+        </div>
+        <div class="example-card" data-example="1">
+            <div class="ec-icon"><i class="bi bi-diagram-2"></i></div>
+            <div class="ec-title">集合运算</div>
+            <div class="ec-desc">用Venn图演示交并补运算</div>
+            <span class="ec-tag">集合论</span>
+        </div>
+        <div class="example-card" data-example="2">
+            <div class="ec-icon"><i class="bi bi-share"></i></div>
+            <div class="ec-title">欧拉路径判断</div>
+            <div class="ec-desc">判断图中是否存在欧拉路径</div>
+            <span class="ec-tag">图论</span>
+        </div>
+        <div class="example-card" data-example="3">
+            <div class="ec-icon"><i class="bi bi-diagram-3"></i></div>
+            <div class="ec-title">最小生成树</div>
+            <div class="ec-desc">演示Kruskal算法过程</div>
+            <span class="ec-tag">图论算法</span>
+        </div>
+        <div class="example-card" data-example="4">
+            <div class="ec-icon"><i class="bi bi-calculator"></i></div>
+            <div class="ec-title">排列组合计算</div>
+            <div class="ec-desc">经典计数问题分析与计算</div>
+            <span class="ec-tag">计数</span>
+        </div>
+    </div>
+
+    <!-- 右侧：例题内容 -->
+    <div class="example-main">
+        <div class="progress-bar-wrapper">
+            <div class="progress-bar-fill" id="progressBar" style="width:25%;"></div>
+        </div>
+        <div class="step-info">
+            <span class="si-current" id="stepCurrent">步骤 1</span>
+            <span class="si-total" id="stepTotal">/ 4</span>
+        </div>
+        <div class="step-dots" id="stepDots"></div>
+        <div class="step-content" id="stepContent"></div>
+        <div class="step-nav">
+            <button class="btn btn-outline-seagreen" id="btnPrev" disabled>
+                <i class="bi bi-arrow-left me-1"></i>上一步
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" id="btnReset">
+                <i class="bi bi-arrow-clockwise me-1"></i>重置
+            </button>
+            <button class="btn btn-seagreen" id="btnNext">
+                下一步<i class="bi bi-arrow-right ms-1"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    let currentExample = 0;
+    let currentStep = 0;
+
+    // ========================================
+    // 例题数据定义
+    // ========================================
+    const examples = [
+        // 例题1：真值表构造
+        {
+            title: '真值表构造',
+            totalSteps: 4,
+            steps: [
+                {
+                    title: '识别命题变量',
+                    badge: '步骤1',
+                    desc: '给定命题公式 <span class="formula">¬p ∨ (p ∧ q)</span>，首先识别其中包含的命题变量。',
+                    content: function() {
+                        return '<div class="step-desc">' +
+                            '公式 <span class="formula">¬p ∨ (p ∧ q)</span> 包含两个命题变量：<span class="highlight">p</span> 和 <span class="highlight">q</span>。<br><br>' +
+                            '我们需要为这两个变量的所有可能取值组合构造真值表。两个变量共有 <span class="formula">2² = 4</span> 种赋值组合。</div>';
+                    }
+                },
+                {
+                    title: '列出所有可能赋值',
+                    badge: '步骤2',
+                    desc: '为变量 p 和 q 列出所有可能的真值赋值组合。',
+                    content: function() {
+                        return '<div class="step-desc">列出 p 和 q 的所有赋值组合（T=真, F=假）：</div>' +
+                            '<table class="truth-table" id="tt1">' +
+                            '<tr><th>p</th><th>q</th><th>¬p</th><th>p ∧ q</th><th>¬p ∨ (p ∧ q)</th></tr>' +
+                            '<tr><td class="current">T</td><td class="current">T</td><td>-</td><td>-</td><td>-</td></tr>' +
+                            '<tr><td class="current">T</td><td class="current">F</td><td>-</td><td>-</td><td>-</td></tr>' +
+                            '<tr><td class="current">F</td><td class="current">T</td><td>-</td><td>-</td><td>-</td></tr>' +
+                            '<tr><td class="current">F</td><td class="current">F</td><td>-</td><td>-</td><td>-</td></tr>' +
+                            '</table>';
+                    }
+                },
+                {
+                    title: '逐步计算子公式',
+                    badge: '步骤3',
+                    desc: '计算 ¬p 和 (p ∧ q) 的值，然后计算最终结果。',
+                    content: function() {
+                        return '<div class="step-desc">逐步计算各子公式的真值：</div>' +
+                            '<table class="truth-table">' +
+                            '<tr><th>p</th><th>q</th><th>¬p</th><th>p ∧ q</th><th>¬p ∨ (p ∧ q)</th></tr>' +
+                            '<tr><td>T</td><td>T</td><td class="current">F</td><td class="current">T</td><td class="current">T</td></tr>' +
+                            '<tr><td>T</td><td>F</td><td class="current">F</td><td class="current">F</td><td class="current">F</td></tr>' +
+                            '<tr><td>F</td><td>T</td><td class="current">T</td><td class="current">F</td><td class="current">T</td></tr>' +
+                            '<tr><td>F</td><td>F</td><td class="current">T</td><td class="current">F</td><td class="current">T</td></tr>' +
+                            '</table>' +
+                            '<div class="step-desc" style="font-size:0.85rem;">' +
+                            '• <span class="highlight">¬p</span>：对 p 取反<br>' +
+                            '• <span class="highlight">p ∧ q</span>：p 和 q 同时为真时为真<br>' +
+                            '• <span class="highlight">¬p ∨ (p ∧ q)</span>：两者取或</div>';
+                    }
+                },
+                {
+                    title: '得出最终结果',
+                    badge: '步骤4',
+                    desc: '完成真值表，分析结果。',
+                    content: function() {
+                        return '<div class="step-desc">完整的真值表如下：</div>' +
+                            '<table class="truth-table">' +
+                            '<tr><th>p</th><th>q</th><th>¬p</th><th>p ∧ q</th><th>¬p ∨ (p ∧ q)</th></tr>' +
+                            '<tr><td>T</td><td>T</td><td>F</td><td>T</td><td class="result">T</td></tr>' +
+                            '<tr><td>T</td><td>F</td><td>F</td><td>F</td><td class="result">F</td></tr>' +
+                            '<tr><td>F</td><td>T</td><td>T</td><td>F</td><td class="result">T</td></tr>' +
+                            '<tr><td>F</td><td>F</td><td>T</td><td>F</td><td class="result">T</td></tr>' +
+                            '</table>' +
+                            '<div class="conclusion-box">' +
+                            '<div class="cb-title"><i class="bi bi-lightbulb-fill me-1"></i>结论</div>' +
+                            '<div class="cb-text">公式 <span class="formula">¬p ∨ (p ∧ q)</span> 在 4 种赋值中有 3 种为真、1 种为假，' +
+                            '因此该公式<span class="highlight">不是永真式也不是矛盾式</span>，而是一个<span class="highlight">可满足式</span>。' +
+                            '<br>该公式等价于 <span class="formula">¬p ∨ q</span>（即 <span class="formula">p → q</span>）。</div>' +
+                            '</div>';
+                    }
+                }
+            ]
+        },
+        // 例题2：集合运算
+        {
+            title: '集合运算',
+            totalSteps: 4,
+            steps: [
+                {
+                    title: '定义集合',
+                    badge: '步骤1',
+                    desc: '给定两个集合 A 和 B，我们将演示它们的交、并、补运算。',
+                    content: function() {
+                        return '<div class="step-desc">' +
+                            '设全集 <span class="formula">U = {1, 2, 3, 4, 5, 6, 7, 8}</span><br>' +
+                            '集合 <span class="formula">A = {1, 2, 3, 4}</span><br>' +
+                            '集合 <span class="formula">B = {3, 4, 5, 6}</span><br><br>' +
+                            '我们将在Venn图中标记这些元素，并演示集合运算。</div>';
+                    }
+                },
+                {
+                    title: '画出Venn图并标记集合A',
+                    badge: '步骤2',
+                    desc: '在Venn图中标记集合A的元素。',
+                    content: function() {
+                        return vennSvg(['1','2','3','4'], [], true, false, false);
+                    }
+                },
+                {
+                    title: '标记集合B的元素',
+                    badge: '步骤3',
+                    desc: '在Venn图中标记集合B的元素。',
+                    content: function() {
+                        return vennSvg(['1','2','3','4'], ['5','6'], false, true, false);
+                    }
+                },
+                {
+                    title: '高亮运算结果',
+                    badge: '步骤4',
+                    desc: '演示 A∩B、A∪B 和 A complement 的运算结果。',
+                    content: function() {
+                        return '<div class="step-desc">集合运算结果：</div>' +
+                            '<div class="count-formula">A ∩ B = {3, 4}</div>' +
+                            '<div class="count-formula">A ∪ B = {1, 2, 3, 4, 5, 6}</div>' +
+                            '<div class="count-formula">A̅ = {5, 6, 7, 8}</div>' +
+                            '<div class="conclusion-box">' +
+                            '<div class="cb-title"><i class="bi bi-lightbulb-fill me-1"></i>结论</div>' +
+                            '<div class="cb-text">' +
+                            '• <span class="highlight">交集</span> A∩B：同时属于A和B的元素 {3, 4}<br>' +
+                            '• <span class="highlight">并集</span> A∪B：属于A或B的所有元素 {1,2,3,4,5,6}<br>' +
+                            '• <span class="highlight">补集</span> A̅：全集中不属于A的元素 {5,6,7,8}<br>' +
+                            '注意：元素 3、4 在交集区域，元素 7、8 不属于任何集合。</div>' +
+                            '</div>';
+                    }
+                }
+            ]
+        },
+        // 例题3：欧拉路径判断
+        {
+            title: '欧拉路径判断',
+            totalSteps: 4,
+            steps: [
+                {
+                    title: '给定图',
+                    badge: '步骤1',
+                    desc: '给定一个无向图，判断是否存在欧拉路径。',
+                    content: function() {
+                        return '<div class="step-desc">给定如下无向图 G：</div>' +
+                            eulerGraphSvg() +
+                            '<div class="step-desc">该图有5个顶点 A、B、C、D、E 和 6 条边。' +
+                            '我们需要判断是否存在<strong>欧拉路径</strong>（经过每条边恰好一次的路径）。</div>';
+                    }
+                },
+                {
+                    title: '计算各顶点度数',
+                    badge: '步骤2',
+                    desc: '计算每个顶点的度数（连接的边数）。',
+                    content: function() {
+                        return '<div class="step-desc">各顶点度数如下：</div>' +
+                            '<table class="degree-table">' +
+                            '<tr><th>顶点</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>' +
+                            '<tr><td><strong>度数</strong></td>' +
+                            '<td class="even">2</td>' +
+                            '<td class="odd">3</td>' +
+                            '<td class="even">2</td>' +
+                            '<td class="odd">3</td>' +
+                            '<td class="even">2</td></tr>' +
+                            '</table>' +
+                            '<div class="step-desc" style="font-size:0.85rem;">' +
+                            '<span class="highlight">红色</span>表示奇度顶点（度数为奇数），' +
+                            '<span class="highlight">绿色</span>表示偶度顶点（度数为偶数）。</div>';
+                    }
+                },
+                {
+                    title: '检查奇度顶点数量',
+                    badge: '步骤3',
+                    desc: '根据欧拉定理判断：统计奇度顶点的数量。',
+                    content: function() {
+                        return '<div class="step-desc">' +
+                            '<strong>欧拉路径定理：</strong>连通无向图 G 有欧拉路径当且仅当 G 中奇度顶点的个数为 0 或 2。<br><br>' +
+                            '统计奇度顶点：<br>' +
+                            '• B 的度数为 3（奇数）✓<br>' +
+                            '• D 的度数为 3（奇数）✓<br>' +
+                            '• A、C、E 的度数为 2（偶数）<br><br>' +
+                            '<span class="highlight">奇度顶点数量 = 2</span></div>' +
+                            '<div class="count-formula">奇度顶点数 = 2 → 存在欧拉路径</div>';
+                    }
+                },
+                {
+                    title: '应用定理判断并给出结论',
+                    badge: '步骤4',
+                    desc: '应用欧拉路径定理给出最终结论。',
+                    content: function() {
+                        return '<div class="step-desc">根据欧拉路径定理分析：</div>' +
+                            '<div class="count-formula">奇度顶点数 = 2</div>' +
+                            '<div class="conclusion-box">' +
+                            '<div class="cb-title"><i class="bi bi-check-circle-fill me-1"></i>结论</div>' +
+                            '<div class="cb-text">' +
+                            '该图<span class="highlight">存在欧拉路径</span>，但<span class="highlight">不存在欧拉回路</span>（因为奇度顶点数为2，不为0）。<br><br>' +
+                            '一条欧拉路径为：<br>' +
+                            '<span class="formula">B → A → C → B → D → E → C → D</span><br>' +
+                            '起点为 B（奇度顶点），终点为 D（奇度顶点）。</div>' +
+                            '</div>';
+                    }
+                }
+            ]
+        },
+        // 例题4：最小生成树（Kruskal算法）
+        {
+            title: '最小生成树',
+            totalSteps: 4,
+            steps: [
+                {
+                    title: '给定加权图',
+                    badge: '步骤1',
+                    desc: '给定一个连通加权无向图，用Kruskal算法求最小生成树。',
+                    content: function() {
+                        return '<div class="step-desc">给定加权图 G，顶点集 V={A,B,C,D,E}：</div>' +
+                            kruskalGraphSvg([]) +
+                            '<div class="step-desc">Kruskal算法的核心思想是：' +
+                            '<span class="highlight">每次选择权重最小的边，如果该边不形成环则加入生成树</span>。</div>';
+                    }
+                },
+                {
+                    title: '将所有边按权重排序',
+                    badge: '步骤2',
+                    desc: '列出所有边并按权重从小到大排序。',
+                    content: function() {
+                        return '<div class="step-desc">所有边按权重排序：</div>' +
+                            '<ul class="edge-list">' +
+                            '<li class="pending">① (A,B) 权重=1</li>' +
+                            '<li class="pending">② (C,D) 权重=2</li>' +
+                            '<li class="pending">③ (A,C) 权重=3</li>' +
+                            '<li class="pending">④ (B,D) 权重=4</li>' +
+                            '<li class="pending">⑤ (D,E) 权重=5</li>' +
+                            '<li class="pending">⑥ (B,E) 权重=6</li>' +
+                            '</ul>' +
+                            '<div class="step-desc" style="font-size:0.85rem;">共6条边，按权重从小到大依次处理。</div>';
+                    }
+                },
+                {
+                    title: '逐步选择最小边',
+                    badge: '步骤3',
+                    desc: '依次选择最小边，检查是否形成环。',
+                    content: function() {
+                        return '<div class="step-desc">逐步选择边并检查环：</div>' +
+                            kruskalGraphSvg(['A-B','C-D','A-C','D-E']) +
+                            '<ul class="edge-list">' +
+                            '<li class="selected">① (A,B) w=1 → 选择 ✓（不形成环）</li>' +
+                            '<li class="selected">② (C,D) w=2 → 选择 ✓（不形成环）</li>' +
+                            '<li class="selected">③ (A,C) w=3 → 选择 ✓（连接两个分量）</li>' +
+                            '<li class="rejected">④ (B,D) w=4 → 拒绝 ✗（形成环 A-B-D-C-A）</li>' +
+                            '<li class="selected">⑤ (D,E) w=5 → 选择 ✓（不形成环）</li>' +
+                            '<li class="pending">⑥ (B,E) w=6 → 跳过（已有4条边=n-1）</li>' +
+                            '</ul>';
+                    }
+                },
+                {
+                    title: '完成生成树',
+                    badge: '步骤4',
+                    desc: '最小生成树已完成，计算总权重。',
+                    content: function() {
+                        return '<div class="step-desc">最小生成树的边集：</div>' +
+                            kruskalGraphSvg(['A-B','C-D','A-C','D-E']) +
+                            '<div class="count-formula">MST = {(A,B), (C,D), (A,C), (D,E)}</div>' +
+                            '<div class="count-formula">总权重 = 1+2+3+5 = <span class="calc">11</span></div>' +
+                            '<div class="conclusion-box">' +
+                            '<div class="cb-title"><i class="bi bi-check-circle-fill me-1"></i>结论</div>' +
+                            '<div class="cb-text">' +
+                            '使用 Kruskal 算法求得的最小生成树包含 4 条边（n-1=5-1=4），' +
+                            '总权重为 <span class="highlight">11</span>。<br>' +
+                            '关键点：每选择一条边时需用<span class="highlight">并查集</span>检查是否形成环，' +
+                            '若两端点已在同一连通分量中则跳过该边。</div>' +
+                            '</div>';
+                    }
+                }
+            ]
+        },
+        // 例题5：排列组合
+        {
+            title: '排列组合计算',
+            totalSteps: 4,
+            steps: [
+                {
+                    title: '分析问题',
+                    badge: '步骤1',
+                    desc: '分析计数问题的类型。',
+                    content: function() {
+                        return '<div class="step-desc">' +
+                            '<strong>问题：</strong>从10名学生中选出3人组成委员会，' +
+                            '其中1人担任主席，1人担任副主席，1人担任秘书。共有多少种选法？<br><br>' +
+                            '分析：<br>' +
+                            '• 需要从10人中选3人 → 组合问题<br>' +
+                            '• 选出的3人有不同角色（主席、副主席、秘书）→ 排列问题<br>' +
+                            '• 实际上是<span class="highlight">排列问题</span>：从10个不同元素中选3个进行有序排列</div>';
+                    }
+                },
+                {
+                    title: '选择公式',
+                    badge: '步骤2',
+                    desc: '根据问题类型选择正确的计数公式。',
+                    content: function() {
+                        return '<div class="step-desc">由于3个位置角色不同（有顺序），应使用<span class="highlight">排列公式</span>：</div>' +
+                            '<div class="count-formula">P(n, r) = n! / (n-r)!</div>' +
+                            '<div class="step-desc" style="font-size:0.85rem;">' +
+                            '其中 n = 10（总人数），r = 3（选择的职位数）<br>' +
+                            '如果角色相同（无顺序区分），则用组合公式 C(n,r) = n! / (r!(n-r)!)<br>' +
+                            '但本题角色不同，所以用排列公式。</div>';
+                    }
+                },
+                {
+                    title: '代入计算',
+                    badge: '步骤3',
+                    desc: '将数值代入公式进行计算。',
+                    content: function() {
+                        return '<div class="step-desc">代入 n=10, r=3：</div>' +
+                            '<div class="count-formula">P(10,3) = 10! / (10-3)!</div>' +
+                            '<div class="count-formula">= 10! / 7!</div>' +
+                            '<div class="count-formula">= 10 × 9 × 8 = <span class="calc">720</span></div>' +
+                            '<div class="step-desc" style="font-size:0.85rem;">' +
+                            '理解：第一个职位（主席）有10种选择，' +
+                            '第二个职位（副主席）有9种选择（已排除主席），' +
+                            '第三个职位（秘书）有8种选择。<br>' +
+                            '由<span class="highlight">乘法原理</span>：10 × 9 × 8 = 720</div>';
+                    }
+                },
+                {
+                    title: '验证结果',
+                    badge: '步骤4',
+                    desc: '验证计算结果的正确性。',
+                    content: function() {
+                        return '<div class="step-desc">验证：</div>' +
+                            '<div class="count-result">720</div>' +
+                            '<div class="count-formula">10 × 9 × 8 = 720 ✓</div>' +
+                            '<div class="conclusion-box">' +
+                            '<div class="cb-title"><i class="bi bi-check-circle-fill me-1"></i>结论</div>' +
+                            '<div class="cb-text">' +
+                            '从10名学生中选出3人并分配不同职务，共有 <span class="highlight">720</span> 种选法。<br><br>' +
+                            '<strong>对比：</strong>如果3个职位没有区别（仅选3人），' +
+                            '则用组合公式 C(10,3) = 120 种，' +
+                            '恰好是排列数除以 3!（即 720/6 = 120）。</div>' +
+                            '</div>';
+                    }
+                }
+            ]
+        }
+    ];
+
+    // ========================================
+    // SVG 生成函数
+    // ========================================
+    function vennSvg(aOnly, bOnly, highlightA, highlightB, highlightResult) {
+        return '<div class="venn-container">' +
+            '<svg class="venn-svg" width="340" height="220" viewBox="0 0 340 220">' +
+            '<circle cx="130" cy="110" r="80" fill="' + (highlightA ? 'rgba(46,139,87,0.25)' : 'rgba(46,139,87,0.08)') + '" stroke="#2E8B57" stroke-width="2.5"/>' +
+            '<circle cx="210" cy="110" r="80" fill="' + (highlightB ? 'rgba(230,81,0,0.25)' : 'rgba(230,81,0,0.08)') + '" stroke="#E65100" stroke-width="2.5"/>' +
+            '<text class="venn-label" x="80" y="35">A</text>' +
+            '<text class="venn-label" x="250" y="35">B</text>' +
+            // A only elements (left)
+            aOnly.map(function(e,i) {
+                return '<text class="venn-element" x="' + (80 + (i%2)*30) + '" y="' + (90 + Math.floor(i/2)*30) + '">' + e + '</text>';
+            }).join('') +
+            // B only elements (right)
+            bOnly.map(function(e,i) {
+                return '<text class="venn-element" x="' + (235 + (i%2)*30) + '" y="' + (90 + Math.floor(i/2)*30) + '">' + e + '</text>';
+            }).join('') +
+            // Intersection elements (center)
+            '<text class="venn-element" x="160" y="100">3</text>' +
+            '<text class="venn-element" x="180" y="120">4</text>' +
+            '</svg></div>';
+    }
+
+    function eulerGraphSvg() {
+        const nodes = [
+            {id:'A', x:100, y:60}, {id:'B', x:250, y:60},
+            {id:'C', x:100, y:180}, {id:'D', x:250, y:180},
+            {id:'E', x:380, y:120}
+        ];
+        const edges = [
+            {s:'A', t:'B'}, {s:'A', t:'C'}, {s:'B', t:'C'},
+            {s:'B', t:'D'}, {s:'C', t:'D'}, {s:'D', t:'E'}
+        ];
+        let svg = '<div class="graph-viz"><svg width="460" height="240" viewBox="0 0 460 240">';
+        edges.forEach(function(e) {
+            const s = nodes.find(n=>n.id===e.s), t = nodes.find(n=>n.id===e.t);
+            svg += '<line class="gv-edge" x1="'+s.x+'" y1="'+s.y+'" x2="'+t.x+'" y2="'+t.y+'" stroke="#999" stroke-width="2"/>';
+        });
+        nodes.forEach(function(n) {
+            svg += '<circle class="gv-node" cx="'+n.x+'" cy="'+n.y+'" r="22" fill="#E8F5E9" stroke="#2E8B57" stroke-width="2.5"/>';
+            svg += '<text x="'+n.x+'" y="'+(n.y+5)+'" text-anchor="middle" font-weight="700" font-size="14" fill="#1B5E20">'+n.id+'</text>';
+        });
+        svg += '</svg></div>';
+        return svg;
+    }
+
+    function kruskalGraphSvg(selectedEdges) {
+        const nodes = [
+            {id:'A', x:80, y:120}, {id:'B', x:200, y:50},
+            {id:'C', x:200, y:190}, {id:'D', x:330, y:120},
+            {id:'E', x:450, y:120}
+        ];
+        const edges = [
+            {s:'A', t:'B', w:1, key:'A-B'},
+            {s:'C', t:'D', w:2, key:'C-D'},
+            {s:'A', t:'C', w:3, key:'A-C'},
+            {s:'B', t:'D', w:4, key:'B-D'},
+            {s:'D', t:'E', w:5, key:'D-E'},
+            {s:'B', t:'E', w:6, key:'B-E'}
+        ];
+        let svg = '<div class="graph-viz"><svg width="500" height="250" viewBox="0 0 500 250">';
+        edges.forEach(function(e) {
+            const s = nodes.find(n=>n.id===e.s), t = nodes.find(n=>n.id===e.t);
+            const isSelected = selectedEdges.indexOf(e.key) >= 0;
+            const cls = isSelected ? 'selected' : '';
+            const color = isSelected ? '#2E8B57' : '#ccc';
+            const w = isSelected ? '4' : '2';
+            svg += '<line class="gv-edge '+cls+'" x1="'+s.x+'" y1="'+s.y+'" x2="'+t.x+'" y2="'+t.y+'" stroke="'+color+'" stroke-width="'+w+'"/>';
+            const mx = (s.x+t.x)/2, my=(s.y+t.y)/2;
+            svg += '<rect x="'+(mx-10)+'" y="'+(my-10)+'" width="20" height="18" rx="4" fill="#fff" stroke="'+color+'"/>';
+            svg += '<text x="'+mx+'" y="'+(my+3)+'" text-anchor="middle" font-size="12" font-weight="700" fill="'+color+'">'+e.w+'</text>';
+        });
+        nodes.forEach(function(n) {
+            svg += '<circle class="gv-node" cx="'+n.x+'" cy="'+n.y+'" r="22" fill="#E8F5E9" stroke="#2E8B57" stroke-width="2.5"/>';
+            svg += '<text x="'+n.x+'" y="'+(n.y+5)+'" text-anchor="middle" font-weight="700" font-size="14" fill="#1B5E20">'+n.id+'</text>';
+        });
+        svg += '</svg></div>';
+        return svg;
+    }
+
+    // ========================================
+    // 渲染逻辑
+    // ========================================
+    function render() {
+        const ex = examples[currentExample];
+        const step = ex.steps[currentStep];
+        const progress = ((currentStep + 1) / ex.totalSteps) * 100;
+
+        document.getElementById('progressBar').style.width = progress + '%';
+        document.getElementById('stepCurrent').textContent = step.title;
+        document.getElementById('stepTotal').textContent = '/ ' + ex.totalSteps;
+
+        // 步骤点
+        const dotsContainer = document.getElementById('stepDots');
+        dotsContainer.innerHTML = '';
+        for (let i = 0; i < ex.totalSteps; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'step-dot';
+            if (i < currentStep) dot.classList.add('completed');
+            if (i === currentStep) dot.classList.add('active');
+            dot.textContent = i + 1;
+            dot.addEventListener('click', function() {
+                currentStep = i;
+                render();
+            });
+            dotsContainer.appendChild(dot);
+        }
+
+        // 内容
+        const content = document.getElementById('stepContent');
+        content.style.animation = 'none';
+        content.offsetHeight; // trigger reflow
+        content.style.animation = 'fadeIn 0.4s ease';
+        content.innerHTML =
+            '<div class="step-title">' + step.title + ' <span class="step-badge">' + step.badge + '</span></div>' +
+            '<div class="step-desc">' + step.desc + '</div>' +
+            step.content();
+
+        // 按钮
+        document.getElementById('btnPrev').disabled = (currentStep === 0);
+        const btnNext = document.getElementById('btnNext');
+        if (currentStep === ex.totalSteps - 1) {
+            btnNext.innerHTML = '完成<i class="bi bi-check2 ms-1"></i>';
+            btnNext.disabled = true;
+        } else {
+            btnNext.innerHTML = '下一步<i class="bi bi-arrow-right ms-1"></i>';
+            btnNext.disabled = false;
+        }
+    }
+
+    // ========================================
+    // 事件绑定
+    // ========================================
+    document.querySelectorAll('.example-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+            document.querySelectorAll('.example-card').forEach(function(c) { c.classList.remove('active'); });
+            this.classList.add('active');
+            currentExample = parseInt(this.dataset.example);
+            currentStep = 0;
+            render();
+        });
+    });
+
+    document.getElementById('btnNext').addEventListener('click', function() {
+        const ex = examples[currentExample];
+        if (currentStep < ex.totalSteps - 1) {
+            currentStep++;
+            render();
+        }
+    });
+
+    document.getElementById('btnPrev').addEventListener('click', function() {
+        if (currentStep > 0) {
+            currentStep--;
+            render();
+        }
+    });
+
+    document.getElementById('btnReset').addEventListener('click', function() {
+        currentStep = 0;
+        render();
+    });
+
+    render();
+})();
+</script>
+{% endblock %}

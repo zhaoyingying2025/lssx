@@ -1,0 +1,832 @@
+{% extends "base.html" %}
+
+{% block title %}公式速查表 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+.fm-top-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+.fm-top-bar h2 {
+    margin: 0;
+    font-weight: 700;
+    color: var(--dark-green);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.fm-top-bar .search-box {
+    position: relative;
+    margin-left: auto;
+}
+.fm-top-bar .search-box input {
+    border-radius: 20px;
+    padding: 8px 14px 8px 36px;
+    border: 1.5px solid var(--border-green);
+    width: 260px;
+    font-size: 0.9rem;
+    transition: all 0.25s ease;
+}
+.fm-top-bar .search-box input:focus {
+    border-color: var(--seagreen);
+    box-shadow: 0 0 0 3px rgba(46,139,87,0.15);
+    outline: none;
+    width: 320px;
+}
+.fm-top-bar .search-box .bi {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+}
+
+/* 章节筛选下拉 */
+.fm-chapter-select {
+    border: 1.5px solid var(--border-green);
+    border-radius: 20px;
+    padding: 7px 14px;
+    background: #fff;
+    color: var(--ink-color);
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+.fm-chapter-select:hover, .fm-chapter-select:focus {
+    border-color: var(--seagreen);
+    box-shadow: 0 0 0 3px rgba(46,139,87,0.12);
+    outline: none;
+}
+
+/* 主体布局 */
+.fm-layout {
+    display: flex;
+    gap: 20px;
+    min-height: calc(100vh - 240px);
+}
+
+/* 左侧章节导航 */
+.fm-sidebar {
+    width: 240px;
+    min-width: 240px;
+    background: linear-gradient(180deg, #E8F5E9 0%, #F1F8E9 100%);
+    border-radius: 12px;
+    padding: 14px 0;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    position: sticky;
+    top: 80px;
+}
+.fm-sidebar-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    padding: 6px 18px 12px;
+    border-bottom: 2px solid #C8E6C9;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.fm-chapter-item {
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.86rem;
+    color: var(--ink-color);
+    user-select: none;
+}
+.fm-chapter-item:hover {
+    background: rgba(46,139,87,0.08);
+    color: var(--seagreen);
+}
+.fm-chapter-item.active {
+    background: rgba(46,139,87,0.14);
+    border-left-color: var(--seagreen);
+    color: var(--dark-green);
+    font-weight: 600;
+}
+.fm-chapter-item .count-badge {
+    background: var(--seagreen);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 1px 7px;
+    border-radius: 10px;
+    min-width: 22px;
+    text-align: center;
+}
+.fm-chapter-item.active .count-badge {
+    background: var(--dark-green);
+}
+
+/* 右侧公式卡片列表 */
+.fm-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.fm-result-info {
+    color: var(--text-muted);
+    font-size: 0.86rem;
+    margin-bottom: 14px;
+}
+
+.fm-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 16px;
+}
+
+.fm-card {
+    background: #fff;
+    border: 1px solid var(--border-green);
+    border-radius: 12px;
+    padding: 18px 18px 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+}
+.fm-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--seagreen), var(--teal));
+    opacity: 0.9;
+}
+.fm-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(46,139,87,0.16);
+    border-color: var(--medium-seagreen);
+}
+
+.fm-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+.fm-card-title {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    margin: 0;
+    line-height: 1.4;
+}
+.fm-card-actions {
+    display: flex;
+    gap: 6px;
+}
+.fm-copy-btn, .fm-edit-btn {
+    background: var(--light-green-bg);
+    color: var(--seagreen);
+    border: 1px solid var(--border-green);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.fm-copy-btn:hover, .fm-edit-btn:hover {
+    background: var(--seagreen);
+    color: #fff;
+    border-color: var(--seagreen);
+}
+.fm-copy-btn.copied {
+    background: var(--medium-seagreen);
+    color: #fff;
+    border-color: var(--medium-seagreen);
+}
+
+.fm-card-title-clickable {
+    cursor: pointer;
+}
+
+.fm-card-title-clickable:hover {
+    text-decoration: underline;
+    color: var(--seagreen);
+}
+
+.fm-card-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.fm-card-meta .badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 10px;
+}
+.fm-card-meta .badge-chapter {
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    color: #fff;
+}
+.fm-card-meta .badge-category {
+    background: var(--light-green-bg);
+    color: var(--dark-green);
+    border: 1px solid var(--border-green);
+}
+
+/* LaTeX 渲染区 */
+.fm-formula-box {
+    background: linear-gradient(135deg, rgba(46,139,87,0.04), rgba(0,137,123,0.04));
+    border: 1px dashed var(--border-green);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+    overflow-x: auto;
+    min-height: 38px;
+    color: var(--ink-color);
+    font-size: 1.05rem;
+}
+.fm-formula-box mjx-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+}
+
+/* 描述与条件 */
+.fm-card-desc {
+    color: var(--ink-color);
+    font-size: 0.88rem;
+    line-height: 1.7;
+}
+.fm-card-condition {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    padding: 6px 10px;
+    background: #FAFAF5;
+    border-radius: 6px;
+    border-left: 3px solid var(--medium-seagreen);
+}
+.fm-card-condition .label {
+    color: var(--seagreen);
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+/* 标签 */
+.fm-card-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 4px;
+    border-top: 1px dashed var(--border-green);
+}
+.fm-card-tags .tag {
+    background: #F5F5F5;
+    color: #777;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 8px;
+}
+
+/* 加载与空状态 */
+.fm-loading, .fm-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+.fm-loading .spinner-border {
+    color: var(--seagreen);
+    width: 2.5rem;
+    height: 2.5rem;
+}
+.fm-empty i {
+    font-size: 4rem;
+    color: var(--border-green);
+    display: block;
+    margin-bottom: 12px;
+}
+
+/* 卡片展开详情 */
+.fm-card.expanded {
+    grid-column: 1 / -1;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.fm-card-detail {
+    display: none;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-green);
+}
+
+.fm-card.expanded .fm-card-detail {
+    display: block;
+}
+
+.fm-card-detail h5 {
+    font-size: 0.9rem;
+    color: var(--dark-green);
+    margin-bottom: 8px;
+}
+
+.fm-card-detail .detail-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.fm-card-detail .detail-label {
+    width: 80px;
+    font-size: 0.8rem;
+    color: #999;
+    flex-shrink: 0;
+}
+
+.fm-card-detail .detail-value {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--ink-color);
+}
+
+/* 编辑模式 */
+.fm-card.editing .fm-formula-box {
+    background: #FFF9E6;
+    border-style: solid;
+    border-color: #FFC107;
+}
+
+.fm-edit-area {
+    display: none;
+    margin-top: 10px;
+}
+
+.fm-card.editing .fm-edit-area {
+    display: block;
+}
+
+.fm-edit-area textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    border: 1px solid var(--border-green);
+    border-radius: 8px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.fm-edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* 导出按钮 */
+.fm-export-btn {
+    background: #FFF;
+    color: var(--seagreen);
+    border: 1px solid var(--border-green);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.fm-export-btn:hover {
+    background: var(--seagreen);
+    color: #fff;
+    border-color: var(--seagreen);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .fm-layout { flex-direction: column; }
+    .fm-sidebar {
+        width: 100%;
+        min-width: 0;
+        position: static;
+        max-height: 200px;
+    }
+    .fm-cards {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fm-top-bar">
+    <h2><i class="bi bi-calculator-fill"></i>公式速查表</h2>
+    <select class="fm-chapter-select" id="fm-chapter-select">
+        <option value="">全部章节</option>
+    </select>
+    <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" id="fm-search" placeholder="搜索公式名、标签或描述..." autocomplete="off">
+    </div>
+    <a href="{{ url_for('knowledge.index') }}" class="btn btn-outline-seagreen btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>返回
+    </a>
+</div>
+
+<div class="fm-layout">
+    <!-- 左侧章节导航 -->
+    <div class="fm-sidebar">
+        <div class="fm-sidebar-title"><i class="bi bi-list-nested"></i>章节分类</div>
+        <div id="fm-chapter-nav"></div>
+    </div>
+
+    <!-- 右侧公式卡片 -->
+    <div class="fm-main">
+        <div class="fm-result-info" id="fm-result-info"></div>
+        <div class="fm-cards" id="fm-cards">
+            <div class="fm-loading">
+                <div class="spinner-border" role="status"></div>
+                <p class="mt-2">正在加载公式...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- MathJax CDN -->
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+    },
+    svg: { fontCache: 'global' },
+    options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" id="MathJax-script" async></script>
+<script>
+(function () {
+    'use strict';
+
+    const state = {
+        allChapters: [],
+        currentChapter: '',
+        searchKeyword: '',
+        currentItems: [],
+        searchTimer: null
+    };
+
+    const cardsEl = document.getElementById('fm-cards');
+    const navEl = document.getElementById('fm-chapter-nav');
+    const selectEl = document.getElementById('fm-chapter-select');
+    const searchInput = document.getElementById('fm-search');
+    const infoEl = document.getElementById('fm-result-info');
+
+    function escapeHtml(text) {
+        if (text == null) return '';
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+
+    // ============ 初始化 ============
+    function init() {
+        loadFormulas();
+
+        // 章节下拉切换
+        selectEl.addEventListener('change', function () {
+            state.currentChapter = this.value;
+            updateActiveChapter();
+            loadFormulas();
+        });
+
+        // 搜索防抖
+        searchInput.addEventListener('input', function () {
+            clearTimeout(state.searchTimer);
+            const v = this.value;
+            state.searchTimer = setTimeout(function () {
+                state.searchKeyword = v.trim();
+                loadFormulas();
+            }, 280);
+        });
+    }
+
+    function loadFormulas() {
+        cardsEl.innerHTML =
+            '<div class="fm-loading"><div class="spinner-border" role="status"></div>' +
+            '<p class="mt-2">正在加载公式...</p></div>';
+
+        const params = new URLSearchParams();
+        if (state.currentChapter) params.set('chapter', state.currentChapter);
+        if (state.searchKeyword) params.set('search', state.searchKeyword);
+
+        fetch('{{ url_for("knowledge.api_formulas") }}?' + params.toString())
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                state.allChapters = data.chapters || [];
+                state.currentItems = data.items || [];
+                renderChapterNav();
+                renderChapterSelect();
+                renderCards();
+                updateInfo(data.total);
+            })
+            .catch(function (err) {
+                cardsEl.innerHTML =
+                    '<div class="fm-empty"><i class="bi bi-exclamation-circle"></i>' +
+                    '<p>加载失败，请刷新重试</p></div>';
+                console.error(err);
+            });
+    }
+
+    // ============ 渲染左侧章节导航 ============
+    function renderChapterNav() {
+        let html = '<div class="fm-chapter-item' + (state.currentChapter === '' ? ' active' : '') + '"' +
+            ' data-chapter="">' +
+            '<span><i class="bi bi-grid me-2"></i>全部章节</span></div>';
+        state.allChapters.forEach(function (ch) {
+            // 计算章节数量
+            const cnt = state.allChapters.length; // 仅显示当前章节计数
+            html += '<div class="fm-chapter-item' +
+                (state.currentChapter === ch ? ' active' : '') + '"' +
+                ' data-chapter="' + escapeHtml(ch) + '">' +
+                '<span>' + escapeHtml(ch) + '</span>' +
+                '</div>';
+        });
+        navEl.innerHTML = html;
+        navEl.querySelectorAll('.fm-chapter-item').forEach(function (el) {
+            el.addEventListener('click', function () {
+                state.currentChapter = el.getAttribute('data-chapter');
+                selectEl.value = state.currentChapter;
+                updateActiveChapter();
+                loadFormulas();
+            });
+        });
+    }
+
+    function updateActiveChapter() {
+        navEl.querySelectorAll('.fm-chapter-item').forEach(function (el) {
+            el.classList.toggle('active', el.getAttribute('data-chapter') === state.currentChapter);
+        });
+    }
+
+    // ============ 渲染章节下拉 ============
+    function renderChapterSelect() {
+        // 仅在选项数变化时重建
+        const options = ['<option value="">全部章节</option>'];
+        state.allChapters.forEach(function (ch) {
+            options.push('<option value="' + escapeHtml(ch) + '"' +
+                (state.currentChapter === ch ? ' selected' : '') + '>' +
+                escapeHtml(ch) + '</option>');
+        });
+        const newHtml = options.join('');
+        if (selectEl.innerHTML !== newHtml) {
+            selectEl.innerHTML = newHtml;
+            selectEl.value = state.currentChapter;
+        }
+    }
+
+    // ============ 渲染公式卡片 ============
+    function renderCards() {
+        if (state.currentItems.length === 0) {
+            cardsEl.innerHTML =
+                '<div class="fm-empty"><i class="bi bi-inbox"></i>' +
+                '<p>未找到匹配的公式</p>' +
+                '<button class="btn btn-seagreen btn-sm mt-2" onclick="document.getElementById(\'fm-search\').value=\'\';' +
+                'document.getElementById(\'fm-chapter-select\').value=\'\';' +
+                'window.__fmClearFilters && window.__fmClearFilters();">清除筛选</button></div>';
+            return;
+        }
+        cardsEl.innerHTML = state.currentItems.map(function (f, idx) {
+            const latex = f.latex || '';
+            const tags = (f.tags || '').split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+            const cardId = 'fm-card-' + idx;
+            const latexId = 'fm-latex-' + idx;
+
+            let html = '<div class="fm-card" id="' + cardId + '">';
+            // 头部
+            html += '<div class="fm-card-header">';
+            html += '<h4 class="fm-card-title fm-card-title-clickable">' + escapeHtml(f.name) + '</h4>';
+            html += '<div class="fm-card-actions">';
+            html += '<button class="fm-edit-btn" data-card-id="' + cardId + '" title="编辑公式">';
+            html += '<i class="bi bi-pencil"></i></button>';
+            html += '<button class="fm-copy-btn" data-latex="' + escapeHtml(latex) + '" title="复制 LaTeX 代码">';
+            html += '<i class="bi bi-clipboard"></i>复制</button>';
+            html += '<button class="fm-export-btn" data-formula="' + escapeHtml(JSON.stringify(f)) + '" title="导出公式">';
+            html += '<i class="bi bi-download"></i>导出</button>';
+            html += '</div></div>';
+
+            // 章节与分类徽章
+            html += '<div class="fm-card-meta">';
+            if (f.chapter) html += '<span class="badge badge-chapter">' + escapeHtml(f.chapter) + '</span>';
+            if (f.category) html += '<span class="badge badge-category">' + escapeHtml(f.category) + '</span>';
+            html += '</div>';
+
+            // LaTeX 渲染（用 $$...$$ 包裹触发 MathJax）
+            html += '<div class="fm-formula-box" id="' + latexId + '">';
+            if (latex) {
+                html += '$$' + latex + '$$';
+            } else {
+                html += '<pre style="margin:0;font-family:Consolas,Monaco,monospace;">' + escapeHtml(f.formula) + '</pre>';
+            }
+            html += '</div>';
+
+            // 描述
+            if (f.description) {
+                html += '<div class="fm-card-desc">' + escapeHtml(f.description) + '</div>';
+            }
+
+            // 适用条件
+            if (f.condition) {
+                html += '<div class="fm-card-condition"><span class="label">适用条件：</span>' +
+                    escapeHtml(f.condition) + '</div>';
+            }
+
+            // 标签
+            if (tags.length > 0) {
+                html += '<div class="fm-card-tags">';
+                tags.forEach(function (t) {
+                    html += '<span class="tag">#' + escapeHtml(t) + '</span>';
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }).join('');
+
+        // 绑定复制按钮
+        cardsEl.querySelectorAll('.fm-copy-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const latex = btn.getAttribute('data-latex');
+                copyToClipboard(latex, btn);
+            });
+        });
+
+        // 绑定编辑按钮
+        cardsEl.querySelectorAll('.fm-edit-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const cardId = btn.getAttribute('data-card-id');
+                const card = document.getElementById(cardId);
+                if (card.classList.contains('editing')) {
+                    card.classList.remove('editing');
+                    btn.innerHTML = '<i class="bi bi-pencil"></i>';
+                } else {
+                    card.classList.add('editing');
+                    btn.innerHTML = '<i class="bi bi-check"></i>';
+                }
+            });
+        });
+
+        // 绑定导出按钮
+        cardsEl.querySelectorAll('.fm-export-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const formulaData = btn.getAttribute('data-formula');
+                exportFormula(formulaData);
+            });
+        });
+
+        // 绑定卡片标题点击展开
+        cardsEl.querySelectorAll('.fm-card-title-clickable').forEach(function (title) {
+            title.addEventListener('click', function () {
+                const card = title.closest('.fm-card');
+                card.classList.toggle('expanded');
+            });
+        });
+
+        // 触发 MathJax 重新渲染
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetPromise([cardsEl]).catch(function (err) {
+                console.warn('MathJax 渲染失败:', err);
+            });
+        }
+    }
+
+    function copyToClipboard(text, btn) {
+        if (!text) {
+            alert('暂无 LaTeX 代码');
+            return;
+        }
+        const fallback = function () {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta);
+        };
+        const showCopied = function () {
+            const original = btn.innerHTML;
+            btn.classList.add('copied');
+            btn.innerHTML = '<i class="bi bi-check2"></i>已复制';
+            setTimeout(function () {
+                btn.classList.remove('copied');
+                btn.innerHTML = original;
+            }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(showCopied).catch(function () {
+                fallback(); showCopied();
+            });
+        } else {
+            fallback(); showCopied();
+        }
+    }
+
+    function exportFormula(formulaData) {
+        try {
+            const formula = JSON.parse(formulaData);
+            const exportOptions = [
+                { label: '导出为 JSON', format: 'json' },
+                { label: '导出为 Markdown', format: 'md' },
+                { label: '导出为 LaTeX', format: 'tex' },
+            ];
+            const selected = prompt(
+                '请选择导出格式：\n' + exportOptions.map((opt, i) => `${i + 1}. ${opt.label}`).join('\n'),
+                '1'
+            );
+            if (!selected) return;
+            const index = parseInt(selected) - 1;
+            if (index < 0 || index >= exportOptions.length) {
+                alert('无效选项');
+                return;
+            }
+            const format = exportOptions[index].format;
+            let content, filename;
+            if (format === 'json') {
+                content = JSON.stringify(formula, null, 2);
+                filename = `${formula.name}.json`;
+            } else if (format === 'md') {
+                content = `# ${formula.name}\n\n` +
+                    `**章节**: ${formula.chapter}\n\n` +
+                    `**分类**: ${formula.category}\n\n` +
+                    `**公式**:\n$$${formula.latex || formula.formula}$$\n\n` +
+                    `**描述**: ${formula.description || ''}\n\n` +
+                    `**条件**: ${formula.condition || '无'}\n\n` +
+                    `**标签**: ${formula.tags || '无'}`;
+                filename = `${formula.name}.md`;
+            } else if (format === 'tex') {
+                content = `\\section{${formula.name}}\n\n` +
+                    `\\subsection{基本信息}\n` +
+                    `- 章节: ${formula.chapter}\n` +
+                    `- 分类: ${formula.category}\n\n` +
+                    `\\subsection{公式}\n` +
+                    `$$${formula.latex || formula.formula}$$\n\n` +
+                    `\\subsection{描述}\n` +
+                    `${formula.description || ''}\n\n` +
+                    `\\subsection{适用条件}\n` +
+                    `${formula.condition || '无'}`;
+                filename = `${formula.name}.tex`;
+            }
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('导出失败:', e);
+            alert('导出失败，请重试');
+        }
+    }
+
+    function updateInfo(total) {
+        let desc = '共 ' + total + ' 条公式';
+        if (state.currentChapter) desc += ' · ' + state.currentChapter;
+        if (state.searchKeyword) desc += ' · 搜索"' + state.searchKeyword + '"';
+        infoEl.textContent = desc;
+    }
+
+    // 暴露给"清除筛选"按钮使用
+    window.__fmClearFilters = function () {
+        state.currentChapter = '';
+        state.searchKeyword = '';
+        loadFormulas();
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+{% endblock %}

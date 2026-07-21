@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ courseware.title }} - PPT预览</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Microsoft YaHei', 'Noto Serif SC', sans-serif; }
+
+        .ppt-preview-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #1a1a2e;
+        }
+
+        .ppt-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .ppt-preview-header h1 {
+            font-size: 1rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 60%;
+        }
+
+        .ppt-preview-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-exit-preview {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn-exit-preview:hover {
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .slide-indicator {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .ppt-preview-body {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .slide-container {
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .slide-content {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide-content img {
+            display: block;
+            max-width: 100%;
+            max-height: calc(100vh - 160px);
+            object-fit: contain;
+        }
+
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            backdrop-filter: blur(5px);
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .nav-btn.prev { left: 20px; }
+        .nav-btn.next { right: 20px; }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .ppt-preview-footer {
+            display: flex;
+            justify-content: center;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        .slide-thumbnails {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 4px 0;
+            max-width: 100%;
+        }
+
+        .slide-thumb {
+            width: 80px;
+            height: 45px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            object-fit: cover;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .slide-thumb:hover {
+            border-color: rgba(255,255,255,0.5);
+            transform: scale(1.05);
+        }
+
+        .slide-thumb.active {
+            border-color: #2E8B57;
+            box-shadow: 0 0 0 2px rgba(46,139,87,0.5);
+        }
+
+        @media (max-width: 768px) {
+            .ppt-preview-header h1 { display: none; }
+            .nav-btn { width: 40px; height: 40px; font-size: 1.2rem; }
+            .nav-btn.prev { left: 10px; }
+            .nav-btn.next { right: 10px; }
+            .slide-thumb { width: 60px; height: 34px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="ppt-preview-container">
+        <div class="ppt-preview-header">
+            <h1>{{ courseware.title }}</h1>
+            <div class="ppt-preview-controls">
+                <span class="slide-indicator" id="slideIndicator">1 / {{ total_slides }}</span>
+                <button class="btn-exit-preview" onclick="closePreview()">
+                    <i class="bi bi-x-circle"></i> 退出预览
+                </button>
+            </div>
+        </div>
+
+        <div class="ppt-preview-body">
+            <button class="nav-btn prev" onclick="prevSlide()" id="prevBtn" {% if current_index == 0 %}disabled{% endif %}>
+                <i class="bi bi-chevron-left"></i>
+            </button>
+
+            <div class="slide-container" id="slideContainer">
+                <div class="slide-content" id="slideContent">
+                    <img src="{{ slides[current_index] }}" alt="幻灯片 {{ current_index + 1 }}">
+                </div>
+            </div>
+
+            <button class="nav-btn next" onclick="nextSlide()" id="nextBtn" {% if current_index == total_slides - 1 %}disabled{% endif %}>
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+
+        <div class="ppt-preview-footer">
+            <div class="slide-thumbnails">
+                {% for i in range(total_slides) %}
+                <img src="{{ slides[i] }}" alt="幻灯片 {{ i + 1 }}" 
+                     class="slide-thumb {% if i == current_index %}active{% endif %}"
+                     onclick="goToSlide({{ i }})">
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var currentIndex = {{ current_index }};
+        var totalSlides = {{ total_slides }};
+        var slides = {{ slides | tojson }};
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlide();
+            }
+        }
+
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlide();
+            }
+        }
+
+        function goToSlide(index) {
+            if (index >= 0 && index < totalSlides) {
+                currentIndex = index;
+                updateSlide();
+            }
+        }
+
+        function updateSlide() {
+            document.getElementById('slideContent').innerHTML = 
+                '<img src="' + slides[currentIndex] + '" alt="幻灯片 ' + (currentIndex + 1) + '">';
+            document.getElementById('slideIndicator').textContent = 
+                (currentIndex + 1) + ' / ' + totalSlides;
+            
+            document.getElementById('prevBtn').disabled = currentIndex === 0;
+            document.getElementById('nextBtn').disabled = currentIndex === totalSlides - 1;
+            
+            document.querySelectorAll('.slide-thumb').forEach(function(thumb, i) {
+                thumb.classList.toggle('active', i === currentIndex);
+            });
+        }
+
+        function closePreview() {
+            window.close();
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') prevSlide();
+            else if (e.key === 'ArrowRight') nextSlide();
+            else if (e.key === 'Escape') closePreview();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}管理后台 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: var(--white);
+        border: 1px solid var(--border-green);
+        border-radius: var(--border-radius);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--seagreen), var(--teal), var(--medium-seagreen));
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(46, 139, 87, 0.18);
+    }
+
+    .stat-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px; height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--light-green-bg), #C8E6C9);
+        color: var(--seagreen);
+        margin-bottom: 1rem;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover .stat-icon {
+        transform: scale(1.1) rotate(-5deg);
+    }
+
+    .stat-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--dark-green);
+        line-height: 1.2;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        color: var(--ink-gray);
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .chart-card {
+        background: var(--white);
+        border: 1px solid var(--border-green);
+        border-radius: var(--border-radius);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .chart-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--seagreen), var(--teal), var(--medium-seagreen));
+    }
+
+    .chart-card h5 {
+        color: var(--dark-green);
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .user-row {
+        display: flex;
+        align-items: center;
+        padding: 0.6rem 0.8rem;
+        border-radius: 8px;
+        transition: background 0.2s ease;
+    }
+
+    .user-row:hover {
+        background: var(--light-green-bg);
+    }
+
+    .user-avatar {
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--seagreen), var(--teal));
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <div class="icon-wrapper me-3" style="width:54px;height:54px;">
+        <i class="bi bi-speedometer2" style="font-size:1.6rem;"></i>
+    </div>
+    <div>
+        <h2 class="mb-0 text-dark-green">管理后台</h2>
+        <p class="text-ink-gray mb-0"><i class="bi bi-bar-chart-line me-1"></i>系统数据概览</p>
+    </div>
+</div>
+
+<!-- 数据卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-icon"><i class="bi bi-people-fill" style="font-size:1.5rem;"></i></div>
+            <div class="stat-value">{{ stats.users }}</div>
+            <p class="stat-label">用户总数</p>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-icon"><i class="bi bi-shield-fill-check" style="font-size:1.5rem;"></i></div>
+            <div class="stat-value">{{ stats.admins }}</div>
+            <p class="stat-label">管理员数</p>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-icon"><i class="bi bi-book-fill" style="font-size:1.5rem;"></i></div>
+            <div class="stat-value">{{ stats.knowledge }}</div>
+            <p class="stat-label">知识条目</p>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-icon"><i class="bi bi-patch-question-fill" style="font-size:1.5rem;"></i></div>
+            <div class="stat-value">{{ stats.quizzes }}</div>
+            <p class="stat-label">试题数</p>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-icon"><i class="bi bi-journal-richtext" style="font-size:1.5rem;"></i></div>
+            <div class="stat-value">{{ stats.coursewares }}</div>
+            <p class="stat-label">课件数</p>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-icon"><i class="bi bi-palette-fill" style="font-size:1.5rem;"></i></div>
+            <div class="stat-value">{{ stats.graphs }}</div>
+            <p class="stat-label">图形数据</p>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-icon"><i class="bi bi-file-earmark-text-fill" style="font-size:1.5rem;"></i></div>
+            <div class="stat-value">{{ stats.exam_papers }}</div>
+            <p class="stat-label">试卷数</p>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-icon"><i class="bi bi-file-earmark-ppt-fill" style="font-size:1.5rem;"></i></div>
+            <div class="stat-value">{{ stats.ppt_slides }}</div>
+            <p class="stat-label">PPT 幻灯片</p>
+        </div>
+    </div>
+</div>
+
+<!-- 图表区 -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="chart-card h-100">
+            <h5><i class="bi bi-bar-chart-fill me-2"></i>知识条目章节分布 Top 8</h5>
+            <canvas id="chapterChart" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="chart-card h-100">
+            <h5><i class="bi bi-pie-chart-fill me-2"></i>试题题型分布</h5>
+            <canvas id="quizTypeChart" height="120"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- 最近注册用户 -->
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="chart-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>最近注册用户</h5>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-sm btn-outline-seagreen">
+                    <i class="bi bi-list-ul me-1"></i>查看全部
+                </a>
+            </div>
+            {% if recent_users %}
+                {% for u in recent_users %}
+                    <div class="user-row">
+                        <div class="user-avatar">{{ u.username[0] | upper }}</div>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-semibold text-ink">
+                                {{ u.username }}
+                                {% if u.is_admin %}
+                                    <span class="badge bg-seagreen ms-1"><i class="bi bi-shield-fill-check me-1"></i>管理员</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">
+                                {{ u.email or '未填邮箱' }}
+                                · 注册于 {{ u.created_at.strftime('%Y-%m-%d %H:%M') if u.created_at else '-' }}
+                            </small>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center py-4 mb-0"><i class="bi bi-inbox me-1"></i>暂无用户</p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="chart-card h-100">
+            <h5><i class="bi bi-lightning-charge-fill me-2"></i>快捷操作</h5>
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('admin.users') }}" class="btn btn-seagreen">
+                    <i class="bi bi-people-fill me-2"></i>用户管理
+                </a>
+                <a href="{{ url_for('knowledge.index') }}" class="btn btn-outline-seagreen">
+                    <i class="bi bi-book-fill me-2"></i>知识库管理
+                </a>
+                <a href="{{ url_for('quiz.index') }}" class="btn btn-outline-seagreen">
+                    <i class="bi bi-patch-question-fill me-2"></i>试题库管理
+                </a>
+                <a href="{{ url_for('courseware.index') }}" class="btn btn-outline-seagreen">
+                    <i class="bi bi-journal-richtext me-2"></i>课件管理
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-house-fill me-2"></i>返回首页
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    // 章节分布柱状图
+    const chapterCtx = document.getElementById('chapterChart');
+    if (chapterCtx) {
+        new Chart(chapterCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_chapters | tojson }},
+                datasets: [{
+                    label: '知识条目数',
+                    data: {{ chart_counts | tojson }},
+                    backgroundColor: 'rgba(46, 139, 87, 0.75)',
+                    borderColor: 'rgba(27, 94, 32, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    // 题型分布饼图
+    const quizTypeCtx = document.getElementById('quizTypeChart');
+    if (quizTypeCtx) {
+        new Chart(quizTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ quiz_type_labels | tojson }},
+                datasets: [{
+                    data: {{ quiz_type_counts | tojson }},
+                    backgroundColor: [
+                        'rgba(46, 139, 87, 0.85)',
+                        'rgba(0, 137, 123, 0.85)',
+                        'rgba(60, 179, 113, 0.85)',
+                        'rgba(27, 94, 32, 0.85)',
+                        'rgba(165, 214, 167, 0.85)',
+                        'rgba(0, 105, 92, 0.85)',
+                        'rgba(129, 199, 132, 0.85)'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'right' } }
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,642 @@
+{% extends "base.html" %}
+
+{% block title %}知识点关联图谱 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+.graph-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 200px);
+    min-height: 500px;
+    background: linear-gradient(135deg, #FAFAF5 0%, #F1F8E9 100%);
+    border-radius: 12px;
+    border: 1px solid var(--border-green);
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+#graphCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+#graphCanvas:active {
+    cursor: grabbing;
+}
+
+.graph-toolbar {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 10;
+}
+
+.graph-toolbar input {
+    border-radius: 8px;
+    border: 1.5px solid #dce8dc;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    width: 220px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.graph-toolbar input:focus {
+    outline: none;
+    border-color: var(--seagreen);
+    box-shadow: 0 0 0 0.2rem rgba(46,139,87,0.15);
+}
+
+.graph-controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 10;
+}
+
+.graph-controls button {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-green);
+    background: var(--white);
+    color: var(--seagreen);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.graph-controls button:hover {
+    background: var(--light-green-bg);
+    border-color: var(--seagreen);
+    transform: scale(1.05);
+}
+
+.graph-legend {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: rgba(255,255,255,0.95);
+    border-radius: 10px;
+    padding: 12px 16px;
+    border: 1px solid var(--border-green);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    z-index: 10;
+    max-width: 260px;
+}
+
+.graph-legend h6 {
+    font-size: 0.85rem;
+    color: var(--dark-green);
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-size: 0.8rem;
+    color: var(--ink-gray);
+}
+
+.legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legend-line {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+#tooltip {
+    position: absolute;
+    background: rgba(27,94,32,0.95);
+    color: white;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    max-width: 300px;
+    pointer-events: none;
+    z-index: 20;
+    display: none;
+    line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+#tooltip .tt-label {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+
+#tooltip .tt-info {
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+
+.graph-info-bar {
+    background: var(--white);
+    border-radius: 10px;
+    padding: 12px 20px;
+    border: 1px solid var(--border-green);
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.graph-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-item .stat-num {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--seagreen);
+}
+
+.stat-item .stat-label {
+    font-size: 0.75rem;
+    color: var(--ink-gray);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="text-dark-green mb-0"><i class="bi bi-diagram-3-fill me-2"></i>知识点关联图谱</h2>
+        <small class="text-ink-gray">力导向图可视化展示离散数学各知识点之间的逻辑关系与依赖关系</small>
+    </div>
+    <a href="{{ url_for('innovation.index') }}" class="btn btn-outline-seagreen btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>返回创新点
+    </a>
+</div>
+
+<div class="graph-info-bar">
+    <div class="graph-stats">
+        <div class="stat-item">
+            <div class="stat-num" id="statNodes">-</div>
+            <div class="stat-label">知识节点</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-num" id="statLinks">-</div>
+            <div class="stat-label">关联连接</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-num" id="statChapters">12</div>
+            <div class="stat-label">章节</div>
+        </div>
+    </div>
+    <div class="text-ink-gray" style="font-size:0.85rem;">
+        <i class="bi bi-info-circle me-1"></i>拖拽节点 · 滚轮缩放 · 点击高亮 · 悬停查看详情
+    </div>
+</div>
+
+<div class="graph-container">
+    <div class="graph-toolbar">
+        <input type="text" id="searchInput" class="form-control" placeholder="搜索知识点..." autocomplete="off">
+    </div>
+    <div class="graph-controls">
+        <button id="btnZoomIn" title="放大"><i class="bi bi-zoom-in"></i></button>
+        <button id="btnZoomOut" title="缩小"><i class="bi bi-zoom-out"></i></button>
+        <button id="btnReset" title="重置视图"><i class="bi bi-arrows-fullscreen"></i></button>
+        <button id="btnReheat" title="重新布局"><i class="bi bi-arrow-clockwise"></i></button>
+    </div>
+    <div class="graph-legend">
+        <h6><i class="bi bi-palette me-1"></i>图例</h6>
+        <div class="legend-item"><span class="legend-dot" style="background:#2E8B57;"></span>逻辑 (logic)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#E65100;"></span>集合 (set)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#1565C0;"></span>算法 (algorithm)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#6A1B9A;"></span>数论 (number)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#C62828;"></span>计数 (counting)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#00838F;"></span>关系 (relation)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#37474F;"></span>图论 (graph)</div>
+        <hr style="margin:6px 0;">
+        <div class="legend-item"><span class="legend-line" style="background:#2E8B57;"></span>依赖/基础</div>
+        <div class="legend-item"><span class="legend-line" style="background:#E65100; border-top:2px dashed #E65100; background:transparent;"></span>包含</div>
+        <div class="legend-item"><span class="legend-line" style="background:#1565C0;"></span>应用/扩展</div>
+        <div class="legend-item"><span class="legend-line" style="background:#999;"></span>关联</div>
+    </div>
+    <div id="tooltip"></div>
+    <canvas id="graphCanvas"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+
+    // 分组颜色
+    const GROUP_COLORS = {
+        logic: '#2E8B57',
+        set: '#E65100',
+        algorithm: '#1565C0',
+        number: '#6A1B9A',
+        counting: '#C62828',
+        relation: '#00838F',
+        graph: '#37474F'
+    };
+
+    const LINK_COLORS = {
+        '依赖': '#2E8B57',
+        '基础': '#2E8B57',
+        '包含': '#E65100',
+        '应用': '#1565C0',
+        '扩展': '#1565C0',
+        '关联': '#999999'
+    };
+
+    let nodes = [];
+    let links = [];
+    let nodeMap = {};
+    let width, height;
+    let scale = 1;
+    let offsetX = 0, offsetY = 0;
+    let dragging = null;
+    let hoverNode = null;
+    let selectedNode = null;
+    let isPanning = false;
+    let lastMouseX = 0, lastMouseY = 0;
+    let searchQuery = '';
+
+    function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.scale(dpr, dpr);
+        width = rect.width;
+        height = rect.height;
+    }
+
+    function initNodes() {
+        const cx = width / 2, cy = height / 2;
+        nodes.forEach(function(n, i) {
+            const angle = (i / nodes.length) * Math.PI * 2;
+            n.x = cx + Math.cos(angle) * 200 + (Math.random() - 0.5) * 80;
+            n.y = cy + Math.sin(angle) * 200 + (Math.random() - 0.5) * 80;
+            n.vx = 0;
+            n.vy = 0;
+            n.radius = n.type === 'chapter' ? 22 : 14;
+        });
+    }
+
+    function applyForces() {
+        const repulsion = 8000;
+        const linkDistance = 120;
+        const springStrength = 0.04;
+        const damping = 0.82;
+        const centerStrength = 0.008;
+
+        // 排斥力
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                const a = nodes[i], b = nodes[j];
+                let dx = a.x - b.x;
+                let dy = a.y - b.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 1) dist = 1;
+                const force = repulsion / (dist * dist);
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+                a.vx += fx; a.vy += fy;
+                b.vx -= fx; b.vy -= fy;
+            }
+        }
+
+        // 吸引力（弹簧力）
+        links.forEach(function(link) {
+            const s = nodeMap[link.source];
+            const t = nodeMap[link.target];
+            if (!s || !t) return;
+            let dx = t.x - s.x;
+            let dy = t.y - s.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 1) dist = 1;
+            const force = (dist - linkDistance) * springStrength;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            s.vx += fx; s.vy += fy;
+            t.vx -= fx; t.vy -= fy;
+        });
+
+        // 中心吸引力
+        const cx = width / 2, cy = height / 2;
+        nodes.forEach(function(n) {
+            n.vx += (cx - n.x) * centerStrength;
+            n.vy += (cy - n.y) * centerStrength;
+        });
+
+        // 更新位置
+        nodes.forEach(function(n) {
+            if (n === dragging) return;
+            n.vx *= damping;
+            n.vy *= damping;
+            n.x += n.vx;
+            n.y += n.vy;
+        });
+    }
+
+    function getConnectedNodes(nodeId) {
+        const connected = new Set([nodeId]);
+        links.forEach(function(l) {
+            if (l.source === nodeId) connected.add(l.target);
+            if (l.target === nodeId) connected.add(l.source);
+        });
+        return connected;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
+        ctx.scale(scale, scale);
+
+        const highlighted = selectedNode ? getConnectedNodes(selectedNode.id) : null;
+
+        // 绘制连线
+        links.forEach(function(link) {
+            const s = nodeMap[link.source];
+            const t = nodeMap[link.target];
+            if (!s || !t) return;
+
+            let alpha = 0.5;
+            let lineWidth = 1.5;
+            if (highlighted) {
+                if (highlighted.has(link.source) && highlighted.has(link.target)) {
+                    alpha = 1;
+                    lineWidth = 2.5;
+                } else {
+                    alpha = 0.1;
+                }
+            }
+
+            const color = LINK_COLORS[link.label] || '#999';
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = lineWidth;
+            if (link.label === '包含') {
+                ctx.setLineDash([5, 4]);
+            } else {
+                ctx.setLineDash([]);
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(t.x, t.y);
+            ctx.stroke();
+
+            // 连线标签
+            if (alpha > 0.6) {
+                ctx.setLineDash([]);
+                ctx.globalAlpha = alpha * 0.7;
+                ctx.fillStyle = color;
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                const mx = (s.x + t.x) / 2;
+                const my = (s.y + t.y) / 2;
+                ctx.fillText(link.label, mx, my - 4);
+            }
+        });
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+
+        // 绘制节点
+        nodes.forEach(function(n) {
+            let isHighlighted = true;
+            let isDimmed = false;
+            if (highlighted) {
+                isHighlighted = highlighted.has(n.id);
+                isDimmed = !isHighlighted;
+            }
+
+            // 搜索高亮
+            let isSearchMatch = false;
+            if (searchQuery) {
+                isSearchMatch = n.label.toLowerCase().includes(searchQuery.toLowerCase());
+                if (!isSearchMatch) isDimmed = true;
+            }
+
+            const color = GROUP_COLORS[n.group] || '#666';
+            ctx.globalAlpha = isDimmed ? 0.2 : 1;
+
+            // 光环（选中/搜索匹配/悬停）
+            if (n === selectedNode || isSearchMatch || n === hoverNode) {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius + 8, 0, Math.PI * 2);
+                ctx.fillStyle = color + '33';
+                ctx.fill();
+            }
+
+            // 节点圆
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // 节点标签
+            ctx.globalAlpha = isDimmed ? 0.2 : 1;
+            ctx.fillStyle = '#2C3E50';
+            ctx.font = n.type === 'chapter' ? 'bold 13px "Microsoft YaHei", sans-serif' : '11px "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(n.label, n.x, n.y + n.radius + 4);
+
+            // 章节标记
+            if (n.type === 'chapter') {
+                ctx.font = 'bold 10px sans-serif';
+                ctx.fillStyle = '#fff';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(n.chapter, n.x, n.y);
+            }
+        });
+
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+
+    function animate() {
+        applyForces();
+        draw();
+        requestAnimationFrame(animate);
+    }
+
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left - offsetX) / scale,
+            y: (e.clientY - rect.top - offsetY) / scale
+        };
+    }
+
+    function getNodeAt(x, y) {
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const n = nodes[i];
+            const dx = n.x - x;
+            const dy = n.y - y;
+            if (Math.sqrt(dx * dx + dy * dy) < n.radius + 4) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    // 鼠标交互
+    canvas.addEventListener('mousedown', function(e) {
+        const pos = getMousePos(e);
+        const node = getNodeAt(pos.x, pos.y);
+        if (node) {
+            dragging = node;
+        } else {
+            isPanning = true;
+        }
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+        const pos = getMousePos(e);
+        if (dragging) {
+            dragging.x = pos.x;
+            dragging.y = pos.y;
+            dragging.vx = 0;
+            dragging.vy = 0;
+        } else if (isPanning) {
+            offsetX += e.clientX - lastMouseX;
+            offsetY += e.clientY - lastMouseY;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        } else {
+            const node = getNodeAt(pos.x, pos.y);
+            if (node !== hoverNode) {
+                hoverNode = node;
+                canvas.style.cursor = node ? 'pointer' : 'grab';
+            }
+            if (node) {
+                tooltip.style.display = 'block';
+                const rect = canvas.getBoundingClientRect();
+                tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
+                tooltip.style.top = (e.clientY - rect.top + 14) + 'px';
+                tooltip.innerHTML = '<div class="tt-label">' + node.label + '</div>' +
+                    '<div class="tt-info">' + (node.info || node.chapter_name || '') + '</div>' +
+                    '<div class="tt-info">类型：' + (node.type === 'chapter' ? '章节' : '小节') + '</div>';
+            } else {
+                tooltip.style.display = 'none';
+            }
+        }
+    });
+
+    canvas.addEventListener('mouseup', function(e) {
+        if (dragging) {
+            const pos = getMousePos(e);
+            const node = getNodeAt(pos.x, pos.y);
+            if (node === dragging) {
+                selectedNode = (selectedNode === node) ? null : node;
+            }
+            dragging = null;
+        }
+        isPanning = false;
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+        dragging = null;
+        isPanning = false;
+        hoverNode = null;
+        tooltip.style.display = 'none';
+    });
+
+    // 滚轮缩放
+    canvas.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = Math.max(0.3, Math.min(3, scale * delta));
+        offsetX = mx - (mx - offsetX) * (newScale / scale);
+        offsetY = my - (my - offsetY) * (newScale / scale);
+        scale = newScale;
+    });
+
+    // 控制按钮
+    document.getElementById('btnZoomIn').addEventListener('click', function() {
+        scale = Math.min(3, scale * 1.2);
+    });
+    document.getElementById('btnZoomOut').addEventListener('click', function() {
+        scale = Math.max(0.3, scale * 0.83);
+    });
+    document.getElementById('btnReset').addEventListener('click', function() {
+        scale = 1; offsetX = 0; offsetY = 0;
+        selectedNode = null;
+    });
+    document.getElementById('btnReheat').addEventListener('click', function() {
+        nodes.forEach(function(n) {
+            n.vx = (Math.random() - 0.5) * 20;
+            n.vy = (Math.random() - 0.5) * 20;
+        });
+    });
+
+    // 搜索
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        searchQuery = e.target.value.trim();
+    });
+
+    // 加载数据
+    fetch('{{ url_for("innovation.api_graph_data") }}')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            nodes = data.nodes;
+            links = data.links;
+            nodeMap = {};
+            nodes.forEach(function(n) { nodeMap[n.id] = n; });
+            initNodes();
+            document.getElementById('statNodes').textContent = nodes.length;
+            document.getElementById('statLinks').textContent = links.length;
+            animate();
+        })
+        .catch(function(err) {
+            console.error('加载图谱数据失败:', err);
+        });
+
+    window.addEventListener('resize', function() {
+        resizeCanvas();
+    });
+    resizeCanvas();
+})();
+</script>
+{% endblock %}

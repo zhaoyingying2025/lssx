@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 离散数学智能教学体{% endblock %}
+
+{% block content %}
+<!-- 欢迎横幅 -->
+<div class="hero-banner text-center py-5 mb-5">
+    <div class="ink-decoration"></div>
+    <div class="container position-relative">
+        <h1 class="display-4 fw-bold text-dark-green mb-3">
+            <i class="bi bi-mortarboard-fill me-3"></i>离散数学智能教学体
+        </h1>
+        <p class="lead text-ink-gray mb-4 mx-auto" style="max-width: 700px;">
+            基于 Kenneth H. Rosen《离散数学及其应用》教材，提供知识管理、课件生成、画板绘图、课件制作、题库练习等功能，
+            助力离散数学教学的智能化与高效化。
+        </p>
+        <a href="#modules" class="btn btn-seagreen btn-lg">
+            <i class="bi bi-arrow-down-circle me-2"></i>探索功能模块
+        </a>
+    </div>
+</div>
+
+<!-- 功能模块卡片 -->
+<div id="modules" class="row g-4">
+    <!-- 知识库 -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('knowledge.index') }}" class="text-decoration-none">
+            <div class="card module-card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="icon-wrapper mb-3">
+                        <i class="bi bi-book-fill" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="card-title text-dark-green">知识库</h5>
+                    <p class="card-text text-ink-gray">系统化管理离散数学知识条目，按章节浏览检索，支持思维导图、概念对比、公式速查。</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- 课件制作 -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('courseware.index') }}" class="text-decoration-none">
+            <div class="card module-card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="icon-wrapper mb-3">
+                        <i class="bi bi-file-earmark-text-fill" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="card-title text-dark-green">课件制作</h5>
+                    <p class="card-text text-ink-gray">可视化制作教学课件，支持PPT和HTML模式，集成知识库与题库内容。</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- 题库练习 -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('quiz.index') }}" class="text-decoration-none">
+            <div class="card module-card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="icon-wrapper mb-3">
+                        <i class="bi bi-patch-question-fill" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="card-title text-dark-green">题库练习</h5>
+                    <p class="card-text text-ink-gray">收录离散数学各类试题，支持章节难度筛选、随机抽题和组卷导出。</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- 画板 -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('canvas.index') }}" class="text-decoration-none">
+            <div class="card module-card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="icon-wrapper mb-3">
+                        <i class="bi bi-palette-fill" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="card-title text-dark-green">画板</h5>
+                    <p class="card-text text-ink-gray">在线绘图工具，绘制图论、树、哈斯图等离散数学典型结构，直观展示抽象概念。</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- AI助教 -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('chat.index') }}" class="text-decoration-none">
+            <div class="card module-card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="icon-wrapper mb-3">
+                        <i class="bi bi-robot" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="card-title text-dark-green">AI助教</h5>
+                    <p class="card-text text-ink-gray">智能对话助手，解答离散数学疑难，提供知识查询与学习指导。</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- 我的学习 -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('dashboard.index') }}" class="text-decoration-none">
+            <div class="card module-card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="icon-wrapper mb-3">
+                        <i class="bi bi-speedometer2" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="card-title text-dark-green">我的学习</h5>
+                    <p class="card-text text-ink-gray">学习进度追踪，知识点掌握分析，个性化学习报告与数据可视化。</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- 错题本 -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('wrong_book.index') }}" class="text-decoration-none">
+            <div class="card module-card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="icon-wrapper mb-3">
+                        <i class="bi bi-journal-x" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="card-title text-dark-green">错题本</h5>
+                    <p class="card-text text-ink-gray">记录管理错题，支持分类筛选、复习提醒，帮助学生针对性查漏补缺。</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- 底部开始探索引导 -->
+<div class="text-center mt-5 pt-4 pb-3">
+    <div class="ink-divider mx-auto mb-4"></div>
+    <h4 class="text-dark-green mb-3">开启智能教学之旅</h4>
+    <p class="text-ink-gray mb-4">从知识库开始，逐步探索离散数学的奥秘</p>
+    <a href="{{ url_for('knowledge.index') }}" class="btn btn-seagreen btn-lg me-2 mb-2">
+        <i class="bi bi-rocket-takeoff me-2"></i>开始探索
+    </a>
+    <a href="{{ url_for('innovation.index') }}" class="btn btn-outline-seagreen btn-lg mb-2">
+        <i class="bi bi-lightbulb-fill me-2"></i>教学创新入口
+    </a>
+</div>
+{% endblock %}

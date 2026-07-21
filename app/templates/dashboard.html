@@ -1,0 +1,1399 @@
+{% extends "base.html" %}
+
+{% block title %}我的学习 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ===== 仪表盘差异化样式：蓝紫色调 ===== */
+.dashboard-wrap {
+    --dp-primary: #6366F1;        /* 靛蓝 */
+    --dp-primary-dark: #4F46E5;
+    --dp-accent: #8B5CF6;         /* 紫色 */
+    --dp-accent-dark: #7C3AED;
+    --dp-pink: #EC4899;
+    --dp-cyan: #06B6D4;
+    --dp-success: #10B981;
+    --dp-warning: #F59E0B;
+    --dp-danger: #EF4444;
+    --dp-ink: #1E1B4B;
+    --dp-ink-soft: #4C4A6E;
+    --dp-border: #E5E7F0;
+    --dp-bg-soft: #F5F3FF;
+    --dp-card: #FFFFFF;
+    --dp-radius: 16px;
+    color: var(--dp-ink);
+}
+
+/* 顶部标题 */
+.dash-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.dash-title {
+    font-size: 1.7rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, var(--dp-primary-dark), var(--dp-accent-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.dash-title .title-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--dp-primary), var(--dp-accent));
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.4);
+    -webkit-text-fill-color: #fff;
+}
+.dash-subtitle {
+    color: var(--dp-ink-soft);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* 概览卡片网格 */
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 18px;
+    margin-bottom: 28px;
+}
+.ov-card {
+    background: var(--dp-card);
+    border: 1px solid var(--dp-border);
+    border-radius: var(--dp-radius);
+    padding: 22px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.06);
+}
+.ov-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--dp-primary), var(--dp-accent));
+    opacity: 0.9;
+}
+.ov-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(99, 102, 241, 0.18);
+}
+.ov-card .ov-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: #fff;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, var(--dp-primary), var(--dp-accent));
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+.ov-card .ov-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--dp-ink);
+    margin-bottom: 2px;
+}
+.ov-card .ov-value .ov-unit {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--dp-ink-soft);
+    margin-left: 4px;
+}
+.ov-card .ov-label {
+    font-size: 0.85rem;
+    color: var(--dp-ink-soft);
+}
+/* 概览卡片配色变体 */
+.ov-card.v-cyan .ov-icon { background: linear-gradient(135deg, var(--dp-cyan), var(--dp-primary)); box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3); }
+.ov-card.v-success .ov-icon { background: linear-gradient(135deg, var(--dp-success), var(--dp-cyan)); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+.ov-card.v-pink .ov-icon { background: linear-gradient(135deg, var(--dp-pink), var(--dp-accent)); box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3); }
+.ov-card.v-warning .ov-icon { background: linear-gradient(135deg, var(--dp-warning), var(--dp-pink)); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
+.ov-card.v-purple .ov-icon { background: linear-gradient(135deg, var(--dp-accent), var(--dp-pink)); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+
+/* 正确率大数字卡片 */
+.ov-card.accent {
+    background: linear-gradient(135deg, var(--dp-primary-dark), var(--dp-accent-dark));
+    color: #fff;
+    border: none;
+}
+.ov-card.accent::before { background: linear-gradient(90deg, var(--dp-pink), var(--dp-warning)); }
+.ov-card.accent .ov-value { color: #fff; }
+.ov-card.accent .ov-value .ov-unit { color: rgba(255,255,255,0.85); }
+.ov-card.accent .ov-label { color: rgba(255,255,255,0.85); }
+.ov-card.accent .ov-icon { background: rgba(255,255,255,0.22); box-shadow: none; }
+
+/* 图表区 */
+.chart-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+.chart-card {
+    background: var(--dp-card);
+    border: 1px solid var(--dp-border);
+    border-radius: var(--dp-radius);
+    padding: 22px;
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.06);
+}
+.chart-card .chart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+.chart-card .chart-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--dp-ink);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.chart-card .chart-title i { color: var(--dp-primary); }
+.chart-canvas-wrap {
+    position: relative;
+    height: 300px;
+}
+.chart-canvas-wrap.tall { height: 320px; }
+
+/* 底部双栏 */
+.bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+/* 推荐学习内容 */
+.rec-list { display: flex; flex-direction: column; gap: 12px; }
+.rec-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--dp-border);
+    border-radius: 12px;
+    background: var(--dp-bg-soft);
+    transition: all 0.25s ease;
+}
+.rec-item:hover {
+    border-color: var(--dp-primary);
+    transform: translateX(4px);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.12);
+}
+.rec-item .rec-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--dp-primary), var(--dp-accent));
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+.rec-item.t-wrong_review .rec-icon { background: linear-gradient(135deg, var(--dp-danger), var(--dp-pink)); }
+.rec-item.t-weak_chapter .rec-icon { background: linear-gradient(135deg, var(--dp-warning), var(--dp-pink)); }
+.rec-item.t-new_chapter .rec-icon { background: linear-gradient(135deg, var(--dp-success), var(--dp-cyan)); }
+.rec-item.t-empty .rec-icon { background: linear-gradient(135deg, var(--dp-cyan), var(--dp-primary)); }
+.rec-body { flex: 1; min-width: 0; }
+.rec-title { font-weight: 700; color: var(--dp-ink); margin-bottom: 2px; }
+.rec-desc { font-size: 0.85rem; color: var(--dp-ink-soft); }
+.rec-link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--dp-primary-dark);
+    white-space: nowrap;
+    align-self: center;
+}
+.rec-link:hover { color: var(--dp-accent-dark); }
+
+/* 刷题历史列表 */
+.history-list { display: flex; flex-direction: column; gap: 10px; }
+.history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 1px solid var(--dp-border);
+    border-radius: 10px;
+    background: var(--dp-card);
+    transition: all 0.2s ease;
+}
+.history-item:hover { border-color: var(--dp-primary); box-shadow: 0 2px 10px rgba(99, 102, 241, 0.1); }
+.history-left { display: flex; align-items: center; gap: 12px; }
+.history-mode-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 10px;
+    background: var(--dp-bg-soft);
+    color: var(--dp-primary-dark);
+}
+.history-mode-badge.m-exam { background: #FEF3C7; color: #92400E; }
+.history-mode-badge.m-random { background: #DBEAFE; color: #1E40AF; }
+.history-info { font-size: 0.85rem; color: var(--dp-ink-soft); }
+.history-score {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--dp-primary-dark);
+}
+.history-score .score-unit { font-size: 0.7rem; color: var(--dp-ink-soft); font-weight: 500; }
+
+.empty-tip {
+    text-align: center;
+    padding: 36px 16px;
+    color: var(--dp-ink-soft);
+}
+.empty-tip i { font-size: 2.4rem; color: #C7D2FE; display: block; margin-bottom: 10px; }
+
+/* 章节正确率列表（雷达图下方补充说明） */
+.chapter-mini-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.chapter-mini {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.82rem;
+}
+.chapter-mini .cm-name { color: var(--dp-ink); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-mini .cm-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--dp-bg-soft);
+    margin: 0 10px;
+    overflow: hidden;
+}
+.chapter-mini .cm-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--dp-primary), var(--dp-accent)); }
+.chapter-mini .cm-acc { font-weight: 700; color: var(--dp-primary-dark); min-width: 42px; text-align: right; }
+
+/* 加载占位 */
+.dash-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--dp-ink-soft);
+}
+
+/* 成就徽章样式 - 增强版 */
+.achievement-section {
+    position: relative;
+}
+.achievement-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+.achievement-stats {
+    display: flex;
+    gap: 12px;
+}
+.ach-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--dp-bg-soft);
+    border-radius: 20px;
+    font-size: 0.85rem;
+}
+.ach-stat i {
+    font-size: 1rem;
+}
+.ach-stat .stat-value {
+    font-weight: 700;
+    color: var(--dp-primary);
+}
+.achievement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 16px;
+}
+.ach-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 12px;
+    border-radius: 16px;
+    background: var(--dp-card);
+    border: 2px solid var(--dp-border);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+}
+.ach-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--dp-primary), var(--dp-accent));
+    opacity: 0;
+    transform: scaleX(0);
+    transition: all 0.3s ease;
+}
+.ach-item:hover::before {
+    opacity: 1;
+    transform: scaleX(1);
+}
+.ach-item:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 16px 40px rgba(99, 102, 241, 0.2);
+    border-color: var(--dp-primary);
+}
+.ach-item.unlocked {
+    border-color: var(--dp-primary);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03));
+}
+.ach-item.unlocked::before {
+    opacity: 1;
+    transform: scaleX(1);
+}
+.ach-item.locked {
+    opacity: 0.6;
+    filter: grayscale(0.7);
+}
+.ach-item.locked:hover {
+    opacity: 0.8;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.ach-icon-wrapper {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 10px;
+}
+.ach-icon {
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: #fff;
+    position: relative;
+    z-index: 2;
+}
+.ach-item.unlocked .ach-icon {
+    animation: achGlow 2s ease-in-out infinite;
+}
+@keyframes achGlow {
+    0%, 100% { 
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4); 
+        transform: scale(1);
+    }
+    50% { 
+        box-shadow: 0 8px 24px rgba(99, 102, 246, 0.6); 
+        transform: scale(1.05);
+    }
+}
+.ach-item.unlocked.ach-rarity-legendary .ach-icon {
+    animation: legendaryGlow 1.5s ease-in-out infinite;
+}
+@keyframes legendaryGlow {
+    0%, 100% { 
+        box-shadow: 0 6px 20px rgba(251, 191, 36, 0.5), 0 0 30px rgba(251, 191, 36, 0.3);
+    }
+    50% { 
+        box-shadow: 0 10px 30px rgba(251, 191, 36, 0.7), 0 0 50px rgba(251, 191, 36, 0.4);
+    }
+}
+.ach-item.unlocked.ach-rarity-epic .ach-icon {
+    animation: epicGlow 1.8s ease-in-out infinite;
+}
+@keyframes epicGlow {
+    0%, 100% { 
+        box-shadow: 0 6px 16px rgba(168, 85, 247, 0.5);
+    }
+    50% { 
+        box-shadow: 0 8px 24px rgba(168, 85, 247, 0.7);
+    }
+}
+.ach-item.locked .ach-icon {
+    background: linear-gradient(135deg, #9CA3AF, #6B7280);
+    box-shadow: none;
+}
+
+.ach-rarity-bg {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #fff;
+    z-index: 3;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.ach-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--dp-ink);
+    margin-bottom: 4px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ach-item.locked .ach-name {
+    color: var(--dp-ink-soft);
+}
+
+.ach-progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--dp-bg-soft);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+.ach-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--dp-primary), var(--dp-accent));
+    transition: width 0.5s ease;
+}
+
+.ach-progress-text {
+    font-size: 0.75rem;
+    color: var(--dp-primary-dark);
+    font-weight: 600;
+}
+.ach-item.locked .ach-progress-text {
+    color: #888;
+}
+
+.ach-rarity-tag {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.ach-rarity-tag.common { background: #F3F4F6; color: #6B7280; }
+.ach-rarity-tag.rare { background: #DBEAFE; color: #1D4ED8; }
+.ach-rarity-tag.epic { background: #F3E8FF; color: #7C3AED; }
+.ach-rarity-tag.legendary { 
+    background: linear-gradient(135deg, #FEF3C7, #FDE68A); 
+    color: #B45309; 
+    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+}
+
+/* 成就悬浮提示 - 增强版 */
+.ach-tooltip {
+    position: fixed;
+    background: var(--dp-ink);
+    color: #fff;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    max-width: 280px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.ach-tooltip.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.ach-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    background: var(--dp-ink);
+    border-right: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    transform: translateX(-50%) rotate(45deg);
+}
+.ach-tooltip .tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.ach-tooltip .tooltip-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+.ach-tooltip .tooltip-title { 
+    font-weight: 700; 
+    font-size: 0.9rem;
+}
+.ach-tooltip .tooltip-desc { 
+    font-size: 0.8rem; 
+    opacity: 0.9; 
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+.ach-tooltip .tooltip-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 0.78rem;
+}
+.ach-tooltip .tooltip-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.ach-tooltip .tooltip-stat-item i {
+    font-size: 0.75rem;
+}
+.ach-tooltip .tooltip-stat-value {
+    font-weight: 600;
+    color: var(--dp-accent);
+}
+
+/* 成就解锁动画 */
+@keyframes achUnlock {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+.ach-item.unlocked.newly-unlocked {
+    animation: achUnlock 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 成就进度条动画 */
+@keyframes progressGlow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+.ach-progress-fill.active {
+    animation: progressGlow 1.5s ease-in-out infinite;
+}
+
+/* 成就排行榜样式 */
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--dp-border);
+    border-radius: 12px;
+    background: var(--dp-card);
+    transition: all 0.25s ease;
+}
+.leaderboard-item:hover {
+    border-color: var(--dp-primary);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.12);
+}
+.leaderboard-item.current-user {
+    border-color: var(--dp-accent);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(99, 102, 241, 0.03));
+}
+.lb-rank {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 800;
+    background: var(--dp-bg-soft);
+    color: var(--dp-ink-soft);
+}
+.lb-rank.rank-gold { background: linear-gradient(135deg, #F59E0B, #FBBF24); color: #fff; }
+.lb-rank.rank-silver { background: linear-gradient(135deg, #9CA3AF, #D1D5DB); color: #fff; }
+.lb-rank.rank-bronze { background: linear-gradient(135deg, #B45309, #F97316); color: #fff; }
+.lb-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--dp-primary), var(--dp-accent));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+}
+.lb-info { flex: 1; }
+.lb-name { font-weight: 700; color: var(--dp-ink); margin-bottom: 2px; }
+.lb-detail { font-size: 0.82rem; color: var(--dp-ink-soft); }
+.lb-points { text-align: right; }
+.lb-points-value { font-size: 1.3rem; font-weight: 800; color: var(--dp-primary-dark); }
+.lb-points-label { font-size: 0.75rem; color: var(--dp-ink-soft); }
+
+/* 分享按钮 */
+.ach-share-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.15);
+    border: none;
+    color: var(--dp-primary);
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    z-index: 5;
+}
+.ach-item.unlocked:hover .ach-share-btn {
+    opacity: 1;
+}
+.ach-share-btn:hover {
+    background: rgba(99, 102, 241, 0.3);
+    transform: scale(1.1);
+}
+
+/* 响应式 */
+@media (max-width: 991.98px) {
+    .chart-row, .bottom-row { grid-template-columns: 1fr; }
+    .overview-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .leaderboard-item { flex-wrap: wrap; }
+    .lb-points { width: 100%; text-align: left; margin-top: 8px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrap">
+    <!-- 顶部标题 -->
+    <div class="dash-header">
+        <div>
+            <h1 class="dash-title">
+                <span class="title-icon"><i class="bi bi-speedometer2"></i></span>
+                学习仪表盘
+            </h1>
+            <p class="dash-subtitle">追踪你的学习轨迹，发现薄弱环节，科学提升</p>
+        </div>
+        <a href="{{ url_for('wrong_book.index') }}" class="btn btn-outline-primary" style="border-color:var(--dp-primary);color:var(--dp-primary-dark);">
+            <i class="bi bi-journal-x me-1"></i>错题本
+        </a>
+    </div>
+
+    <!-- 数据概览卡片 -->
+    <div class="overview-grid" id="overviewGrid">
+        <div class="ov-card v-cyan">
+            <div class="ov-icon"><i class="bi bi-calendar-check"></i></div>
+            <div class="ov-value"><span id="ovStudyDays">0</span><span class="ov-unit">天</span></div>
+            <div class="ov-label">累计学习天数</div>
+        </div>
+        <div class="ov-card">
+            <div class="ov-icon"><i class="bi bi-pencil-square"></i></div>
+            <div class="ov-value"><span id="ovTotalAnswered">0</span><span class="ov-unit">题</span></div>
+            <div class="ov-label">累计做题数量</div>
+        </div>
+        <div class="ov-card accent">
+            <div class="ov-icon"><i class="bi bi-bullseye"></i></div>
+            <div class="ov-value"><span id="ovAccuracy">0</span><span class="ov-unit">%</span></div>
+            <div class="ov-label">总正确率</div>
+        </div>
+        <div class="ov-card v-success">
+            <div class="ov-icon"><i class="bi bi-lightbulb"></i></div>
+            <div class="ov-value"><span id="ovKnowledge">0</span><span class="ov-unit">个</span></div>
+            <div class="ov-label">已掌握知识点</div>
+        </div>
+        <div class="ov-card v-purple">
+            <div class="ov-icon"><i class="bi bi-arrow-repeat"></i></div>
+            <div class="ov-value"><span id="ovAttempts">0</span><span class="ov-unit">次</span></div>
+            <div class="ov-label">总刷题次数</div>
+        </div>
+        <div class="ov-card v-pink">
+            <div class="ov-icon"><i class="bi bi-clock-history"></i></div>
+            <div class="ov-value"><span id="ovToday">0</span><span class="ov-unit">题</span></div>
+            <div class="ov-label">今日做题数</div>
+        </div>
+        <div class="ov-card v-warning">
+            <div class="ov-icon"><i class="bi bi-journal-x"></i></div>
+            <div class="ov-value"><span id="ovWrongTotal">0</span><span class="ov-unit">题</span></div>
+            <div class="ov-label">错题本总数</div>
+        </div>
+        <div class="ov-card v-pink">
+            <div class="ov-icon"><i class="bi bi-alarm"></i></div>
+            <div class="ov-value"><span id="ovWrongReview">0</span><span class="ov-unit">题</span></div>
+            <div class="ov-label">待复习错题</div>
+        </div>
+    </div>
+
+    <!-- 成就模块 - 增强版 -->
+    <div class="chart-card" style="margin-bottom: 28px;">
+        <div class="chart-head">
+            <h3 class="chart-title"><i class="bi bi-award"></i>成就徽章</h3>
+            <div id="achievementStatsBar" class="achievement-stats" style="display:none;">
+                <div class="ach-stat">
+                    <i class="bi bi-trophy"></i>
+                    <span class="stat-value" id="achievementProgress">0%</span>
+                </div>
+                <div class="ach-stat">
+                    <i class="bi bi-star-fill"></i>
+                    <span class="stat-value" id="achievementPoints">0</span> 积分
+                </div>
+                <div class="ach-stat">
+                    <i class="bi bi-lock-open"></i>
+                    <span class="stat-value" id="achievementUnlocked">0</span> / <span id="achievementTotal">0</span>
+                </div>
+                <button class="btn btn-sm btn-primary ms-2" style="background:var(--dp-primary);border:none;" onclick="loadLeaderboard()">
+                    <i class="bi bi-list-ol me-1"></i>排行榜
+                </button>
+            </div>
+        </div>
+        <div id="achievementList" class="achievement-grid">
+            <div class="dash-loading"><i class="bi bi-arrow-clockwise"></i> 加载中...</div>
+        </div>
+    </div>
+
+    <!-- 成就排行榜弹窗 -->
+    <div class="modal fade" id="leaderboardModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="border-radius:var(--dp-radius);">
+                <div class="modal-header" style="background:linear-gradient(135deg, var(--dp-primary-dark), var(--dp-accent-dark));color:#fff;border-radius:var(--dp-radius) var(--dp-radius) 0 0;">
+                    <h5 class="modal-title"><i class="bi bi-trophy me-2"></i>成就排行榜</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="leaderboardContent">
+                        <div class="dash-loading"><i class="bi bi-arrow-clockwise"></i> 加载中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表区 -->
+    <div class="chart-row">
+        <div class="chart-card">
+            <div class="chart-head">
+                <h3 class="chart-title"><i class="bi bi-graph-up-arrow"></i>学习趋势（近30天）</h3>
+                <span class="badge bg-light text-dark" style="color:var(--dp-ink-soft)!important;">做题量 / 正确率</span>
+            </div>
+            <div class="chart-canvas-wrap tall">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-head">
+                <h3 class="chart-title"><i class="bi bi-diagram-3"></i>各章节正确率</h3>
+                <span class="badge bg-light text-dark" style="color:var(--dp-ink-soft)!important;">雷达图</span>
+            </div>
+            <div class="chart-canvas-wrap">
+                <canvas id="radarChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部双栏 -->
+    <div class="bottom-row">
+        <div class="chart-card">
+            <div class="chart-head">
+                <h3 class="chart-title"><i class="bi bi-pie-chart"></i>题型分布</h3>
+            </div>
+            <div class="chart-canvas-wrap">
+                <canvas id="typeChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-head">
+                <h3 class="chart-title"><i class="bi bi-stars"></i>推荐学习内容</h3>
+            </div>
+            <div id="recList" class="rec-list">
+                <div class="dash-loading"><i class="bi bi-arrow-clockwise"></i> 加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刷题历史 -->
+    <div class="chart-card">
+        <div class="chart-head">
+            <h3 class="chart-title"><i class="bi bi-clock-history"></i>最近刷题记录</h3>
+        </div>
+        <div id="historyList" class="history-list">
+            <div class="dash-loading"><i class="bi bi-arrow-clockwise"></i> 加载中...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const API_BASE = '{{ url_for("dashboard.index") }}';
+    const trendChart = { instance: null };
+    const radarChart = { instance: null };
+    const typeChart = { instance: null };
+
+    // ===== 工具函数 =====
+    async function fetchJSON(url) {
+        const resp = await fetch(url);
+        return resp.json();
+    }
+    function fmtDuration(sec) {
+        if (!sec || sec <= 0) return '-';
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return m > 0 ? `${m}分${s}秒` : `${s}秒`;
+    }
+    function fmtDateTime(iso) {
+        if (!iso) return '-';
+        try {
+            const d = new Date(iso);
+            return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        } catch (e) { return iso; }
+    }
+
+    // ===== 概览 =====
+    async function loadOverview() {
+        try {
+            const data = await fetchJSON(API_BASE + 'api/overview');
+            if (!data.success) return;
+            document.getElementById('ovStudyDays').textContent = data.study_days || 0;
+            document.getElementById('ovTotalAnswered').textContent = data.total_answered || 0;
+            document.getElementById('ovAccuracy').textContent = data.accuracy || 0;
+            document.getElementById('ovKnowledge').textContent = data.mastered_knowledge || 0;
+            document.getElementById('ovAttempts').textContent = data.total_attempts || 0;
+            document.getElementById('ovToday').textContent = data.today_answered || 0;
+            document.getElementById('ovWrongTotal').textContent = data.wrong_total || 0;
+            document.getElementById('ovWrongReview').textContent = data.wrong_need_review || 0;
+        } catch (e) { console.error('加载概览失败', e); }
+    }
+
+    // ===== 学习趋势折线图 =====
+    async function loadTrend() {
+        try {
+            const data = await fetchJSON(API_BASE + 'api/trend');
+            if (!data.success || !data.items) return;
+            const labels = data.days || [];
+            const totals = data.items.map(i => i.total);
+            const corrects = data.items.map(i => i.correct);
+            const accs = data.items.map(i => i.accuracy);
+
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (trendChart.instance) trendChart.instance.destroy();
+            const grad = ctx.createLinearGradient(0, 0, 0, 300);
+            grad.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
+            grad.addColorStop(1, 'rgba(99, 102, 241, 0.02)');
+
+            trendChart.instance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '做题量',
+                            data: totals,
+                            borderColor: '#6366F1',
+                            backgroundColor: grad,
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 2,
+                            pointHoverRadius: 5,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: '正确数',
+                            data: corrects,
+                            borderColor: '#10B981',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.35,
+                            pointRadius: 2,
+                            pointHoverRadius: 5,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: '正确率(%)',
+                            data: accs,
+                            borderColor: '#EC4899',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 4],
+                            fill: false,
+                            tension: 0.35,
+                            pointRadius: 2,
+                            pointHoverRadius: 5,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { ticks: { font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
+                        y: {
+                            type: 'linear', position: 'left', beginAtZero: true,
+                            title: { display: true, text: '题数', font: { size: 10 } }
+                        },
+                        y1: {
+                            type: 'linear', position: 'right', beginAtZero: true, max: 100,
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: '正确率%', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        } catch (e) { console.error('加载趋势失败', e); }
+    }
+
+    // ===== 各章节正确率雷达图 =====
+    async function loadChapterStats() {
+        try {
+            const data = await fetchJSON(API_BASE + 'api/chapter-stats');
+            if (!data.success) return;
+            const items = data.items || [];
+            const labels = items.map(i => i.chapter || '未分类');
+            const accs = items.map(i => i.accuracy);
+
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            if (radarChart.instance) radarChart.instance.destroy();
+
+            if (labels.length === 0) {
+                document.getElementById('radarChart').parentElement.innerHTML =
+                    '<div class="empty-tip"><i class="bi bi-bar-chart-line"></i>暂无章节练习数据，去做几道题吧</div>';
+                return;
+            }
+
+            // 雷达图至少需要3个轴才美观；不足时仍可绘制
+            radarChart.instance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '正确率(%)',
+                        data: accs,
+                        borderColor: '#7C3AED',
+                        backgroundColor: 'rgba(139, 92, 246, 0.25)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#6366F1',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } },
+                    scales: {
+                        r: {
+                            beginAtZero: true, max: 100,
+                            ticks: { stepSize: 25, backdropColor: 'transparent', font: { size: 9 } },
+                            pointLabels: { font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        } catch (e) { console.error('加载章节统计失败', e); }
+    }
+
+    // ===== 题型分布饼图 =====
+    async function loadTypeDistribution() {
+        try {
+            const data = await fetchJSON(API_BASE + 'api/type-distribution');
+            if (!data.success) return;
+            const items = data.items || [];
+
+            const ctx = document.getElementById('typeChart').getContext('2d');
+            if (typeChart.instance) typeChart.instance.destroy();
+
+            if (items.length === 0) {
+                document.getElementById('typeChart').parentElement.innerHTML =
+                    '<div class="empty-tip"><i class="bi bi-pie-chart-fill"></i>暂无题型分布数据</div>';
+                return;
+            }
+
+            const palette = ['#6366F1', '#8B5CF6', '#EC4899', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
+            typeChart.instance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: items.map(i => `${i.type_cn}（${i.accuracy}%）`),
+                    datasets: [{
+                        data: items.map(i => i.count),
+                        backgroundColor: palette.slice(0, items.length),
+                        borderWidth: 2,
+                        borderColor: '#fff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 }, padding: 10 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    const item = items[ctx.dataIndex];
+                                    return `${item.type_cn}: ${item.count}题，正确 ${item.correct}，正确率 ${item.accuracy}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (e) { console.error('加载题型分布失败', e); }
+    }
+
+    // ===== 推荐学习内容 =====
+    async function loadRecommendations() {
+        try {
+            const data = await fetchJSON(API_BASE + 'api/recommendations');
+            const box = document.getElementById('recList');
+            if (!data.success) { box.innerHTML = '<div class="empty-tip"><i class="bi bi-emoji-smile"></i>暂无推荐</div>'; return; }
+            const items = data.items || [];
+            if (items.length === 0) {
+                box.innerHTML = '<div class="empty-tip"><i class="bi bi-emoji-smile"></i>暂无推荐</div>';
+                return;
+            }
+            box.innerHTML = items.map(it => `
+                <div class="rec-item t-${it.type}">
+                    <div class="rec-icon"><i class="bi ${it.icon}"></i></div>
+                    <div class="rec-body">
+                        <div class="rec-title">${it.title}</div>
+                        <div class="rec-desc">${it.desc}</div>
+                    </div>
+                    <a class="rec-link" href="${it.link}">${it.link_text || '前往'} <i class="bi bi-chevron-right"></i></a>
+                </div>
+            `).join('');
+        } catch (e) { console.error('加载推荐失败', e); }
+    }
+
+    // ===== 刷题历史 =====
+    async function loadHistory() {
+        try {
+            const data = await fetchJSON(API_BASE + 'api/recent-attempts');
+            const box = document.getElementById('historyList');
+            if (!data.success) { box.innerHTML = ''; return; }
+            const items = data.items || [];
+            if (items.length === 0) {
+                box.innerHTML = '<div class="empty-tip"><i class="bi bi-clock-history"></i>还没有刷题记录，<a href="/quiz/practice">去刷第一道题</a></div>';
+                return;
+            }
+            box.innerHTML = items.map(it => {
+                const mClass = it.mode === 'exam' ? 'm-exam' : (it.mode === 'random' ? 'm-random' : '');
+                const scoreColor = (it.score || 0) >= 80 ? 'var(--dp-success)' : ((it.score || 0) >= 60 ? 'var(--dp-warning)' : 'var(--dp-danger)');
+                return `
+                <div class="history-item">
+                    <div class="history-left">
+                        <span class="history-mode-badge ${mClass}">${it.mode_cn}</span>
+                        <div>
+                            <div style="font-weight:600;color:var(--dp-ink);">
+                                ${it.correct_count || 0}/${it.total_count || 0} 题正确
+                            </div>
+                            <div class="history-info">
+                                ${fmtDateTime(it.started_at)} · 用时 ${fmtDuration(it.duration)}
+                                ${it.is_finished ? '' : ' · <span style="color:var(--dp-warning);">未完成</span>'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="history-score" style="color:${scoreColor};">
+                        ${it.is_finished ? (it.score || 0) : '--'}<span class="score-unit">分</span>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch (e) { console.error('加载历史失败', e); }
+    }
+
+    // ===== 成就徽章 - 增强版 =====
+    async function loadAchievements() {
+        try {
+            const statsData = await fetchJSON(API_BASE + 'api/achievements/stats');
+            const listData = await fetchJSON(API_BASE + 'api/achievements/list');
+
+            if (statsData.success) {
+                document.getElementById('achievementProgress').textContent = statsData.progress + '%';
+                document.getElementById('achievementPoints').textContent = statsData.points;
+                document.getElementById('achievementUnlocked').textContent = statsData.unlocked || 0;
+                document.getElementById('achievementTotal').textContent = statsData.total || 0;
+                document.getElementById('achievementStatsBar').style.display = 'flex';
+            }
+
+            if (!listData.success) {
+                document.getElementById('achievementList').innerHTML = '<div class="empty-tip"><i class="bi bi-award"></i>暂无成就数据</div>';
+                return;
+            }
+
+            const items = listData.items || [];
+            if (items.length === 0) {
+                document.getElementById('achievementList').innerHTML = '<div class="empty-tip"><i class="bi bi-award"></i>暂无成就数据</div>';
+                return;
+            }
+
+            const rarityLabels = {
+                'common': '普通',
+                'rare': '稀有',
+                'epic': '史诗',
+                'legendary': '传说'
+            };
+
+            const rarityColors = {
+                'common': 'linear-gradient(135deg, #6B7280, #9CA3AF)',
+                'rare': 'linear-gradient(135deg, #3B82F6, #60A5FA)',
+                'epic': 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                'legendary': 'linear-gradient(135deg, #F59E0B, #FBBF24)'
+            };
+
+            const rarityIcons = {
+                'common': '',
+                'rare': '★',
+                'epic': '★★',
+                'legendary': '★★★'
+            };
+
+            document.getElementById('achievementList').innerHTML = items.map(it => {
+                const isUnlocked = it.is_unlocked;
+                const progress = it.progress || 0;
+                const target = it.condition_value || 0;
+                const progressPercent = target > 0 ? Math.min((progress / target) * 100, 100) : 0;
+                const progressText = target > 0 ? `${progress}/${target}` : '';
+                const rarityLabel = rarityLabels[it.rarity] || '';
+                const rarityColor = rarityColors[it.rarity] || rarityColors['common'];
+                const rarityIcon = rarityIcons[it.rarity] || '';
+
+                return `
+                    <div class="ach-item ${isUnlocked ? 'unlocked' : 'locked'} ach-rarity-${it.rarity}" data-id="${it.id}">
+                        ${isUnlocked ? `<button class="ach-share-btn" onclick="shareAchievement(${it.id})" title="分享成就"><i class="bi bi-share"></i></button>` : ''}
+                        <div class="ach-icon-wrapper">
+                            <div class="ach-icon" style="background: ${isUnlocked ? rarityColor : 'linear-gradient(135deg, #9CA3AF, #6B7280)'}">
+                                <i class="${it.icon || 'fas fa-award'}"></i>
+                            </div>
+                            ${isUnlocked && rarityIcon ? `<div class="ach-rarity-bg" style="background: ${rarityColor}">${rarityIcon}</div>` : ''}
+                        </div>
+                        <div class="ach-name" title="${it.name}">${it.name}</div>
+                        ${target > 0 ? `
+                            <div class="ach-progress-bar">
+                                <div class="ach-progress-fill ${isUnlocked ? '' : 'active'}" style="width: ${progressPercent}%"></div>
+                            </div>
+                            <div class="ach-progress-text">${progressText}</div>
+                        ` : ''}
+                        ${rarityLabel ? `<span class="ach-rarity-tag ${it.rarity}">${rarityLabel}</span>` : ''}
+                        <div class="ach-tooltip">
+                            <div class="tooltip-header">
+                                <div class="tooltip-icon" style="background: ${isUnlocked ? rarityColor : '#9CA3AF'}">
+                                    <i class="${it.icon || 'fas fa-award'}"></i>
+                                </div>
+                                <div>
+                                    <div class="tooltip-title">${it.name}</div>
+                                    <div style="font-size:0.72rem;opacity:0.7;">${isUnlocked ? '已解锁' : '未解锁'}</div>
+                                </div>
+                            </div>
+                            <div class="tooltip-desc">${it.description}</div>
+                            <div class="tooltip-stats">
+                                ${progressText ? `
+                                    <div class="tooltip-stat-item">
+                                        <i class="bi bi-graph-up"></i>
+                                        <span>进度:</span>
+                                        <span class="tooltip-stat-value">${progressText}</span>
+                                    </div>
+                                ` : ''}
+                                ${it.points ? `
+                                    <div class="tooltip-stat-item">
+                                        <i class="bi bi-star-fill"></i>
+                                        <span>积分:</span>
+                                        <span class="tooltip-stat-value">+${it.points}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.querySelectorAll('.ach-item').forEach(item => {
+                item.addEventListener('mouseenter', function(e) {
+                    const tooltip = this.querySelector('.ach-tooltip');
+                    if (tooltip) {
+                        const rect = this.getBoundingClientRect();
+                        let left = e.clientX + 15;
+                        let top = e.clientY + 15;
+
+                        if (left + 280 > window.innerWidth) {
+                            left = e.clientX - 295;
+                        }
+                        if (top + 150 > window.innerHeight) {
+                            top = rect.top - 160;
+                        }
+
+                        tooltip.style.left = left + 'px';
+                        tooltip.style.top = top + 'px';
+                        tooltip.classList.add('show');
+                    }
+                });
+                item.addEventListener('mousemove', function(e) {
+                    const tooltip = this.querySelector('.ach-tooltip');
+                    if (tooltip) {
+                        let left = e.clientX + 15;
+                        let top = e.clientY + 15;
+
+                        if (left + 280 > window.innerWidth) {
+                            left = e.clientX - 295;
+                        }
+                        if (top + 150 > window.innerHeight) {
+                            top = e.clientY - 165;
+                        }
+
+                        tooltip.style.left = left + 'px';
+                        tooltip.style.top = top + 'px';
+                    }
+                });
+                item.addEventListener('mouseleave', function() {
+                    const tooltip = this.querySelector('.ach-tooltip');
+                    if (tooltip) {
+                        tooltip.classList.remove('show');
+                    }
+                });
+            });
+
+        } catch (e) { console.error('加载成就失败', e); }
+    }
+
+    // ===== 成就排行榜 =====
+    async function loadLeaderboard() {
+        try {
+            const data = await fetchJSON(API_BASE + 'api/achievements/leaderboard');
+            const modal = new bootstrap.Modal(document.getElementById('leaderboardModal'));
+            const content = document.getElementById('leaderboardContent');
+            
+            if (!data.success || !data.items) {
+                content.innerHTML = '<div class="empty-tip"><i class="bi bi-trophy"></i>暂无排行数据</div>';
+                modal.show();
+                return;
+            }
+
+            const items = data.items || [];
+            const currentUserId = parseInt(document.querySelector('meta[name="user-id"]')?.content || '0');
+            
+            let html = '<div class="leaderboard-list">';
+            items.forEach((it, idx) => {
+                const rankClass = idx === 0 ? 'rank-gold' : (idx === 1 ? 'rank-silver' : (idx === 2 ? 'rank-bronze' : 'rank-normal'));
+                const rankIcon = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : ''));
+                const isCurrentUser = it.user_id === currentUserId;
+                html += `
+                    <div class="leaderboard-item ${isCurrentUser ? 'current-user' : ''}">
+                        <div class="lb-rank ${rankClass}">${rankIcon || (idx + 1)}</div>
+                        <div class="lb-avatar">${it.username[0].toUpperCase()}</div>
+                        <div class="lb-info">
+                            <div class="lb-name">${it.username}${it.is_admin ? '<span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">管理员</span>' : ''}</div>
+                            <div class="lb-detail">已解锁 ${it.unlocked}/${it.total} 成就 · 进度 ${it.progress}%</div>
+                        </div>
+                        <div class="lb-points">
+                            <div class="lb-points-value">${it.points}</div>
+                            <div class="lb-points-label">积分</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            if (data.current_user_rank) {
+                const bgColor = data.current_user_rank <= 3 ? '#FEF3C7' : '#EEF2FF';
+                html += `
+                    <div class="mt-4 p-3 rounded-lg text-center" style="background:${bgColor}!important;">
+                        <i class="bi bi-star-fill me-1"></i>
+                        你的排名：第 ${data.current_user_rank} 名，共 ${data.current_user_points} 积分
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = html;
+            modal.show();
+        } catch (e) { console.error('加载排行榜失败', e); }
+    }
+
+    function getCurrentUserId() {
+        const meta = document.querySelector('meta[name="user-id"]');
+        return meta ? meta.content : 0;
+    }
+
+    // ===== 分享成就 =====
+    window.shareAchievement = async function(achievementId) {
+        try {
+            const data = await fetchJSON(API_BASE + `api/achievements/share/${achievementId}`);
+            if (!data.success) {
+                showCustomToast(data.message || '分享失败', 'error');
+                return;
+            }
+            
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(data.share_text);
+                showCustomToast('分享内容已复制到剪贴板！', 'success');
+            } else {
+                showCustomToast('请手动复制分享内容', 'info');
+            }
+        } catch (e) { console.error('分享失败', e); }
+    };
+
+    // ===== 启动 =====
+    document.addEventListener('DOMContentLoaded', function () {
+        loadOverview();
+        loadTrend();
+        loadChapterStats();
+        loadTypeDistribution();
+        loadRecommendations();
+        loadHistory();
+        loadAchievements();
+    });
+})();
+</script>
+{% endblock %}

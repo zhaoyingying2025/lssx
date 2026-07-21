@@ -1,0 +1,264 @@
+{# 课件预览共享内容片段 - 在 standalone 和非 standalone 模式下都使用 #}
+{# 计算 sections 边界以确定画布尺寸 #}
+{% set max_x = namespace(val=1200) %}
+{% set max_y = namespace(val=800) %}
+{% for sec in content.sections %}
+    {% set sx = (sec.x or 0) + (sec.width or 360) %}
+    {% set sy = (sec.y or 0) + (sec.height or 160) %}
+    {% if sx > max_x.val %}{% set max_x.val = sx %}{% endif %}
+    {% if sy > max_y.val %}{% set max_y.val = sy %}{% endif %}
+{% endfor %}
+{% set bg_key = content.background or 'seagreen' %}
+{% set bg_gradient = {
+    'seagreen': 'linear-gradient(135deg, #2E8B57 0%, #00897B 100%)',
+    'blue': 'linear-gradient(135deg, #1565C0 0%, #42A5F5 100%)',
+    'orange': 'linear-gradient(135deg, #E65100 0%, #FFB74D 100%)',
+    'purple': 'linear-gradient(135deg, #6A1B9A 0%, #BA68C8 100%)',
+    'paper': 'linear-gradient(135deg, #FAFAF5 0%, #F5F5DC 100%)',
+    'dark': 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)'
+}.get(bg_key, 'linear-gradient(135deg, #2E8B57 0%, #00897B 100%)') %}
+{% set is_light_bg = bg_key in ['paper'] %}
+
+<div class="cw-preview-page" id="cwPreviewPage" style="background: {% if content.custom_bg_url %}url('{{ content.custom_bg_url }}') center/cover no-repeat{% else %}{{ bg_gradient }}{% endif %};">
+    <!-- 顶部标题区 -->
+    <div class="cw-preview-header">
+        <button class="cw-preview-exit" onclick="window.close()" title="退出预览">
+            <i class="bi bi-x-circle"></i> 退出预览
+        </button>
+        <h1>{{ courseware.title }}</h1>
+        {% if courseware.description %}
+        <p>{{ courseware.description }}</p>
+        {% endif %}
+    </div>
+
+    <!-- 内容画布 -->
+    <div class="cw-preview-canvas" id="cwPreviewCanvas" style="width: {{ max_x.val + 80 }}px; min-height: {{ max_y.val + 80 }}px;">
+        {% if content.sections and content.sections | length > 0 %}
+            {% for sec in content.sections %}
+            <div class="cw-pv-block type-{{ sec.type }}" id="{{ sec.id }}"
+                 style="left: {{ sec.x or 0 }}px; top: {{ sec.y or 0 }}px; width: {{ sec.width or 360 }}px; height: {{ sec.height or 160 }}px;">
+                <div class="cw-pv-block-header">
+                    {%- if sec.type == 'chapter_cover' -%}
+                        <span class="cw-pv-badge chapter_cover"><i class="bi bi-bookmark-fill"></i> 章节封面</span>
+                    {%- elif sec.type == 'knowledge' -%}
+                        <span class="cw-pv-badge knowledge"><i class="bi bi-book-fill"></i> 知识条目</span>
+                    {%- elif sec.type == 'quiz' -%}
+                        <span class="cw-pv-badge quiz"><i class="bi bi-patch-question-fill"></i> 试题</span>
+                    {%- elif sec.type == 'formula' -%}
+                        <span class="cw-pv-badge formula"><i class="bi bi-superscript"></i> 公式</span>
+                    {%- elif sec.type == 'definition' -%}
+                        <span class="cw-pv-badge definition"><i class="bi bi-info-circle-fill"></i> 定义</span>
+                    {%- elif sec.type == 'theorem' -%}
+                        <span class="cw-pv-badge theorem"><i class="bi bi-pi-circle-fill"></i> 定理</span>
+                    {%- elif sec.type == 'mistake' -%}
+                        <span class="cw-pv-badge mistake"><i class="bi bi-exclamation-triangle-fill"></i> 易错点</span>
+                    {%- elif sec.type == 'graph' -%}
+                        <span class="cw-pv-badge graph"><i class="bi bi-diagram-3-fill"></i> 图形</span>
+                    {%- elif sec.type == 'image' -%}
+                        <span class="cw-pv-badge image"><i class="bi bi-image-fill"></i> 图案</span>
+                    {%- elif sec.type == 'other' -%}
+                        <span class="cw-pv-badge other"><i class="bi bi-lightbulb-fill"></i> {{ sec.title | default('其他', true) }}</span>
+                    {%- else -%}
+                        <span class="cw-pv-badge custom_text"><i class="bi bi-textarea-resize"></i> 文本</span>
+                    {%- endif -%}
+                </div>
+                <div class="cw-pv-block-body">
+                    {%- if sec.type == 'chapter_cover' -%}
+                        <div class="cw-pv-chapter">
+                            <h2>{{ sec.title }}</h2>
+                            {% if sec.content %}<p>{{ sec.content }}</p>{% endif %}
+                            <div class="chapter-decoration"></div>
+                        </div>
+
+                    {%- elif sec.type == 'formula' -%}
+                        <div class="cw-pv-formula">{{ sec.content }}</div>
+
+                    {%- elif sec.type == 'definition' -%}
+                        <div class="cw-pv-def-block">
+                            <h3 class="cw-pv-title"><strong>定义：</strong>{{ sec.title }}</h3>
+                            <div class="cw-pv-content">{{ sec.content }}</div>
+                        </div>
+
+                    {%- elif sec.type == 'theorem' -%}
+                        <div class="cw-pv-thm-block">
+                            <h3 class="cw-pv-title"><strong>定理：</strong>{{ sec.title }}</h3>
+                            <div class="cw-pv-content">{{ sec.content }}</div>
+                        </div>
+
+                    {%- elif sec.type == 'mistake' -%}
+                        <div class="cw-pv-mis-block">
+                            <h3 class="cw-pv-title"><i class="bi bi-exclamation-triangle-fill"></i> <strong>易错点：</strong>{{ sec.title }}</h3>
+                            <div class="cw-pv-content">{{ sec.content }}</div>
+                        </div>
+
+                    {%- elif sec.type == 'graph' -%}
+                        <div class="cw-pv-graph-container" data-graph-id="{{ sec.id }}">
+                            <span class="cw-pv-graph-placeholder">图形加载中...</span>
+                        </div>
+
+                    {%- elif sec.type == 'image' -%}
+                        <div class="cw-pv-img-wrap">
+                            {% if sec.extra_data and sec.extra_data.url %}
+                                <img src="{{ sec.extra_data.url }}" alt="{{ sec.title or '图片' }}" class="cw-pv-img">
+                            {% else %}
+                                <span class="cw-pv-empty">无图片</span>
+                            {% endif %}
+                        </div>
+
+                    {%- elif sec.type == 'knowledge' -%}
+                        <div class="cw-pv-know-block">
+                            <h3 class="cw-pv-title"><i class="bi bi-book-fill"></i> {{ sec.title }}</h3>
+                            <div class="cw-pv-content">{{ sec.content }}</div>
+                        </div>
+
+                    {%- elif sec.type == 'quiz' -%}
+                        <div class="cw-pv-quiz-block">
+                            <h3 class="cw-pv-title"><i class="bi bi-patch-question-fill"></i> {{ sec.title }}</h3>
+                            <div class="cw-pv-content">{{ sec.content }}</div>
+                        </div>
+
+                    {%- elif sec.type == 'other' -%}
+                        <div class="cw-pv-other-block">
+                            <h3 class="cw-pv-title">{{ sec.title }}</h3>
+                            <div class="cw-pv-content">{{ sec.content }}</div>
+                        </div>
+
+                    {%- else -%}
+                        {# custom_text 或其他 #}
+                        <div class="cw-pv-text-block">
+                            <h3 class="cw-pv-title">{{ sec.title }}</h3>
+                            <div class="cw-pv-content">{{ sec.content }}</div>
+                        </div>
+                    {%- endif -%}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="cw-pv-empty-state">
+                <i class="bi bi-journal-richtext"></i>
+                <p>课件内容为空</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- 页脚 -->
+    <div class="cw-preview-footer">
+        <div class="ink-divider"></div>
+        <p><i class="bi bi-mortarboard-fill"></i> {{ courseware.title }}</p>
+        <p class="small">离散数学智能教学体 | 课件DIY生成</p>
+    </div>
+</div>
+
+{# 导出所有图形 section 的 graphData 到全局 JS 对象，避免 data-* 属性引号截断问题 #}
+<script>
+window.__CW_GRAPH_DATA__ = {
+    {%- for sec in content.sections if sec.type == 'graph' and sec.extra_data and sec.extra_data.graphData %}
+    {{ sec.id | tojson }}: {{ sec.extra_data.graphData | tojson | replace('</', '<\\/') }},
+    {%- endfor %}
+};
+</script>
+
+<script>
+/* ============ 客户端图形 SVG 渲染（用于离线导出兼容） ============ */
+function cwRenderGraphToSVG(data) {
+    if (!data || (!data.vertices && !data.edges)) return '';
+    data = typeof data === 'string' ? JSON.parse(data) : data;
+    var vertices = data.vertices || [];
+    var edges = data.edges || [];
+    var annotations = data.annotations || [];
+    var freeDraws = data.freeDraws || [];
+    var width = data.width || 600;
+    var height = data.height || 400;
+
+    var allX = [], allY = [];
+    vertices.forEach(function(v){ allX.push(v.x||0); allY.push(v.y||0); });
+    annotations.forEach(function(a){ allX.push(a.x||0); allY.push(a.y||0); });
+    freeDraws.forEach(function(f){ (f.points||[]).forEach(function(p){ allX.push(p.x||0); allY.push(p.y||0); }); });
+
+    var minX, minY, vbW, vbH;
+    if (allX.length > 0) {
+        minX = Math.max(0, Math.min.apply(null, allX) - 40);
+        minY = Math.max(0, Math.min.apply(null, allY) - 40);
+        vbW = Math.max(width, Math.max.apply(null, allX) + 40) - minX;
+        vbH = Math.max(height, Math.max.apply(null, allY) + 40) - minY;
+    } else {
+        minX = 0; minY = 0; vbW = width; vbH = height;
+    }
+
+    var parts = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + minX + ' ' + minY + ' ' + vbW + ' ' + vbH + '" style="width:100%;height:auto;background:#f8fcf8;">'];
+    parts.push('<defs><marker id="cw-arrow-' + Math.floor(Math.random()*100000) + '" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#444"/></marker></defs>');
+
+    var vmap = {};
+    vertices.forEach(function(v){ vmap[v.id] = v; });
+
+    edges.forEach(function(e){
+        var src = vmap[e.source], tgt = vmap[e.target];
+        if (!src || !tgt) return;
+        var r = src.radius || 22;
+        var dx = tgt.x - src.x, dy = tgt.y - src.y;
+        var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        var ux = dx/dist, uy = dy/dist;
+        var x1 = src.x + ux*r, y1 = src.y + uy*r;
+        var x2 = tgt.x - ux*r, y2 = tgt.y - uy*r;
+        var color = e.color || '#444';
+        if (e.directed) {
+            parts.push('<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="2" marker-end="url(#cw-arrow)"/>');
+        } else {
+            parts.push('<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="2"/>');
+        }
+        if (e.weight !== null && e.weight !== undefined) {
+            var mx = (src.x + tgt.x)/2, my = (src.y + tgt.y)/2 - 8;
+            parts.push('<rect x="'+(mx-12).toFixed(1)+'" y="'+(my-10).toFixed(1)+'" width="24" height="16" rx="3" fill="#FFF8E1" stroke="#FFC107" stroke-width="1"/>');
+            parts.push('<text x="'+mx.toFixed(1)+'" y="'+(my+2).toFixed(1)+'" text-anchor="middle" font-size="11" fill="#333">'+e.weight+'</text>');
+        }
+    });
+
+    freeDraws.forEach(function(f){
+        var pts = f.points || [];
+        if (pts.length < 2) return;
+        var path = 'M ';
+        for (var i = 0; i < pts.length; i++) {
+            if (i > 0) path += ' L ';
+            path += (pts[i].x||0).toFixed(1) + ' ' + (pts[i].y||0).toFixed(1);
+        }
+        parts.push('<path d="'+path+'" fill="none" stroke="'+(f.color||'#2E8B57')+'" stroke-width="'+(f.width||3)+'" stroke-linecap="round" stroke-linejoin="round"/>');
+    });
+
+    vertices.forEach(function(v){
+        var x = v.x||0, y = v.y||0, r = v.radius||22;
+        var color = v.color || '#2E8B57';
+        var label = v.label || String(v.id||'');
+        parts.push('<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r+'" fill="'+color+'" stroke="#fff" stroke-width="2"/>');
+        parts.push('<text x="'+x.toFixed(1)+'" y="'+(y+5).toFixed(1)+'" text-anchor="middle" font-size="14" fill="#fff" font-weight="600">'+label+'</text>');
+    });
+
+    annotations.forEach(function(a){
+        parts.push('<text x="'+(a.x||0).toFixed(1)+'" y="'+(a.y||0).toFixed(1)+'" text-anchor="middle" font-size="13" fill="'+(a.color||'#333')+'" font-weight="500">'+(a.text||'')+'</text>');
+    });
+
+    parts.push('</svg>');
+    return parts.join('');
+}
+
+/* 渲染所有图形块 */
+(function(){
+    function ready(fn){ if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+    ready(function(){
+        var containers = document.querySelectorAll('.cw-pv-graph-container');
+        containers.forEach(function(c){
+            var graphId = c.getAttribute('data-graph-id');
+            var data = window.__CW_GRAPH_DATA__ && window.__CW_GRAPH_DATA__[graphId];
+            if (!data) {
+                c.innerHTML = '<span class="cw-pv-empty">无图形数据</span>';
+                return;
+            }
+            try {
+                var svg = cwRenderGraphToSVG(data);
+                c.innerHTML = svg || '<span class="cw-pv-empty">渲染失败</span>';
+            } catch(e) {
+                c.innerHTML = '<span class="cw-pv-empty">图形数据错误</span>';
+            }
+        });
+    });
+})();
+</script>

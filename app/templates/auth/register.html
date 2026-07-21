@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}注册 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 登录/注册页面的水墨画装饰 */
+    .auth-wrap {
+        position: relative;
+        min-height: calc(100vh - 220px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 0;
+    }
+
+    /* 背景水墨晕染 */
+    .auth-wrap::before {
+        content: '';
+        position: absolute;
+        top: -20px;
+        left: 0;
+        right: 0;
+        bottom: -20px;
+        background:
+            radial-gradient(ellipse 300px 200px at 15% 20%, rgba(46, 139, 87, 0.10) 0%, transparent 60%),
+            radial-gradient(ellipse 280px 180px at 85% 80%, rgba(0, 137, 123, 0.10) 0%, transparent 60%),
+            radial-gradient(ellipse 220px 140px at 70% 30%, rgba(60, 179, 113, 0.06) 0%, transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* 水墨山形装饰（左下角） */
+    .auth-wrap::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 80px;
+        background:
+            radial-gradient(ellipse 200px 50px at 12% 100%, rgba(27, 94, 32, 0.25) 0%, transparent 70%),
+            radial-gradient(ellipse 280px 70px at 50% 100%, rgba(46, 139, 87, 0.20) 0%, transparent 70%),
+            radial-gradient(ellipse 220px 55px at 88% 100%, rgba(0, 137, 123, 0.22) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.7;
+    }
+
+    .auth-card {
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--border-green);
+        border-radius: 16px;
+        box-shadow: 0 12px 40px rgba(27, 94, 32, 0.18);
+        padding: 2.5rem 2.5rem 2rem;
+        max-width: 480px;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+    }
+
+    .auth-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--seagreen), var(--teal), var(--medium-seagreen));
+        border-radius: 16px 16px 0 0;
+    }
+
+    .auth-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--light-green-bg), #C8E6C9);
+        color: var(--seagreen);
+        box-shadow: 0 4px 14px rgba(46, 139, 87, 0.25);
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--dark-green);
+    }
+
+    .input-group-text {
+        background: var(--light-green-bg);
+        border-color: #dce8dc;
+        color: var(--seagreen);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="text-center mb-4">
+            <div class="auth-icon">
+                <i class="bi bi-person-plus-fill" style="font-size: 2.2rem;"></i>
+            </div>
+            <h3 class="text-dark-green mb-1">注册新账号</h3>
+            <p class="text-ink-gray mb-0">加入离散数学智能教学体</p>
+            <div class="ink-divider mx-auto mt-3"></div>
+        </div>
+
+        <form method="post" action="{{ url_for('auth.register') }}" novalidate>
+            <div class="mb-3">
+                <label for="username" class="form-label">
+                    <i class="bi bi-person-fill me-1"></i>用户名
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" class="form-control" id="username" name="username"
+                           placeholder="3-80 个字符" required autofocus
+                           value="{{ request.form.username if request.form.username else '' }}">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">
+                    <i class="bi bi-lock-fill me-1"></i>密码
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-key"></i></span>
+                    <input type="password" class="form-control" id="password" name="password"
+                           placeholder="至少 6 位" required>
+                    <button class="btn btn-outline-secondary" type="button" tabindex="-1"
+                            onclick="togglePwd('password', this)">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="confirm_password" class="form-label">
+                    <i class="bi bi-shield-lock-fill me-1"></i>确认密码
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                           placeholder="再次输入密码" required>
+                    <button class="btn btn-outline-secondary" type="button" tabindex="-1"
+                            onclick="togglePwd('confirm_password', this)">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="email" class="form-label">
+                    <i class="bi bi-envelope-fill me-1"></i>邮箱 <span class="text-muted fw-normal">（可选）</span>
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" class="form-control" id="email" name="email"
+                           placeholder="name@example.com"
+                           value="{{ request.form.email if request.form.email else '' }}">
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-seagreen btn-lg">
+                    <i class="bi bi-check2-circle me-2"></i>立即注册
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center mt-4">
+            <span class="text-ink-gray">已有账号？</span>
+            <a href="{{ url_for('auth.login') }}" class="text-seagreen fw-semibold">
+                <i class="bi bi-box-arrow-in-right me-1"></i>立即登录
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePwd(id, btn) {
+        const inp = document.getElementById(id);
+        const icon = btn.querySelector('i');
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            inp.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    }
+</script>
+{% endblock %}

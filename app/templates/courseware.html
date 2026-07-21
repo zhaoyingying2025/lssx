@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}课件制作 - 离散数学智能教学体{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-dark-green mb-0"><i class="bi bi-journal-richtext me-2"></i>课件制作</h2>
+    <div class="dropdown">
+        <button class="btn btn-seagreen dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="bi bi-plus-circle me-1"></i>创建新课件
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+                <a class="dropdown-item" href="/courseware/edit/new?mode=ppt">
+                    <i class="bi bi-file-earmark-ppt-fill text-danger me-2"></i>PPT 模式
+                    <small class="text-muted d-block ms-4">幻灯片式，类似主流PPT</small>
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="/courseware/edit/new?mode=html">
+                    <i class="bi bi-file-earmark-code text-primary me-2"></i>HTML 模式
+                    <small class="text-muted d-block ms-4">长页面滚动式</small>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- 课件列表 -->
+{% if coursewares %}
+<div class="row g-4">
+    {% for cw in coursewares %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 module-card">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="icon-wrapper me-3 flex-shrink-0">
+                        {% if cw.mode == 'ppt' %}
+                        <i class="bi bi-file-earmark-ppt-fill fs-4 text-danger"></i>
+                        {% else %}
+                        <i class="bi bi-journal-richtext fs-4"></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                        <h5 class="card-title text-dark-green mb-1 text-truncate" title="{{ cw.title }}">{{ cw.title }}</h5>
+                        <p class="card-text text-ink-gray small mb-0">{{ cw.description or '暂无描述' }}</p>
+                    </div>
+                    {% if cw.mode == 'ppt' %}
+                    <span class="badge bg-danger">PPT</span>
+                    {% else %}
+                    <span class="badge bg-primary">HTML</span>
+                    {% endif %}
+                </div>
+                <div class="mt-auto">
+                    <div class="d-flex align-items-center text-ink-gray small mb-3">
+                        <i class="bi bi-layers me-1"></i>
+                        <span id="sec-count-{{ cw.id }}">-</span>
+                        {% if cw.mode == 'ppt' %}张幻灯片{% else %}个内容块{% endif %}
+                        <span class="mx-2">|</span>
+                        <i class="bi bi-calendar3 me-1"></i>
+                        {{ cw.created_at.strftime('%Y-%m-%d') if cw.created_at else '' }}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/courseware/edit/{{ cw.id }}" class="btn btn-sm btn-seagreen flex-fill" title="编辑">
+                            <i class="bi bi-pencil-square me-1"></i>编辑
+                        </a>
+                        <button class="btn btn-sm btn-outline-seagreen flex-fill" onclick="previewCourseware({{ cw.id }})" title="预览">
+                            <i class="bi bi-eye me-1"></i>预览
+                        </button>
+                        <button class="btn btn-sm btn-outline-seagreen flex-fill" onclick="exportCourseware({{ cw.id }})" title="下载">
+                            <i class="bi bi-download me-1"></i>下载
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCourseware({{ cw.id }})" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <div class="icon-wrapper mx-auto mb-3" style="width:90px;height:90px;">
+        <i class="bi bi-journal-richtext fs-1"></i>
+    </div>
+    <h5 class="text-dark-green mb-2">暂无课件</h5>
+    <p class="text-ink-gray mb-4">选择 PPT 模式或 HTML 模式开始制作课件</p>
+    <div class="d-flex gap-2 justify-content-center">
+        <a href="/courseware/edit/new?mode=ppt" class="btn btn-outline-danger">
+            <i class="bi bi-file-earmark-ppt-fill me-1"></i>PPT 模式
+        </a>
+        <a href="/courseware/edit/new?mode=html" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-code me-1"></i>HTML 模式
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/courseware/api/list')
+        .then(res => res.json())
+        .then(data => {
+            if (data.items) {
+                data.items.forEach(cw => {
+                    const el = document.getElementById('sec-count-' + cw.id);
+                    if (el) el.textContent = cw.count;
+                });
+            }
+        });
+});
+
+function previewCourseware(id) {
+    window.open('/courseware/api/preview/' + id, '_blank');
+}
+
+function exportCourseware(id) {
+    window.location.href = '/courseware/api/export/' + id;
+}
+
+function deleteCourseware(id) {
+    if (!confirm('确定删除此课件？此操作不可恢复。')) return;
+    fetch('/courseware/api/delete/' + id, {method: 'DELETE'})
+    .then(res => res.json())
+    .then(() => location.reload())
+    .catch(err => alert('删除失败: ' + err));
+}
+</script>
+{% endblock %}

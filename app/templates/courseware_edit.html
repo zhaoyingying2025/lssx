@@ -1,0 +1,2484 @@
+{% extends "base.html" %}
+
+{% block title %}编辑课件 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ============ 编辑器布局 ============ */
+.cw-edit-wrap { display: flex; flex-direction: column; height: calc(100vh - 180px); min-height: 600px; }
+
+.cw-toolbar {
+    background: linear-gradient(135deg, var(--dark-green), var(--seagreen), var(--teal));
+    color: #fff; padding: 10px 16px;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    box-shadow: 0 2px 10px rgba(27,94,32,0.25);
+}
+.cw-toolbar .form-control, .cw-toolbar .form-select { border-radius: 6px; border: none; max-width: 240px; }
+.cw-toolbar .btn { border-radius: 6px; }
+.cw-toolbar .btn-outline-light:hover { background: rgba(255,255,255,0.2); color: #fff; }
+.cw-bg-select { max-width: 160px !important; cursor: pointer; }
+.save-indicator { font-size: 0.8rem; opacity: 0.9; min-width: 60px; }
+.cw-mode-badge { font-size: 0.72rem; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+.cw-mode-badge.ppt { background: #FF5722; color: #fff; }
+.cw-mode-badge.html { background: #1976D2; color: #fff; }
+
+.cw-edit-body { flex: 1; display: none; overflow: hidden; }
+body.mode-html .cw-edit-body { display: flex; }
+body.mode-ppt .ppt-edit-body { display: flex; }
+.ppt-edit-body { flex: 1; display: none; overflow: hidden; }
+
+.cw-left-panel {
+    width: 280px; flex-shrink: 0; background: var(--paper-white);
+    border-right: 2px solid var(--border-green); display: flex; flex-direction: column;
+}
+.cw-tab-bar { display: flex; border-bottom: 2px solid var(--border-green); flex-shrink: 0; }
+.cw-tab-bar button {
+    flex: 1; padding: 10px 8px; border: none; background: transparent;
+    color: var(--ink-gray); font-size: 0.85rem; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: all 0.2s; font-weight: 500;
+}
+.cw-tab-bar button.active { color: var(--seagreen); border-bottom-color: var(--seagreen); font-weight: 600; background: var(--light-green-bg); }
+.cw-tab-bar button:hover { color: var(--dark-green); }
+.cw-tab-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.cw-tab-pane { display: none; flex: 1; flex-direction: column; }
+.cw-tab-pane.active { display: flex; }
+
+.cw-element-grid { padding: 12px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.cw-elem-btn {
+    padding: 12px 6px; border: 1.5px solid var(--border-green); border-radius: 8px;
+    background: #fff; color: var(--ink-color); cursor: pointer;
+    transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 0.78rem; text-align: center;
+}
+.cw-elem-btn:hover { border-color: var(--seagreen); background: var(--light-green-bg); transform: translateY(-2px); box-shadow: 0 4px 10px rgba(46,139,87,0.15); }
+.cw-elem-btn i { font-size: 1.3rem; color: var(--seagreen); }
+.cw-elem-btn .elem-name { font-weight: 500; }
+.cw-elem-btn.formula i { color: #1B5E20; } .cw-elem-btn.definition i { color: #2196F3; }
+.cw-elem-btn.theorem i { color: #9C27B0; } .cw-elem-btn.mistake i { color: #FF9800; }
+.cw-elem-btn.graph i { color: var(--teal); } .cw-elem-btn.image i { color: #607D8B; }
+.cw-elem-btn.other i { color: #78909C; } .cw-elem-btn.chapter_cover i { color: var(--seagreen); }
+.cw-elem-btn.custom_text i { color: #5D6D7E; }
+
+.cw-search-bar { padding: 10px; border-bottom: 1px solid var(--border-green); flex-shrink: 0; }
+.cw-search-bar .form-control, .cw-search-bar .form-select { font-size: 0.82rem; border-radius: 6px; }
+.cw-list { flex: 1; overflow-y: auto; padding: 8px; }
+.cw-list-item { padding: 10px; margin-bottom: 6px; border: 1px solid var(--border-green); border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #fff; }
+.cw-list-item:hover { background: var(--light-green-bg); border-color: var(--medium-seagreen); transform: translateX(4px); }
+.cw-list-item .item-title { font-weight: 600; color: var(--dark-green); font-size: 0.88rem; }
+.cw-list-item .item-meta { font-size: 0.75rem; color: var(--ink-gray); }
+.cw-list-item .item-summary { font-size: 0.78rem; color: var(--ink-color); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.cw-canvas-wrap { flex: 1; overflow: auto; position: relative; background: #ECEFF1; padding: 0; }
+.cw-canvas { position: relative; min-width: 1200px; min-height: 800px; width: 100%; height: 100%; transition: background 0.3s; }
+.cw-canvas-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
+.cw-canvas-grid {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.cw-block { position: absolute; z-index: 2; background: #fff; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; flex-direction: column; min-width: 180px; min-height: 90px; border: 1px solid rgba(0,0,0,0.05); }
+.cw-block.dragging { opacity: 0.7; box-shadow: 0 8px 24px rgba(0,0,0,0.25); z-index: 1000; cursor: move; }
+.cw-block.selected { box-shadow: 0 0 0 2px var(--seagreen), 0 4px 14px rgba(0,0,0,0.15); }
+.cw-block.type-chapter_cover { border-left: 5px solid var(--seagreen); }
+.cw-block.type-knowledge { border-left: 5px solid var(--teal); }
+.cw-block.type-custom_text { border-left: 5px solid #78909C; }
+.cw-block.type-quiz { border-left: 5px solid #FF8C00; }
+.cw-block.type-formula { border: 2px solid #1B5E20; }
+.cw-block.type-definition { border-left: 5px solid #2196F3; }
+.cw-block.type-theorem { border-left: 5px solid #9C27B0; }
+.cw-block.type-mistake { border-left: 5px solid #FF9800; }
+.cw-block.type-graph { border-left: 5px solid var(--teal); }
+.cw-block.type-image { border-left: 5px solid #607D8B; }
+.cw-block.type-other { border-left: 5px solid #78909C; }
+
+.cw-block-header { padding: 6px 10px; background: var(--light-green-bg); display: flex; align-items: center; gap: 6px; cursor: move; border-bottom: 1px solid var(--border-green); flex-shrink: 0; user-select: none; }
+.cw-block-header .type-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; color: #fff; font-weight: 500; white-space: nowrap; }
+.cw-block-header .type-badge.chapter_cover { background: var(--seagreen); }
+.cw-block-header .type-badge.knowledge { background: var(--teal); }
+.cw-block-header .type-badge.custom_text { background: #78909C; }
+.cw-block-header .type-badge.quiz { background: #FF8C00; }
+.cw-block-header .type-badge.formula { background: #1B5E20; }
+.cw-block-header .type-badge.definition { background: #2196F3; }
+.cw-block-header .type-badge.theorem { background: #9C27B0; }
+.cw-block-header .type-badge.mistake { background: #FF9800; }
+.cw-block-header .type-badge.graph { background: var(--teal); }
+.cw-block-header .type-badge.image { background: #607D8B; }
+.cw-block-header .type-badge.other { background: #78909C; }
+.cw-block-header .block-actions { margin-left: auto; display: flex; gap: 2px; }
+.cw-block-header .block-actions button { width: 24px; height: 24px; padding: 0; border: none; background: transparent; color: var(--ink-gray); cursor: pointer; border-radius: 4px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+.cw-block-header .block-actions button:hover { background: rgba(0,0,0,0.08); color: var(--dark-green); }
+.cw-block-header .block-actions .btn-del:hover { background: #FFEBEE; color: #C62828; }
+
+.cw-block-body { flex: 1; padding: 10px; overflow-y: auto; overflow-x: hidden; }
+.cw-block-body::-webkit-scrollbar { width: 6px; }
+.cw-block-body::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); border-radius: 3px; }
+.cw-block-body::-webkit-scrollbar-thumb { background: rgba(46,139,87,0.4); border-radius: 3px; }
+.cw-block-body::-webkit-scrollbar-thumb:hover { background: rgba(46,139,87,0.6); }
+.cw-block-body .title-input { width: 100%; border: none; border-bottom: 1px dashed var(--border-green); padding: 4px 0; font-size: 0.95rem; font-weight: 600; color: var(--dark-green); background: transparent; outline: none; }
+.cw-block-body .title-input:focus { border-bottom-color: var(--seagreen); }
+.cw-block-body .content-input { width: 100%; border: 1px solid var(--border-green); border-radius: 6px; padding: 8px; font-size: 0.86rem; min-height: 60px; resize: none; background: var(--paper-white); outline: none; color: var(--ink-color); line-height: 1.6; margin-top: 6px; }
+.cw-block-body .content-input:focus { border-color: var(--seagreen); box-shadow: 0 0 0 2px rgba(46,139,87,0.1); }
+.cw-block.type-formula .cw-block-body { display: flex; align-items: center; justify-content: center; }
+.cw-block.type-formula .formula-display { font-size: 1.3rem; font-family: 'Cambria Math', 'Times New Roman', serif; color: #1B5E20; text-align: center; font-weight: 600; line-height: 1.5; word-break: break-word; }
+
+.cw-block-resize { position: absolute; width: 14px; height: 14px; background: var(--seagreen); border: 2px solid #fff; border-radius: 50%; z-index: 10; opacity: 0; transition: opacity 0.2s; }
+.cw-block:hover .cw-block-resize, .cw-block.selected .cw-block-resize { opacity: 1; }
+.cw-block-resize:hover { opacity: 1; }
+.cw-block-resize.r-nw { top: -7px; left: -7px; cursor: nwse-resize; }
+.cw-block-resize.r-n { top: -7px; left: 50%; margin-left: -7px; cursor: ns-resize; }
+.cw-block-resize.r-ne { top: -7px; right: -7px; cursor: nesw-resize; }
+.cw-block-resize.r-w { top: 50%; left: -7px; margin-top: -7px; cursor: ew-resize; }
+.cw-block-resize.r-e { top: 50%; right: -7px; margin-top: -7px; cursor: ew-resize; }
+.cw-block-resize.r-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+.cw-block-resize.r-s { bottom: -7px; left: 50%; margin-left: -7px; cursor: ns-resize; }
+.cw-block-resize.r-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+.cw-pos-tip { position: absolute; top: -28px; left: 0; padding: 3px 8px; background: rgba(0,0,0,0.75); color: #fff; font-size: 0.72rem; border-radius: 4px; pointer-events: none; white-space: nowrap; z-index: 1001; }
+.cw-empty { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: rgba(255,255,255,0.85); z-index: 1; }
+.cw-empty i { font-size: 4rem; opacity: 0.5; }
+.cw-empty p { font-size: 1rem; margin-top: 12px; }
+.cw-img-preview { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+
+/* ============ PPT 模式：左侧幻灯片面板 ============ */
+.ppt-slide-panel { width: 200px; flex-shrink: 0; background: #2C3E50; color: #fff; display: flex; flex-direction: column; border-right: 2px solid #1B5E20; }
+.ppt-slide-panel-header { padding: 10px 12px; background: #1A2530; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.ppt-slide-panel-header h6 { margin: 0; font-size: 0.85rem; font-weight: 600; }
+.ppt-slide-panel-header .btn { padding: 2px 6px; font-size: 0.75rem; }
+.ppt-slide-list { flex: 1; overflow-y: auto; padding: 8px; }
+.ppt-slide-item { position: relative; margin-bottom: 10px; cursor: pointer; border: 2px solid transparent; border-radius: 4px; overflow: hidden; background: #fff; transition: all 0.2s; }
+.ppt-slide-item:hover { border-color: #4FC3F7; }
+.ppt-slide-item.active { border-color: #FFB74D; box-shadow: 0 0 0 2px rgba(255,183,77,0.5); }
+.ppt-slide-thumb { width: 100%; aspect-ratio: 16/9; position: relative; overflow: hidden; background: #fff; }
+.ppt-slide-thumb-inner { position: absolute; top: 0; left: 0; transform-origin: top left; pointer-events: none; }
+.ppt-slide-num { position: absolute; top: 2px; left: 4px; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; z-index: 10; }
+.ppt-slide-actions { position: absolute; top: 2px; right: 2px; display: flex; gap: 2px; z-index: 10; opacity: 0; transition: opacity 0.2s; }
+.ppt-slide-item:hover .ppt-slide-actions { opacity: 1; }
+.ppt-slide-actions button { width: 18px; height: 18px; padding: 0; border: none; background: rgba(0,0,0,0.6); color: #fff; border-radius: 3px; font-size: 0.65rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.ppt-slide-actions button:hover { background: rgba(0,0,0,0.9); }
+.ppt-slide-panel-footer { padding: 8px 10px; background: #1A2530; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 4px; }
+.ppt-slide-panel-footer button { flex: 1; padding: 4px; font-size: 0.72rem; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: #fff; border-radius: 4px; cursor: pointer; }
+.ppt-slide-panel-footer button:hover { background: rgba(255,255,255,0.1); }
+
+.ppt-canvas-area { flex: 1; background: #424242; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.ppt-canvas-toolbar { background: #37474F; padding: 6px 12px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #fff; flex-shrink: 0; flex-wrap: wrap; }
+.ppt-canvas-toolbar .dropdown-menu { font-size: 0.82rem; }
+.ppt-canvas-toolbar .btn-sm { font-size: 0.78rem; }
+.ppt-canvas-toolbar .ppt-zoom-info { font-size: 0.78rem; min-width: 50px; }
+.ppt-canvas-wrap { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 30px; }
+.ppt-canvas-stage { position: relative; flex-shrink: 0; }
+.ppt-slide { position: relative; width: 960px; height: 540px; background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.4); overflow: hidden; transform-origin: top left; }
+.ppt-slide-grid { position: absolute; inset: 0; pointer-events: none; z-index: 1; background-image: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px); background-size: 20px 20px; display: none; }
+.ppt-slide.show-grid .ppt-slide-grid { display: block; }
+.ppt-slide-align-guides { position: absolute; inset: 0; pointer-events: none; z-index: 999; }
+
+.ppt-element { position: absolute; cursor: move; user-select: none; box-sizing: border-box; }
+.ppt-element.selected { outline: 2px solid #4FC3F7; outline-offset: 1px; }
+.ppt-element.editing { cursor: text; outline: 2px solid #FFB74D !important; }
+.ppt-element-content { width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
+.ppt-element.type-text .ppt-element-content { padding: 4px; line-height: 1.4; word-break: break-word; outline: none; }
+.ppt-element.type-text .ppt-element-content[contenteditable="true"] { cursor: text; background: rgba(255,255,255,0.5); }
+.ppt-element.type-text.bullet .ppt-element-content ul, .ppt-element.type-text.bullet .ppt-element-content ol { padding-left: 20px; margin: 0; }
+.ppt-element.type-image .ppt-element-content { display: flex; align-items: center; justify-content: center; }
+.ppt-element.type-image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.ppt-element.type-shape .ppt-element-content svg { width: 100%; height: 100%; display: block; }
+.ppt-element.type-graph .ppt-element-content { display: flex; align-items: center; justify-content: center; background: #f8fcf8; overflow: auto; }
+.ppt-element.type-knowledge .ppt-element-content, .ppt-element.type-quiz .ppt-element-content { padding: 8px; font-size: 0.85rem; line-height: 1.5; overflow: auto; background: #FFFEF7; border-left: 3px solid var(--seagreen); }
+.ppt-element.type-quiz .ppt-element-content { border-left-color: #FF8C00; }
+
+.ppt-handle { position: absolute; width: 10px; height: 10px; background: #fff; border: 2px solid #4FC3F7; border-radius: 50%; z-index: 1000; }
+.ppt-handle.h-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.ppt-handle.h-n { top: -5px; left: 50%; margin-left: -5px; cursor: ns-resize; }
+.ppt-handle.h-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.ppt-handle.h-e { top: 50%; right: -5px; margin-top: -5px; cursor: ew-resize; }
+.ppt-handle.h-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.ppt-handle.h-s { bottom: -5px; left: 50%; margin-left: -5px; cursor: ns-resize; }
+.ppt-handle.h-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.ppt-handle.h-w { top: 50%; left: -5px; margin-top: -5px; cursor: ew-resize; }
+.ppt-handle.h-rot { top: -28px; left: 50%; margin-left: -5px; cursor: grab; background: #FFB74D; border-color: #FF9800; }
+.ppt-handle.h-rot:active { cursor: grabbing; }
+.ppt-handle.h-rot::before { content: ''; position: absolute; top: 10px; left: 3px; width: 2px; height: 12px; background: #FFB74D; }
+.ppt-selection-box { position: absolute; border: 1px dashed #4FC3F7; pointer-events: none; z-index: 998; }
+
+.ppt-property-panel { width: 260px; flex-shrink: 0; background: #fff; border-left: 2px solid var(--border-green); display: flex; flex-direction: column; overflow: hidden; }
+.ppt-property-header { padding: 10px 12px; background: linear-gradient(135deg, var(--seagreen), var(--teal)); color: #fff; font-weight: 600; font-size: 0.9rem; flex-shrink: 0; }
+.ppt-property-body { flex: 1; overflow-y: auto; padding: 0; }
+.ppt-prop-group { border-bottom: 1px solid var(--border-green); padding: 10px 12px; }
+.ppt-prop-group-title { font-size: 0.78rem; font-weight: 600; color: var(--dark-green); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.ppt-prop-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.ppt-prop-row label { font-size: 0.75rem; color: var(--ink-gray); width: 50px; flex-shrink: 0; }
+.ppt-prop-row input, .ppt-prop-row select { flex: 1; font-size: 0.78rem; padding: 3px 6px; border-radius: 4px; border: 1px solid var(--border-green); }
+.ppt-prop-row input[type="color"] { padding: 1px; height: 26px; min-width: 36px; }
+.ppt-prop-row input[type="range"] { padding: 0; }
+
+.ppt-format-toolbar { display: flex; flex-wrap: wrap; gap: 3px; }
+.ppt-format-btn { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border-green); background: #fff; border-radius: 4px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; color: var(--ink-color); }
+.ppt-format-btn:hover { background: var(--light-green-bg); border-color: var(--seagreen); }
+.ppt-format-btn.active { background: var(--seagreen); color: #fff; border-color: var(--seagreen); }
+.ppt-align-toolbar, .ppt-layer-toolbar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+.ppt-layer-toolbar { grid-template-columns: repeat(4, 1fr); }
+.ppt-color-palette { display: flex; flex-wrap: wrap; gap: 4px; }
+.ppt-color-swatch { width: 20px; height: 20px; border-radius: 3px; cursor: pointer; border: 1px solid rgba(0,0,0,0.2); }
+.ppt-color-swatch:hover { transform: scale(1.15); }
+
+.cw-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; display: none; align-items: center; justify-content: center; }
+.cw-modal-overlay.show { display: flex; }
+.cw-modal { background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.3); width: 90%; max-width: 1100px; height: 88vh; display: flex; flex-direction: column; }
+.cw-modal-header { padding: 12px 20px; background: linear-gradient(135deg, var(--seagreen), var(--teal)); color: #fff; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: space-between; }
+.cw-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.cw-modal-header .btn-close { filter: brightness(0) invert(1); }
+.cw-modal-body { flex: 1; overflow: auto; padding: 0; display: flex; }
+.cw-modal-footer { padding: 10px 20px; border-top: 1px solid var(--border-green); display: flex; justify-content: flex-end; gap: 8px; }
+
+.embedded-canvas-toolbar { width: 56px; background: var(--dark-green); padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+.embedded-canvas-toolbar .tool-btn { width: 44px; height: 40px; border: none; background: transparent; color: #fff; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.embedded-canvas-toolbar .tool-btn:hover { background: rgba(255,255,255,0.15); }
+.embedded-canvas-toolbar .tool-btn.active { background: var(--seagreen); }
+.embedded-canvas-toolbar .tool-btn .tool-label { font-size: 9px; opacity: 0.85; }
+.embedded-canvas-toolbar .tool-sep { width: 36px; border-top: 1px solid rgba(255,255,255,0.25); margin: 4px 0; }
+.embedded-canvas-area { flex: 1; position: relative; background: #f8fcf8; border: 2px solid var(--seagreen); border-left: none; margin: 8px; border-radius: 6px; overflow: hidden; }
+.embedded-canvas-area canvas { display: block; }
+
+.ppt-browser-modal .cw-modal { max-width: 800px; height: 80vh; }
+.ppt-browser-modal .cw-modal-body { display: block; padding: 12px; overflow: auto; }
+.ppt-browser-search { margin-bottom: 12px; }
+.ppt-browser-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.ppt-browser-item { padding: 10px; border: 1px solid var(--border-green); border-radius: 8px; cursor: pointer; background: #fff; transition: all 0.2s; }
+.ppt-browser-item:hover { border-color: var(--seagreen); background: var(--light-green-bg); transform: translateY(-2px); }
+.ppt-browser-item .item-title { font-weight: 600; color: var(--dark-green); font-size: 0.88rem; margin-bottom: 4px; }
+.ppt-browser-item .item-meta { font-size: 0.72rem; color: var(--ink-gray); }
+.ppt-browser-item .item-summary { font-size: 0.78rem; color: var(--ink-color); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.cw-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #fff; padding: 10px 20px; border-radius: 6px; z-index: 10000; font-size: 0.88rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; max-width: 80%; }
+.cw-toast.show { opacity: 1; }
+.cw-confirm-modal .cw-modal { width: 360px; height: auto; max-width: 90vw; }
+.cw-confirm-modal .cw-modal-body { padding: 20px; display: block; }
+
+.cw-canvas-wrap::-webkit-scrollbar, .cw-list::-webkit-scrollbar, .cw-block-body::-webkit-scrollbar, .ppt-property-body::-webkit-scrollbar, .ppt-slide-list::-webkit-scrollbar, .ppt-canvas-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+.cw-canvas-wrap::-webkit-scrollbar-track, .ppt-canvas-wrap::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+.cw-canvas-wrap::-webkit-scrollbar-thumb, .ppt-canvas-wrap::-webkit-scrollbar-thumb { background: var(--medium-seagreen); border-radius: 4px; }
+
+body.mode-ppt .cw-toolbar-html-only { display: none !important; }
+body.mode-html .cw-toolbar-ppt-only { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cw-edit-wrap">
+<div class="cw-toolbar">
+    <a href="/courseware/" class="btn btn-outline-light btn-sm" title="返回列表"><i class="bi bi-arrow-left"></i></a>
+    <span class="cw-mode-badge" id="modeBadge">HTML</span>
+    <input type="text" class="form-control form-control-sm" id="cwTitle" placeholder="课件标题" value="{{ courseware.title if courseware else '未命名课件' }}">
+    <input type="text" class="form-control form-control-sm" id="cwDesc" placeholder="课件描述" value="{{ courseware.description if courseware and courseware.description else '' }}" style="max-width:180px;">
+    <select class="form-select form-select-sm cw-bg-select cw-toolbar-html-only" id="bgSelect" title="选择背景板">
+        <option value="seagreen">青绿色渐变</option>
+        <option value="blue">蓝色渐变</option>
+        <option value="orange">橙色渐变</option>
+        <option value="purple">紫色渐变</option>
+        <option value="paper">浅色纸面</option>
+        <option value="dark">深色主题</option>
+        <option value="custom">自定义背景图...</option>
+    </select>
+    <div class="ms-auto d-flex gap-2 align-items-center">
+        <span class="save-indicator" id="saveIndicator"></span>
+        <div class="btn-group btn-group-sm cw-toolbar-ppt-only" role="group">
+            <button class="btn btn-outline-light" onclick="pptUndo()" title="撤销 (Ctrl+Z)"><i class="bi bi-arrow-counterclockwise"></i></button>
+            <button class="btn btn-outline-light" onclick="pptRedo()" title="重做 (Ctrl+Y)"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+        <div class="dropdown cw-toolbar-ppt-only">
+            <button class="btn btn-outline-light btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="添加元素"><i class="bi bi-plus-circle me-1"></i>添加</button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="javascript:pptAddElement('text')"><i class="bi bi-fonts me-2 text-primary"></i>文本框</a></li>
+                <li><a class="dropdown-item" href="javascript:pptAddElement('image')"><i class="bi bi-image me-2 text-secondary"></i>图片</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="javascript:pptAddElement('shape-rect')"><i class="bi bi-square me-2"></i>矩形</a></li>
+                <li><a class="dropdown-item" href="javascript:pptAddElement('shape-circle')"><i class="bi bi-circle me-2"></i>圆形</a></li>
+                <li><a class="dropdown-item" href="javascript:pptAddElement('shape-arrow')"><i class="bi bi-arrow-right me-2"></i>箭头</a></li>
+                <li><a class="dropdown-item" href="javascript:pptAddElement('shape-line')"><i class="bi bi-dash-lg me-2"></i>直线</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="javascript:pptAddElement('graph')"><i class="bi bi-diagram-3 me-2 text-teal"></i>图形（画板）</a></li>
+                <li><a class="dropdown-item" href="javascript:pptOpenKnowledgeBrowser()"><i class="bi bi-book me-2 text-info"></i>知识条目</a></li>
+                <li><a class="dropdown-item" href="javascript:pptOpenQuizBrowser()"><i class="bi bi-patch-question me-2 text-warning"></i>试题</a></li>
+            </ul>
+        </div>
+        <div class="btn-group btn-group-sm cw-toolbar-ppt-only" role="group">
+            <button class="btn btn-outline-light" onclick="pptZoomOut()" title="缩小"><i class="bi bi-zoom-out"></i></button>
+            <span class="ppt-zoom-info align-self-center px-2" id="pptZoomInfo">100%</span>
+            <button class="btn btn-outline-light" onclick="pptZoomIn()" title="放大"><i class="bi bi-zoom-in"></i></button>
+        </div>
+        <button class="btn btn-outline-light btn-sm cw-toolbar-ppt-only" onclick="pptToggleGrid()" title="网格"><i class="bi bi-grid-3x3"></i></button>
+        <button class="btn btn-outline-light btn-sm" onclick="saveCourseware()" title="保存"><i class="bi bi-save me-1"></i>保存</button>
+        <button class="btn btn-outline-light btn-sm" onclick="previewCourseware()" title="预览"><i class="bi bi-eye me-1"></i>预览</button>
+        <button class="btn btn-outline-light btn-sm" onclick="exportCourseware()" title="导出HTML"><i class="bi bi-download me-1"></i>导出</button>
+        <button class="btn btn-outline-light btn-sm" onclick="openSettingsModal()" title="设置"><i class="bi bi-gear"></i></button>
+    </div>
+</div>
+
+<div class="cw-edit-body">
+    <div class="cw-left-panel">
+        <div class="cw-tab-bar">
+            <button class="active" onclick="switchTab('elements', this)"><i class="bi bi-grid-3x3-gap me-1"></i>元素</button>
+            <button onclick="switchTab('knowledge', this)"><i class="bi bi-book me-1"></i>知识</button>
+            <button onclick="switchTab('quiz', this)"><i class="bi bi-patch-question me-1"></i>题库</button>
+        </div>
+        <div class="cw-tab-content">
+            <div class="cw-tab-pane active" id="tab-elements">
+                <div class="cw-element-grid">
+                    <button class="cw-elem-btn chapter_cover" onclick="dispatchAddElement('chapter_cover')"><i class="bi bi-bookmark-fill"></i><span class="elem-name">章节封面</span></button>
+                    <button class="cw-elem-btn knowledge" onclick="switchTab('knowledge', document.querySelectorAll('.cw-tab-bar button')[1])"><i class="bi bi-book-fill"></i><span class="elem-name">知识条目</span></button>
+                    <button class="cw-elem-btn quiz" onclick="switchTab('quiz', document.querySelectorAll('.cw-tab-bar button')[2])"><i class="bi bi-patch-question-fill"></i><span class="elem-name">试题</span></button>
+                    <button class="cw-elem-btn formula" onclick="dispatchAddElement('formula')"><i class="bi bi-superscript"></i><span class="elem-name">公式</span></button>
+                    <button class="cw-elem-btn definition" onclick="dispatchAddElement('definition')"><i class="bi bi-info-circle-fill"></i><span class="elem-name">定义</span></button>
+                    <button class="cw-elem-btn theorem" onclick="dispatchAddElement('theorem')"><i class="bi bi-pi-circle-fill"></i><span class="elem-name">定理</span></button>
+                    <button class="cw-elem-btn mistake" onclick="dispatchAddElement('mistake')"><i class="bi bi-exclamation-triangle-fill"></i><span class="elem-name">易错点</span></button>
+                    <button class="cw-elem-btn graph" onclick="dispatchAddElement('graph')"><i class="bi bi-diagram-3-fill"></i><span class="elem-name">图形</span></button>
+                    <button class="cw-elem-btn image" onclick="dispatchAddElement('image')"><i class="bi bi-image-fill"></i><span class="elem-name">图案</span></button>
+                    <button class="cw-elem-btn custom_text" onclick="dispatchAddElement('custom_text')"><i class="bi bi-textarea-resize"></i><span class="elem-name">自定义文本</span></button>
+                    <button class="cw-elem-btn other" onclick="dispatchAddElement('other')"><i class="bi bi-lightbulb-fill"></i><span class="elem-name">其他</span></button>
+                </div>
+                <div class="px-3 py-2 small text-ink-gray border-top">
+                    <i class="bi bi-info-circle me-1"></i>点击元素按钮添加到画布，可拖拽和缩放
+                </div>
+            </div>
+            <div class="cw-tab-pane" id="tab-knowledge">
+                <div class="cw-search-bar">
+                    <input type="text" class="form-control form-control-sm mb-2" id="knowledgeSearch" placeholder="搜索知识条目..." oninput="debounceSearch()">
+                    <select class="form-select form-select-sm mb-2" id="chapterFilter" onchange="loadKnowledge()"><option value="">全部章节</option></select>
+                    <select class="form-select form-select-sm mb-2" id="categoryFilter" onchange="loadKnowledge()"><option value="">全部分类</option></select>
+                </div>
+                <div class="cw-list" id="knowledgeList"><div class="text-center text-ink-gray py-4"><div class="spinner-border spinner-border-sm me-2"></div>加载中...</div></div>
+            </div>
+            <div class="cw-tab-pane" id="tab-quiz">
+                <div class="cw-search-bar">
+                    <input type="text" class="form-control form-control-sm mb-2" id="quizSearch" placeholder="搜索试题..." oninput="debounceSearch()">
+                    <select class="form-select form-select-sm mb-2" id="quizChapterFilter" onchange="loadQuizList()"><option value="">全部章节</option></select>
+                    <select class="form-select form-select-sm mb-2" id="quizTypeFilter" onchange="loadQuizList()"><option value="">全部题型</option></select>
+                    <select class="form-select form-select-sm" id="quizDifficultyFilter" onchange="loadQuizList()"><option value="">全部难度</option></select>
+                </div>
+                <div class="cw-list" id="quizList"><div class="text-center text-ink-gray py-4"><div class="spinner-border spinner-border-sm me-2"></div>加载中...</div></div>
+            </div>
+        </div>
+    </div>
+    <div class="cw-canvas-wrap" id="canvasWrap">
+        <div class="cw-canvas" id="cwCanvas">
+            <div class="cw-canvas-bg" id="cwCanvasBg"></div>
+            <div class="cw-canvas-grid"></div>
+            <div class="cw-empty" id="emptyState"><i class="bi bi-arrows-move"></i><p>从左侧添加元素开始制作课件</p></div>
+        </div>
+    </div>
+</div>
+
+<div class="ppt-edit-body">
+    <div class="ppt-slide-panel">
+        <div class="ppt-slide-panel-header">
+            <h6><i class="bi bi-collection me-1"></i>幻灯片</h6>
+            <button class="btn btn-sm btn-light" onclick="pptAddSlide()" title="添加幻灯片"><i class="bi bi-plus-lg"></i></button>
+        </div>
+        <div class="ppt-slide-list" id="pptSlideList"></div>
+        <div class="ppt-slide-panel-footer">
+            <button onclick="pptDuplicateSlide()" title="复制当前"><i class="bi bi-files"></i> 复制</button>
+            <button onclick="pptDeleteSlide()" title="删除当前"><i class="bi bi-trash"></i> 删除</button>
+            <button onclick="pptMoveSlide(-1)" title="上移"><i class="bi bi-arrow-up"></i></button>
+            <button onclick="pptMoveSlide(1)" title="下移"><i class="bi bi-arrow-down"></i></button>
+        </div>
+    </div>
+    <div class="ppt-canvas-area">
+        <div class="ppt-canvas-toolbar">
+            <div class="dropdown">
+                <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-layout-text-window me-1"></i>布局</button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="javascript:pptSetLayout('blank')"><i class="bi bi-square me-2"></i>空白</a></li>
+                    <li><a class="dropdown-item" href="javascript:pptSetLayout('title')"><i class="bi bi-type-h1 me-2"></i>标题页</a></li>
+                    <li><a class="dropdown-item" href="javascript:pptSetLayout('title_content')"><i class="bi bi-text-left me-2"></i>标题+内容</a></li>
+                    <li><a class="dropdown-item" href="javascript:pptSetLayout('two_column')"><i class="bi bi-layout-split me-2"></i>两栏</a></li>
+                </ul>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-image me-1"></i>背景</button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="javascript:pptSetSlideBg('color', '#ffffff')"><i class="bi bi-square-fill me-2" style="color:#fff"></i>白色</a></li>
+                    <li><a class="dropdown-item" href="javascript:pptSetSlideBg('color', '#2E8B57')"><i class="bi bi-square-fill me-2" style="color:#2E8B57"></i>海绿色</a></li>
+                    <li><a class="dropdown-item" href="javascript:pptSetSlideBg('color', '#1565C0')"><i class="bi bi-square-fill me-2" style="color:#1565C0"></i>蓝色</a></li>
+                    <li><a class="dropdown-item" href="javascript:pptSetSlideBg('color', '#1A1A2E')"><i class="bi bi-square-fill me-2" style="color:#1A1A2E"></i>深色</a></li>
+                    <li><a class="dropdown-item" href="javascript:pptSetSlideBg('color', '#FFF8E1')"><i class="bi bi-square-fill me-2" style="color:#FFF8E1"></i>米色</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="javascript:onPptSlideBgSelected()"><i class="bi bi-image me-2"></i>自定义图片...</a></li>
+                </ul>
+            </div>
+            <span class="ppt-zoom-info" id="pptZoomInfoBottom"></span>
+        </div>
+        <div class="ppt-canvas-wrap" id="pptCanvasWrap">
+            <div class="ppt-canvas-stage" id="pptCanvasStage">
+                <div class="ppt-slide" id="pptSlide">
+                    <div class="ppt-slide-grid"></div>
+                    <div class="ppt-slide-align-guides" id="pptAlignGuides"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="ppt-property-panel">
+        <div class="ppt-property-header"><i class="bi bi-sliders me-1"></i>属性</div>
+        <div class="ppt-property-body" id="pptPropertyBody">
+            <div class="p-3 text-center text-ink-gray small"><i class="bi bi-hand-index d-block mb-2" style="font-size:2rem;opacity:0.4"></i>选中元素查看属性</div>
+        </div>
+    </div>
+</div>
+</div>
+
+<input type="file" id="imageFileInput" accept="image/*" style="display:none;">
+<input type="file" id="bgFileInput" accept="image/*" style="display:none;">
+<input type="file" id="pptSlideBgInput" accept="image/*" style="display:none;">
+
+<div class="cw-modal-overlay" id="graphModal">
+    <div class="cw-modal">
+        <div class="cw-modal-header">
+            <h5><i class="bi bi-diagram-3-fill me-2"></i>图形画板</h5>
+            <button type="button" class="btn-close btn-close-white" onclick="closeGraphModal()"></button>
+        </div>
+        <div class="cw-modal-body">
+            <div class="embedded-canvas-toolbar">
+                <button class="tool-btn active" data-tool="select" title="选择/移动"><i class="bi bi-cursor-fill"></i><span class="tool-label">选择</span></button>
+                <button class="tool-btn" data-tool="vertex" title="添加顶点"><i class="bi bi-circle-fill"></i><span class="tool-label">顶点</span></button>
+                <button class="tool-btn" data-tool="edge" title="添加无向边"><i class="bi bi-dash-lg"></i><span class="tool-label">边</span></button>
+                <button class="tool-btn" data-tool="directed_edge" title="添加有向边"><i class="bi bi-arrow-right"></i><span class="tool-label">有向</span></button>
+                <button class="tool-btn" data-tool="weighted_edge" title="添加带权边"><i class="bi bi-tag"></i><span class="tool-label">带权</span></button>
+                <button class="tool-btn" data-tool="annotation" title="添加标注"><i class="bi bi-fonts"></i><span class="tool-label">标注</span></button>
+                <button class="tool-btn" data-tool="pen" title="画笔"><i class="bi bi-pencil"></i><span class="tool-label">画笔</span></button>
+                <div class="tool-sep"></div>
+                <button class="tool-btn" data-tool="delete" title="删除元素"><i class="bi bi-trash3"></i><span class="tool-label">删除</span></button>
+                <div class="tool-sep"></div>
+                <button class="tool-btn" title="撤销" onclick="eg.undo()"><i class="bi bi-arrow-counterclockwise"></i><span class="tool-label">撤销</span></button>
+                <button class="tool-btn" title="清空" onclick="eg.clearAll()"><i class="bi bi-x-lg"></i><span class="tool-label">清空</span></button>
+            </div>
+            <div class="embedded-canvas-area" id="embeddedCanvasArea"><canvas id="embeddedCanvas"></canvas></div>
+        </div>
+        <div class="cw-modal-footer">
+            <button class="btn btn-sm btn-outline-secondary" onclick="closeGraphModal()">取消</button>
+            <button class="btn btn-sm btn-seagreen" onclick="confirmInsertGraph()"><i class="bi bi-check-circle me-1"></i>插入图形</button>
+        </div>
+    </div>
+</div>
+
+<div class="cw-modal-overlay" id="textModal">
+    <div class="cw-modal" style="width:400px;height:auto;max-width:90vw;">
+        <div class="cw-modal-header"><h5 id="textModalTitle">输入</h5><button type="button" class="btn-close btn-close-white" onclick="closeTextModal()"></button></div>
+        <div class="cw-modal-body p-3"><label class="form-label" id="textModalLabel">文本</label><input type="text" class="form-control" id="textInput"></div>
+        <div class="cw-modal-footer"><button class="btn btn-sm btn-outline-secondary" onclick="closeTextModal()">取消</button><button class="btn btn-sm btn-seagreen" onclick="confirmTextModal()">确定</button></div>
+    </div>
+</div>
+
+<div class="cw-modal-overlay" id="weightModal">
+    <div class="cw-modal" style="width:340px;height:auto;max-width:90vw;">
+        <div class="cw-modal-header"><h5>输入权重</h5><button type="button" class="btn-close btn-close-white" onclick="closeWeightModal()"></button></div>
+        <div class="cw-modal-body p-3"><label class="form-label">权重值</label><input type="number" class="form-control" id="weightInput" value="1"></div>
+        <div class="cw-modal-footer"><button class="btn btn-sm btn-outline-secondary" onclick="closeWeightModal()">取消</button><button class="btn btn-sm btn-seagreen" onclick="confirmWeight()">确定</button></div>
+    </div>
+</div>
+
+<div class="cw-modal-overlay ppt-browser-modal" id="pptBrowserModal">
+    <div class="cw-modal">
+        <div class="cw-modal-header"><h5 id="pptBrowserTitle"><i class="bi bi-list-ul me-2"></i>浏览</h5><button type="button" class="btn-close btn-close-white" onclick="closePptBrowserModal()"></button></div>
+        <div class="cw-modal-body">
+            <div class="ppt-browser-search"><input type="text" class="form-control form-control-sm" id="pptBrowserSearch" placeholder="搜索..." oninput="pptBrowserDebounce()"></div>
+            <div class="ppt-browser-list" id="pptBrowserList"></div>
+        </div>
+    </div>
+</div>
+
+<div class="cw-modal-overlay cw-confirm-modal" id="confirmModal">
+    <div class="cw-modal">
+        <div class="cw-modal-header"><h5 id="confirmTitle">确认</h5><button type="button" class="btn-close btn-close-white" onclick="closeConfirmModal()"></button></div>
+        <div class="cw-modal-body" id="confirmMessage">确定要执行此操作吗？</div>
+        <div class="cw-modal-footer"><button class="btn btn-sm btn-outline-secondary" onclick="closeConfirmModal()">取消</button><button class="btn btn-sm btn-danger" id="confirmOkBtn">确定</button></div>
+    </div>
+</div>
+
+<div class="cw-modal-overlay" id="settingsModal">
+    <div class="cw-modal" style="width:420px;height:auto;max-width:90vw;">
+        <div class="cw-modal-header"><h5><i class="bi bi-gear me-2"></i>设置</h5><button type="button" class="btn-close btn-close-white" onclick="closeSettingsModal()"></button></div>
+        <div class="cw-modal-body p-4">
+            <div class="mb-3">
+                <label class="form-label d-flex align-items-center gap-2">
+                    <input type="checkbox" id="settingConfirmDelete" class="form-check-input">
+                    <span>删除元素时显示确认提示</span>
+                </label>
+                <p class="small text-ink-gray mt-1">勾选后，删除内容块时会弹出确认对话框</p>
+            </div>
+            <div class="mb-3">
+                <label class="form-label d-flex align-items-center gap-2">
+                    <input type="checkbox" id="settingAutoExtend" class="form-check-input" checked>
+                    <span>创作区自动延展</span>
+                </label>
+                <p class="small text-ink-gray mt-1">勾选后，创作区会根据内容自动向下扩展</p>
+            </div>
+        </div>
+        <div class="cw-modal-footer"><button class="btn btn-sm btn-outline-secondary" onclick="closeSettingsModal()">取消</button><button class="btn btn-sm btn-seagreen" onclick="saveSettings()">保存设置</button></div>
+    </div>
+</div>
+
+<div class="cw-toast" id="cwToast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ============ 全局状态 ============ */
+let coursewareId = {{ courseware.id if courseware else 'null' }};
+let currentMode = '{{ courseware.mode if courseware else (default_mode or "html") }}';
+let sections = [];
+let slides = [];
+let currentSlideIndex = 0;
+let currentTab = 'elements';
+let searchTimer = null;
+let hasUnsavedChanges = false;
+let currentBackground = 'seagreen';
+let customBgUrl = null;
+let selectedBlockId = null;
+let currentEditingGraphId = null;
+let graphEditContext = null;
+let saveTimer = null;
+let selectedPptElementId = null;
+let pptSelectedIds = [];
+let pptZoom = 1;
+let pptShowGrid = false;
+let pptUndoStack = [];
+let pptRedoStack = [];
+let pptClipboard = [];
+let pptIsDragging = false;
+let pptIsResizing = false;
+let pptIsRotating = false;
+let pptNextGroupId = 1;
+let pptEditingTextId = null;
+let pptBrowserType = null;
+let pptBrowserTimer = null;
+let confirmCallback = null;
+let confirmDelete = true;
+let autoExtendCanvas = true;
+
+const BACKGROUND_GRADIENTS = {
+    seagreen: 'linear-gradient(135deg, #2E8B57 0%, #00897B 100%)',
+    blue: 'linear-gradient(135deg, #1565C0 0%, #42A5F5 100%)',
+    orange: 'linear-gradient(135deg, #E65100 0%, #FFB74D 100%)',
+    purple: 'linear-gradient(135deg, #6A1B9A 0%, #BA68C8 100%)',
+    paper: 'linear-gradient(135deg, #FAFAF5 0%, #F5F5DC 100%)',
+    dark: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)'
+};
+const TYPE_LABELS = { chapter_cover: '章节封面', knowledge: '知识条目', custom_text: '自定义文本', quiz: '试题', formula: '公式', definition: '定义', theorem: '定理', mistake: '易错点', graph: '图形', image: '图案', other: '其他' };
+const TYPE_ICONS = { chapter_cover: 'bi-bookmark-fill', knowledge: 'bi-book-fill', custom_text: 'bi-textarea-resize', quiz: 'bi-patch-question-fill', formula: 'bi-superscript', definition: 'bi-info-circle-fill', theorem: 'bi-pi-circle-fill', mistake: 'bi-exclamation-triangle-fill', graph: 'bi-diagram-3-fill', image: 'bi-image-fill', other: 'bi-lightbulb-fill' };
+const TYPE_DEFAULT_TITLES = { chapter_cover: '章节标题', knowledge: '知识条目', custom_text: '自定义文本', quiz: '练习题', formula: '公式', definition: '定义', theorem: '定理', mistake: '易错点', graph: '图形', image: '图片', other: '其他' };
+const PPT_COLORS = ['#000000','#FFFFFF','#2E8B57','#00897B','#1565C0','#1976D2','#E65100','#FF8C00','#9C27B0','#6A1B9A','#C62828','#FF5722','#5D6D7E','#78909C'];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadChapters();
+    if (coursewareId) loadCourseware();
+    else createNewCourseware();
+    document.getElementById('cwTitle').addEventListener('input', () => { hasUnsavedChanges = true; scheduleAutoSave(); });
+    document.getElementById('cwDesc').addEventListener('input', () => { hasUnsavedChanges = true; scheduleAutoSave(); });
+    document.getElementById('bgSelect').addEventListener('change', onBgSelectChange);
+    document.getElementById('imageFileInput').addEventListener('change', onImageFileSelected);
+    document.getElementById('bgFileInput').addEventListener('change', onBgFileSelected);
+    document.getElementById('pptSlideBgInput').addEventListener('change', onPptSlideBgFileSelected);
+    document.getElementById('cwCanvas').addEventListener('click', function(e) {
+        if (e.target === this || e.target.classList.contains('cw-canvas-bg') || e.target.classList.contains('cw-canvas-grid')) selectBlock(null);
+    });
+    window.addEventListener('beforeunload', function(e) { if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; } });
+    initEmbeddedCanvas();
+    updateModeUI();
+    if (currentMode === 'ppt') {
+        initPptCanvasEvents();
+        initPptKeyboard();
+        pptZoomInfoUpdate();
+    }
+});
+
+function scheduleAutoSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { if (hasUnsavedChanges) saveCourseware(); }, 2000);
+}
+
+function updateModeUI() {
+    document.body.classList.remove('mode-html', 'mode-ppt');
+    document.body.classList.add('mode-' + currentMode);
+    const badge = document.getElementById('modeBadge');
+    if (currentMode === 'ppt') {
+        badge.textContent = 'PPT';
+        badge.className = 'cw-mode-badge ppt';
+        if (slides.length === 0) pptAddSlide();
+        pptRenderAll();
+        pptZoomInfoUpdate();
+    } else {
+        badge.textContent = 'HTML';
+        badge.className = 'cw-mode-badge html';
+        renderBlocks();
+        applyBackground();
+    }
+}
+
+function createNewCourseware() {
+    const contentJson = currentMode === 'ppt'
+        ? { title: '', description: '', background: 'seagreen', custom_bg_url: null, slides: [], slideSize: {width: 960, height: 540, ratio: '16:9'} }
+        : { title: '', description: '', background: 'seagreen', custom_bg_url: null, sections: [] };
+    fetch('/courseware/api/create', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ title: document.getElementById('cwTitle').value, description: document.getElementById('cwDesc').value, mode: currentMode, content_json: contentJson })
+    }).then(res => res.json()).then(data => {
+        coursewareId = data.id; currentBackground = 'seagreen'; applyBackground();
+    }).catch(err => showToast('创建课件失败: ' + err));
+}
+
+function loadCourseware() {
+    fetch('/courseware/api/detail/' + coursewareId).then(res => res.json()).then(data => {
+        document.getElementById('cwTitle').value = data.title || '';
+        document.getElementById('cwDesc').value = data.description || '';
+        currentMode = data.mode || 'html';
+        const content = data.content_json || {};
+        sections = (content.sections || []).map((s, i) => {
+            if (s.x === undefined || s.x === null) s.x = 50 + (i % 3) * 400;
+            if (s.y === undefined || s.y === null) s.y = 50 + Math.floor(i / 3) * 220;
+            if (s.width === undefined || s.width === null) s.width = 360;
+            if (s.height === undefined || s.height === null) s.height = 160;
+            if (s.extra_data === undefined) s.extra_data = null;
+            return s;
+        });
+        slides = (content.slides || []).map(s => {
+            if (!s.background) s.background = {type: 'color', value: '#ffffff'};
+            if (!s.elements) s.elements = [];
+            if (!s.layout) s.layout = 'blank';
+            return s;
+        });
+        currentBackground = content.background || 'seagreen';
+        customBgUrl = content.custom_bg_url || null;
+        document.getElementById('bgSelect').value = customBgUrl ? 'custom' : currentBackground;
+        updateModeUI();
+    });
+}
+
+function loadChapters() {
+    fetch('/courseware/api/chapters').then(res => res.json()).then(data => {
+        const sel = document.getElementById('chapterFilter');
+        data.chapters.forEach(ch => {
+            const opt = document.createElement('option');
+            opt.value = ch.name;
+            opt.textContent = ch.name + ' (' + ch.count + ')';
+            sel.appendChild(opt);
+        });
+
+        const quizSel = document.getElementById('quizChapterFilter');
+        data.chapters.forEach(ch => {
+            const opt = document.createElement('option');
+            opt.value = ch.name;
+            opt.textContent = ch.name + ' (' + ch.count + ')';
+            quizSel.appendChild(opt);
+        });
+    });
+
+    fetch('/courseware/api/knowledge-categories').then(res => res.json()).then(data => {
+        const sel = document.getElementById('categoryFilter');
+        data.categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.value;
+            opt.textContent = cat.label + ' (' + cat.count + ')';
+            sel.appendChild(opt);
+        });
+    });
+
+    fetch('/courseware/api/quiz-categories').then(res => res.json()).then(data => {
+        const typeSel = document.getElementById('quizTypeFilter');
+        data.question_types.forEach(qt => {
+            const opt = document.createElement('option');
+            opt.value = qt.value;
+            opt.textContent = qt.label + ' (' + qt.count + ')';
+            typeSel.appendChild(opt);
+        });
+
+        const diffSel = document.getElementById('quizDifficultyFilter');
+        data.difficulties.forEach(diff => {
+            const opt = document.createElement('option');
+            opt.value = diff.value;
+            opt.textContent = diff.label + ' (' + diff.count + ')';
+            diffSel.appendChild(opt);
+        });
+    });
+
+    loadKnowledge();
+    loadQuizList();
+}
+
+function switchTab(tab, btn) {
+    currentTab = tab;
+    document.querySelectorAll('.cw-tab-bar button').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    document.querySelectorAll('.cw-tab-pane').forEach(p => p.classList.remove('active'));
+    const pane = document.getElementById('tab-' + tab);
+    if (pane) pane.classList.add('active');
+    if (tab === 'knowledge') loadKnowledge();
+    else if (tab === 'quiz') loadQuizList();
+}
+
+function debounceSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { if (currentTab === 'knowledge') loadKnowledge(); else if (currentTab === 'quiz') loadQuizList(); }, 300);
+}
+
+function dispatchAddElement(type) {
+    if (currentMode === 'ppt') {
+        if (type === 'image') { pptAddElement('image'); return; }
+        if (type === 'graph') { pptAddElement('graph'); return; }
+        if (['chapter_cover','custom_text','formula','definition','theorem','mistake','other'].includes(type)) { pptAddTextElementWithTemplate(type); return; }
+        pptAddElement('text');
+    } else { addElement(type); }
+}
+function dispatchAddKnowledge(id) { if (currentMode === 'ppt') pptAddKnowledgeItem(id); else addKnowledgeSection(id, null); }
+function dispatchAddQuiz(id) { if (currentMode === 'ppt') pptAddQuizItem(id); else addQuizSection(id, null); }
+
+function loadKnowledge(page) {
+    page = page || 1;
+    const search = document.getElementById('knowledgeSearch').value;
+    const chapter = document.getElementById('chapterFilter').value;
+    const category = document.getElementById('categoryFilter').value;
+    let url = '/courseware/api/knowledge-list?page=' + page + '&per_page=30';
+    if (search) url += '&search=' + encodeURIComponent(search);
+    if (chapter) url += '&chapter=' + encodeURIComponent(chapter);
+    if (category) url += '&category=' + encodeURIComponent(category);
+    fetch(url).then(res => res.json()).then(data => {
+        const container = document.getElementById('knowledgeList');
+        if (!data.items || data.items.length === 0) { container.innerHTML = '<div class="text-center text-ink-gray py-4"><i class="bi bi-search me-2"></i>暂无匹配的知识条目</div>'; return; }
+        let html = '';
+        data.items.forEach(item => {
+            html += `<div class="cw-list-item" onclick="dispatchAddKnowledge(${item.id})" title="点击添加"><div class="d-flex justify-content-between align-items-start"><span class="item-title">${escapeHtml(item.title)}</span><i class="bi bi-plus-circle text-seagreen"></i></div><div class="item-meta">${escapeHtml(item.chapter || '')} ${escapeHtml(item.section || '')}</div><div class="item-summary">${escapeHtml(item.content_summary)}</div></div>`;
+        });
+        if (data.pages > 1) {
+            html += '<div class="d-flex justify-content-center gap-2 mt-2">';
+            if (data.page > 1) html += `<button class="btn btn-sm btn-outline-seagreen" onclick="loadKnowledge(${data.page - 1})">上一页</button>`;
+            html += `<span class="align-self-center small text-ink-gray">${data.page}/${data.pages}</span>`;
+            if (data.has_next) html += `<button class="btn btn-sm btn-outline-seagreen" onclick="loadKnowledge(${data.page + 1})">下一页</button>`;
+            html += '</div>';
+        }
+        container.innerHTML = html;
+    });
+}
+
+function loadQuizList(page) {
+    page = page || 1;
+    const search = document.getElementById('quizSearch').value;
+    const chapter = document.getElementById('quizChapterFilter').value;
+    const qType = document.getElementById('quizTypeFilter').value;
+    const difficulty = document.getElementById('quizDifficultyFilter').value;
+    let url = '/courseware/api/quiz-list?page=' + page + '&per_page=20';
+    if (search) url += '&search=' + encodeURIComponent(search);
+    if (chapter) url += '&chapter=' + encodeURIComponent(chapter);
+    if (qType) url += '&question_type=' + encodeURIComponent(qType);
+    if (difficulty) url += '&difficulty=' + encodeURIComponent(difficulty);
+    fetch(url).then(res => res.json()).then(data => {
+        const container = document.getElementById('quizList');
+        if (!data.items || data.items.length === 0) { container.innerHTML = '<div class="text-center text-ink-gray py-4"><i class="bi bi-search me-2"></i>暂无匹配的试题</div>'; return; }
+        let html = '';
+        data.items.forEach(item => {
+            const qText = (item.question_text || '').substring(0, 80);
+            html += `<div class="cw-list-item" onclick="dispatchAddQuiz(${item.id})" title="点击添加"><div class="d-flex justify-content-between align-items-start"><span class="item-title">题目 #${item.question_number || item.id}</span><i class="bi bi-plus-circle" style="color:#FF8C00"></i></div><div class="item-meta">${escapeHtml(item.chapter || '')} | ${escapeHtml(item.difficulty || '')} | ${escapeHtml(item.question_type || '')}</div><div class="item-summary">${escapeHtml(qText)}</div></div>`;
+        });
+        if (data.pages > 1) {
+            html += '<div class="d-flex justify-content-center gap-2 mt-2">';
+            if (data.page > 1) html += `<button class="btn btn-sm btn-outline-seagreen" onclick="loadQuizList(${data.page - 1})">上一页</button>`;
+            html += `<span class="align-self-center small text-ink-gray">${data.page}/${data.pages}</span>`;
+            if (data.page < data.pages) html += `<button class="btn btn-sm btn-outline-seagreen" onclick="loadQuizList(${data.page + 1})">下一页</button>`;
+            html += '</div>';
+        }
+        container.innerHTML = html;
+    });
+}
+
+function genId() { return 'sec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+function defaultPos() { const n = sections.length; return { x: 50 + (n % 5) * 30, y: 50 + (n % 5) * 30 }; }
+
+function addElement(type) {
+    if (type === 'image') { addImageElement(); return; }
+    if (type === 'graph') { addGraphElement(); return; }
+    const pos = defaultPos();
+    const section = { id: genId(), type: type, title: TYPE_DEFAULT_TITLES[type] || '新元素', content: '', x: pos.x, y: pos.y, width: 360, height: 160, source_id: null, extra_data: null };
+    if (type === 'formula') section.content = '∑_{i=1}^{n} i = n(n+1)/2';
+    else if (type === 'definition') section.content = '在此输入定义内容...';
+    else if (type === 'theorem') section.content = '在此输入定理内容...\n\n【证明】\n证明过程...';
+    else if (type === 'mistake') section.content = '在此输入易错点内容...';
+    sections.push(section);
+    renderBlocks(); hasUnsavedChanges = true; selectBlock(section.id); scheduleAutoSave();
+    showToast('已添加' + (TYPE_LABELS[type] || '元素'));
+}
+
+function addKnowledgeSection(knowledgeId) {
+    fetch('/knowledge/api/detail/' + knowledgeId).then(res => res.json()).then(item => {
+        const pos = defaultPos();
+        const section = { id: genId(), type: 'knowledge', source_id: item.id, title: item.title, content: item.content || '', x: pos.x, y: pos.y, width: 380, height: 200, extra_data: null };
+        sections.push(section); renderBlocks(); hasUnsavedChanges = true; scheduleAutoSave();
+        showToast('已添加: ' + item.title);
+    });
+}
+
+function addQuizSection(quizId) {
+    fetch('/courseware/api/quiz-detail/' + quizId).then(res => res.json()).then(quiz => {
+        const pos = defaultPos();
+        let content = quiz.question_text || '';
+        if (quiz.options) { try { const opts = JSON.parse(quiz.options); if (Array.isArray(opts)) { opts.forEach((opt, i) => { content += '\n' + String.fromCharCode(65 + i) + '. ' + opt; }); } } catch (e) {} }
+        content += '\n\n【答案】' + (quiz.answer || '');
+        const section = { id: genId(), type: 'quiz', source_id: quiz.id, title: '练习题 #' + (quiz.question_number || quiz.id), content: content, x: pos.x, y: pos.y, width: 400, height: 220, extra_data: null };
+        sections.push(section); renderBlocks(); hasUnsavedChanges = true; scheduleAutoSave();
+        showToast('已添加练习题');
+    });
+}
+
+function addImageElement() { document.getElementById('imageFileInput').dataset.mode = 'new'; document.getElementById('imageFileInput').click(); }
+
+function onImageFileSelected(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const mode = e.target.dataset.mode || 'new';
+    const formData = new FormData(); formData.append('file', file);
+    fetch('/courseware/api/upload-image', { method: 'POST', body: formData })
+        .then(res => res.json()).then(data => {
+            if (data.error) { showToast('上传失败: ' + data.error); return; }
+            if (currentMode === 'ppt') {
+                if (mode === 'ppt-new') pptCreateImageElement(data.url, data.filename);
+                else if (mode === 'ppt-replace' && selectedPptElementId) {
+                    const slide = slides[currentSlideIndex];
+                    const el = slide.elements.find(x => x.id === selectedPptElementId);
+                    if (el) { el.content.url = data.url; el.content.filename = data.filename; pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave(); }
+                }
+                return;
+            }
+            if (mode === 'replace' && selectedBlockId) {
+                const sec = sections.find(s => s.id === selectedBlockId);
+                if (sec) { sec.extra_data = { url: data.url, filename: data.filename }; renderBlocks(); hasUnsavedChanges = true; scheduleAutoSave(); showToast('图片已更新'); }
+            } else {
+                const pos = defaultPos();
+                const section = { id: genId(), type: 'image', title: '图片', content: '', x: pos.x, y: pos.y, width: 320, height: 240, source_id: null, extra_data: { url: data.url, filename: data.filename } };
+                sections.push(section); renderBlocks(); hasUnsavedChanges = true; scheduleAutoSave(); showToast('已添加图片');
+            }
+        }).catch(err => showToast('上传失败: ' + err));
+    e.target.value = '';
+}
+
+function onBgSelectChange(e) {
+    const v = e.target.value;
+    if (v === 'custom') document.getElementById('bgFileInput').click();
+    else { currentBackground = v; customBgUrl = null; applyBackground(); hasUnsavedChanges = true; scheduleAutoSave(); }
+}
+
+function onBgFileSelected(e) {
+    const file = e.target.files[0];
+    if (!file) { document.getElementById('bgSelect').value = customBgUrl ? 'custom' : currentBackground; return; }
+    const formData = new FormData(); formData.append('file', file);
+    fetch('/courseware/api/upload-image', { method: 'POST', body: formData })
+        .then(res => res.json()).then(data => {
+            if (data.error) { showToast('上传失败: ' + data.error); return; }
+            customBgUrl = data.url; currentBackground = 'custom'; applyBackground(); hasUnsavedChanges = true; scheduleAutoSave(); showToast('背景图已设置');
+        }).catch(err => showToast('上传失败: ' + err));
+    e.target.value = '';
+}
+
+function applyBackground() {
+    const bg = document.getElementById('cwCanvasBg');
+    if (currentBackground === 'custom' && customBgUrl) bg.style.background = `url('${customBgUrl}') center/cover no-repeat`;
+    else bg.style.background = BACKGROUND_GRADIENTS[currentBackground] || BACKGROUND_GRADIENTS.seagreen;
+}
+
+function renderBlocks() {
+    if (currentMode !== 'html') return;
+    const canvas = document.getElementById('cwCanvas');
+    canvas.querySelectorAll('.cw-block').forEach(b => b.remove());
+    const empty = document.getElementById('emptyState');
+    if (sections.length === 0) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    sections.forEach(sec => canvas.appendChild(createBlockElement(sec)));
+    if (autoExtendCanvas) {
+        adjustCanvasSize();
+    }
+}
+
+function adjustCanvasSize() {
+    if (currentMode !== 'html') return;
+    const canvas = document.getElementById('cwCanvas');
+    if (!canvas) return;
+    
+    let maxBottom = 0;
+    let maxRight = 0;
+    
+    sections.forEach(sec => {
+        const bottom = (sec.y || 0) + (sec.height || 160);
+        const right = (sec.x || 0) + (sec.width || 360);
+        if (bottom > maxBottom) maxBottom = bottom;
+        if (right > maxRight) maxRight = right;
+    });
+    
+    const windowHeight = window.innerHeight;
+    const minHeight = windowHeight - 150;
+    const targetHeight = Math.max(minHeight, maxBottom + 100);
+    const targetWidth = Math.max(1200, maxRight + 100);
+    
+    canvas.style.minHeight = targetHeight + 'px';
+    canvas.style.height = targetHeight + 'px';
+    canvas.style.minWidth = targetWidth + 'px';
+    canvas.style.width = targetWidth + 'px';
+}
+
+function createBlockElement(sec) {
+    const block = document.createElement('div');
+    block.className = 'cw-block type-' + sec.type;
+    block.dataset.sectionId = sec.id;
+    block.style.left = (sec.x || 0) + 'px'; block.style.top = (sec.y || 0) + 'px';
+    block.style.width = (sec.width || 360) + 'px'; block.style.height = (sec.height || 160) + 'px';
+    if (sec.id === selectedBlockId) block.classList.add('selected');
+    const icon = TYPE_ICONS[sec.type] || 'bi-square';
+    const label = TYPE_LABELS[sec.type] || sec.type;
+    const isFormula = sec.type === 'formula', isImage = sec.type === 'image', isGraph = sec.type === 'graph';
+    let bodyHtml = '';
+    if (isImage) {
+        const url = (sec.extra_data && sec.extra_data.url) || '';
+        bodyHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">${url ? `<img src="${url}" class="cw-img-preview" alt="图片">` : '<span class="text-ink-gray">无图片</span>'}</div>`;
+    } else if (isGraph) {
+        bodyHtml = `<div class="cw-graph-render" style="width:100%;height:100%;overflow:auto;display:flex;align-items:center;justify-content:center;background:#f8fcf8;border-radius:6px;"></div>`;
+    } else if (isFormula) {
+        bodyHtml = `<input type="text" class="title-input" value="${escapeAttr(sec.title)}" placeholder="标题..."><div class="formula-display" style="flex:1;">${escapeHtml(sec.content || '')}</div><textarea class="content-input" style="height:60px;" placeholder="输入公式...">${escapeHtml(sec.content || '')}</textarea>`;
+    } else {
+        bodyHtml = `<input type="text" class="title-input" value="${escapeAttr(sec.title)}" placeholder="标题..."><textarea class="content-input" placeholder="输入内容...">${escapeHtml(sec.content || '')}</textarea>`;
+    }
+    block.innerHTML = `<div class="cw-block-header"><span class="type-badge ${sec.type}"><i class="bi ${icon} me-1"></i>${label}</span>${sec.source_id ? `<span class="badge bg-light text-dark" style="font-size:0.65rem">ID:${sec.source_id}</span>` : ''}<div class="block-actions">${isGraph ? `<button class="btn-edit-graph" title="编辑图形"><i class="bi bi-pencil"></i></button>` : ''}${isImage ? `<button class="btn-replace-img" title="更换图片"><i class="bi bi-arrow-repeat"></i></button>` : ''}<button class="btn-bring-forward" title="上移一层"><i class="bi bi-arrow-up"></i></button><button class="btn-send-backward" title="下移一层"><i class="bi bi-arrow-down"></i></button><button class="btn-bring-to-front" title="移到顶层"><i class="bi bi-arrow-up-circle"></i></button><button class="btn-send-to-back" title="移到底层"><i class="bi bi-arrow-down-circle"></i></button><button class="btn-duplicate" title="复制"><i class="bi bi-files"></i></button><button class="btn-del" title="删除"><i class="bi bi-trash"></i></button></div></div><div class="cw-block-body">${bodyHtml}</div><div class="cw-block-resize r-nw"></div><div class="cw-block-resize r-n"></div><div class="cw-block-resize r-ne"></div><div class="cw-block-resize r-w"></div><div class="cw-block-resize r-e"></div><div class="cw-block-resize r-sw"></div><div class="cw-block-resize r-s"></div><div class="cw-block-resize r-se"></div>`;
+    bindBlockEvents(block, sec);
+    if (isGraph) renderGraphInBlock(block, sec);
+    return block;
+}
+
+function bindBlockEvents(block, sec) {
+    const header = block.querySelector('.cw-block-header');
+    header.addEventListener('mousedown', (e) => { if (e.target.closest('button')) return; startDrag(e, block, sec); });
+    block.querySelectorAll('.cw-block-resize').forEach(resize => {
+        resize.addEventListener('mousedown', (e) => {
+            startResize(e, block, sec, resize.classList.contains('r-nw') ? 'nw' : resize.classList.contains('r-n') ? 'n' : resize.classList.contains('r-ne') ? 'ne' : resize.classList.contains('r-w') ? 'w' : resize.classList.contains('r-e') ? 'e' : resize.classList.contains('r-sw') ? 'sw' : resize.classList.contains('r-s') ? 's' : 'se');
+        });
+    });
+    block.addEventListener('mousedown', () => { selectBlock(sec.id); });
+    block.querySelector('.btn-del').addEventListener('click', (e) => { e.stopPropagation(); removeBlock(sec.id); });
+    block.querySelector('.btn-duplicate').addEventListener('click', (e) => { e.stopPropagation(); duplicateBlock(sec.id); });
+    block.querySelector('.btn-bring-forward').addEventListener('click', (e) => { e.stopPropagation(); bringBlockForward(sec.id); });
+    block.querySelector('.btn-send-backward').addEventListener('click', (e) => { e.stopPropagation(); sendBlockBackward(sec.id); });
+    block.querySelector('.btn-bring-to-front').addEventListener('click', (e) => { e.stopPropagation(); bringBlockToFront(sec.id); });
+    block.querySelector('.btn-send-to-back').addEventListener('click', (e) => { e.stopPropagation(); sendBlockToBack(sec.id); });
+    const editGraphBtn = block.querySelector('.btn-edit-graph');
+    if (editGraphBtn) editGraphBtn.addEventListener('click', (e) => { e.stopPropagation(); openGraphModal(sec.id); });
+    const replaceImgBtn = block.querySelector('.btn-replace-img');
+    if (replaceImgBtn) replaceImgBtn.addEventListener('click', (e) => { e.stopPropagation(); selectedBlockId = sec.id; document.getElementById('imageFileInput').dataset.mode = 'replace'; document.getElementById('imageFileInput').click(); });
+    const titleInput = block.querySelector('.title-input');
+    if (titleInput) titleInput.addEventListener('input', (e) => { sec.title = e.target.value; hasUnsavedChanges = true; scheduleAutoSave(); });
+    const contentInput = block.querySelector('.content-input');
+    if (contentInput) contentInput.addEventListener('input', (e) => {
+        sec.content = e.target.value; hasUnsavedChanges = true; scheduleAutoSave();
+        if (sec.type === 'formula') { const fd = block.querySelector('.formula-display'); if (fd) fd.textContent = e.target.value; }
+    });
+}
+
+function selectBlock(id) {
+    selectedBlockId = id;
+    document.querySelectorAll('.cw-block').forEach(b => { b.classList.toggle('selected', b.dataset.sectionId === id); });
+}
+
+function removeBlock(id) {
+    try {
+        const sec = sections.find(s => s.id === id);
+        if (!sec) {
+            showToast('未找到要删除的内容块');
+            return;
+        }
+        
+        const doDelete = () => {
+            try {
+                const prevLength = sections.length;
+                sections = sections.filter(s => s.id !== id);
+                if (sections.length === prevLength) {
+                    showToast('删除失败：未找到匹配的内容块');
+                    return;
+                }
+                selectedBlockId = null;
+                renderBlocks();
+                hasUnsavedChanges = true;
+                scheduleAutoSave();
+                showToast('内容块已删除');
+            } catch (deleteError) {
+                console.error('删除操作失败:', deleteError);
+                showToast('删除操作失败，请重试');
+            }
+        };
+        
+        if (confirmDelete) {
+            showConfirmModal('删除内容块', '确定删除此内容块？此操作不可恢复。', doDelete);
+        } else {
+            doDelete();
+        }
+    } catch (error) {
+        console.error('删除内容块异常:', error);
+        showToast('删除失败，请重试');
+    }
+}
+
+function duplicateBlock(id) {
+    const sec = sections.find(s => s.id === id); if (!sec) return;
+    const copy = JSON.parse(JSON.stringify(sec)); copy.id = genId(); copy.x = (sec.x || 0) + 20; copy.y = (sec.y || 0) + 20;
+    sections.push(copy); renderBlocks(); hasUnsavedChanges = true; scheduleAutoSave(); showToast('已复制');
+}
+
+function bringBlockForward(id) {
+    const sec = sections.find(s => s.id === id); if (!sec) return;
+    sec.zIndex = (sec.zIndex || 1) + 1;
+    const block = document.querySelector(`.cw-block[data-section-id="${id}"]`);
+    if (block) block.style.zIndex = sec.zIndex;
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function sendBlockBackward(id) {
+    const sec = sections.find(s => s.id === id); if (!sec) return;
+    sec.zIndex = Math.max(0, (sec.zIndex || 1) - 1);
+    const block = document.querySelector(`.cw-block[data-section-id="${id}"]`);
+    if (block) block.style.zIndex = sec.zIndex;
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function bringBlockToFront(id) {
+    let maxZ = 0;
+    sections.forEach(s => { if ((s.zIndex || 0) > maxZ) maxZ = s.zIndex; });
+    const sec = sections.find(s => s.id === id); if (!sec) return;
+    sec.zIndex = maxZ + 1;
+    const block = document.querySelector(`.cw-block[data-section-id="${id}"]`);
+    if (block) block.style.zIndex = sec.zIndex;
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function sendBlockToBack(id) {
+    let minZ = 0;
+    sections.forEach(s => { if ((s.zIndex || 0) < minZ) minZ = s.zIndex; });
+    const sec = sections.find(s => s.id === id); if (!sec) return;
+    sec.zIndex = minZ - 1;
+    const block = document.querySelector(`.cw-block[data-section-id="${id}"]`);
+    if (block) block.style.zIndex = sec.zIndex;
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function startDrag(e, block, sec) {
+    e.preventDefault(); selectBlock(sec.id);
+    const canvas = document.getElementById('cwCanvas');
+    const startX = e.clientX, startY = e.clientY, origX = sec.x || 0, origY = sec.y || 0;
+    block.classList.add('dragging');
+    const tip = document.createElement('div'); tip.className = 'cw-pos-tip'; tip.textContent = `x: ${origX}, y: ${origY}`; block.appendChild(tip);
+    function onMove(ev) {
+        const dx = ev.clientX - startX, dy = ev.clientY - startY;
+        let nx = origX + dx, ny = origY + dy;
+        nx = Math.max(-((sec.width || 360) - 80), Math.min(nx, canvas.scrollWidth - 80));
+        ny = Math.max(-30, Math.min(ny, canvas.scrollHeight - 40));
+        sec.x = Math.round(nx); sec.y = Math.round(ny);
+        block.style.left = sec.x + 'px'; block.style.top = sec.y + 'px';
+        tip.textContent = `x: ${sec.x}, y: ${sec.y}`; hasUnsavedChanges = true; scheduleAutoSave();
+    }
+    function onUp() { block.classList.remove('dragging'); if (tip.parentNode) tip.remove(); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if (autoExtendCanvas) adjustCanvasSize(); }
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+}
+
+function startResize(e, block, sec, direction) {
+    e.preventDefault(); e.stopPropagation(); selectBlock(sec.id);
+    const startX = e.clientX, startY = e.clientY;
+    const origX = sec.x || 0, origY = sec.y || 0;
+    const origW = sec.width || 360, origH = sec.height || 160;
+    block.classList.add('dragging');
+    const tip = document.createElement('div'); tip.className = 'cw-pos-tip'; tip.style.top = 'auto'; tip.style.bottom = '-28px'; tip.textContent = `${origW} × ${origH}`; block.appendChild(tip);
+    function onMove(ev) {
+        const dx = ev.clientX - startX, dy = ev.clientY - startY;
+        let nw = origW, nh = origH, nx = origX, ny = origY;
+        if (direction.includes('e')) nw = Math.max(180, Math.round(origW + dx));
+        if (direction.includes('w')) { nw = Math.max(180, Math.round(origW - dx)); nx = Math.round(origX + dx); }
+        if (direction.includes('s')) nh = Math.max(90, Math.round(origH + dy));
+        if (direction.includes('n')) { nh = Math.max(90, Math.round(origH - dy)); ny = Math.round(origY + dy); }
+        sec.x = nx; sec.y = ny; sec.width = nw; sec.height = nh;
+        block.style.left = nx + 'px'; block.style.top = ny + 'px';
+        block.style.width = nw + 'px'; block.style.height = nh + 'px';
+        tip.textContent = `${nw} × ${nh}`; hasUnsavedChanges = true; scheduleAutoSave();
+    }
+    function onUp() { block.classList.remove('dragging'); if (tip.parentNode) tip.remove(); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if (autoExtendCanvas) adjustCanvasSize(); }
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+}
+
+function addGraphElement() {
+    const pos = defaultPos();
+    const section = { id: genId(), type: 'graph', title: '图形', content: '', x: pos.x, y: pos.y, width: 420, height: 320, source_id: null, extra_data: { graphData: null } };
+    sections.push(section); renderBlocks(); hasUnsavedChanges = true; scheduleAutoSave(); openGraphModal(section.id);
+}
+
+function openGraphModal(sectionId) {
+    graphEditContext = 'html'; currentEditingGraphId = sectionId;
+    const sec = sections.find(s => s.id === sectionId); if (!sec) return;
+    document.getElementById('graphModal').classList.add('show');
+    setTimeout(() => { eg.resize(); if (sec.extra_data && sec.extra_data.graphData) eg.loadFromData(sec.extra_data.graphData); else eg.clearAll(); }, 50);
+}
+
+function closeGraphModal() { document.getElementById('graphModal').classList.remove('show'); currentEditingGraphId = null; graphEditContext = null; }
+
+function confirmInsertGraph() {
+    if (!currentEditingGraphId) return;
+    const graphData = eg.exportData();
+    if (graphEditContext === 'ppt') {
+        const slide = slides[currentSlideIndex]; if (!slide) return;
+        const el = slide.elements.find(e => e.id === currentEditingGraphId);
+        if (el) { el.content.graphData = graphData; pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave(); }
+    } else {
+        const sec = sections.find(s => s.id === currentEditingGraphId); if (!sec) return;
+        sec.extra_data = { graphData: graphData }; renderBlocks(); hasUnsavedChanges = true; scheduleAutoSave();
+    }
+    closeGraphModal(); showToast('图形已插入');
+}
+
+function renderGraphInBlock(block, sec) {
+    const container = block.querySelector('.cw-graph-render'); if (!container) return;
+    if (!sec.extra_data || !sec.extra_data.graphData) { container.innerHTML = '<span class="text-ink-gray small"><i class="bi bi-pencil me-1"></i>点击编辑按钮添加图形</span>'; return; }
+    fetch('/courseware/api/render-graph', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sec.extra_data.graphData) })
+        .then(res => res.json()).then(data => { if (data.svg) container.innerHTML = data.svg; })
+        .catch(() => { container.innerHTML = '<span class="text-danger small">渲染失败</span>'; });
+}
+
+class EmbeddedGraphCanvas {
+    constructor(canvasId, areaId) {
+        this.canvas = document.getElementById(canvasId); this.ctx = this.canvas.getContext('2d'); this.area = document.getElementById(areaId);
+        this.vertices = []; this.edges = []; this.annotations = []; this.freeDraws = [];
+        this.nextVId = 1; this.nextEId = 1; this.nextAId = 1; this.nextFId = 1;
+        this.currentTool = 'select'; this.selectedElement = null; this.isDragging = false; this.dragVertex = null;
+        this.dragOffsetX = 0; this.dragOffsetY = 0; this.edgeStartVertex = null; this.isDrawing = false; this.currentDraw = null;
+        this.penColor = '#2E8B57'; this.penWidth = 3; this.weightCallback = null; this.textCallback = null;
+        this.hoverVertex = null; this.undoStack = []; this._suspendHistory = false;
+        this.resize(); window.addEventListener('resize', () => this.resize()); this.bindEvents(); this.redraw();
+    }
+    resize() { this.canvas.width = this.area.clientWidth; this.canvas.height = this.area.clientHeight; this.redraw(); }
+    setTool(tool) {
+        this.currentTool = tool; this.edgeStartVertex = null; this.selectedElement = null;
+        document.querySelectorAll('.embedded-canvas-toolbar .tool-btn[data-tool]').forEach(b => { b.classList.toggle('active', b.dataset.tool === tool); });
+        this.redraw();
+    }
+    pushHistory() {
+        if (this._suspendHistory) return;
+        const snap = { vertices: this.vertices.map(v => ({...v})), edges: this.edges.map(e => ({...e})), annotations: this.annotations.map(a => ({...a})), freeDraws: this.freeDraws.map(f => ({...f, points: [...f.points]})), nextVId: this.nextVId, nextEId: this.nextEId, nextAId: this.nextAId, nextFId: this.nextFId };
+        this.undoStack.push(snap); if (this.undoStack.length > 50) this.undoStack.shift();
+    }
+    undo() {
+        if (this.undoStack.length === 0) { showToast('无可撤销'); return; }
+        const s = this.undoStack.pop(); this._suspendHistory = true;
+        this.vertices = s.vertices.map(v => ({...v})); this.edges = s.edges.map(e => ({...e}));
+        this.annotations = s.annotations.map(a => ({...a})); this.freeDraws = s.freeDraws.map(f => ({...f, points: [...f.points]}));
+        this.nextVId = s.nextVId; this.nextEId = s.nextEId; this.nextAId = s.nextAId; this.nextFId = s.nextFId;
+        this._suspendHistory = false; this.redraw();
+    }
+    clearAll() {
+        if (this.vertices.length === 0 && this.edges.length === 0) return;
+        this.pushHistory();
+        this.vertices = []; this.edges = []; this.annotations = []; this.freeDraws = [];
+        this.nextVId = 1; this.nextEId = 1; this.nextAId = 1; this.nextFId = 1;
+        this.selectedElement = null; this.redraw();
+    }
+    getMousePos(e) { const r = this.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+    findVertex(x, y) { for (let i = this.vertices.length - 1; i >= 0; i--) { const v = this.vertices[i]; const dx = x - v.x, dy = y - v.y; const r = v.radius || 22; if (dx * dx + dy * dy <= r * r) return v; } return null; }
+    findAnnotation(x, y) { for (let i = this.annotations.length - 1; i >= 0; i--) { const a = this.annotations[i]; const w = Math.max(40, (a.text || '').length * 8); if (Math.abs(x - a.x) < w / 2 && Math.abs(y - a.y) < 15) return a; } return null; }
+    findEdge(x, y) {
+        for (let i = this.edges.length - 1; i >= 0; i--) {
+            const e = this.edges[i]; const src = this.vertices.find(v => v.id === e.source); const tgt = this.vertices.find(v => v.id === e.target);
+            if (!src || !tgt) continue;
+            const dx = tgt.x - src.x, dy = tgt.y - src.y; const lenSq = dx * dx + dy * dy;
+            if (lenSq === 0) continue;
+            let t = ((x - src.x) * dx + (y - src.y) * dy) / lenSq; t = Math.max(0, Math.min(1, t));
+            const nx = src.x + t * dx, ny = src.y + t * dy; const ex = x - nx, ey = y - ny;
+            if (ex * ex + ey * ey <= 36) return e;
+        }
+        return null;
+    }
+    bindEvents() {
+        this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+        document.querySelectorAll('.embedded-canvas-toolbar .tool-btn[data-tool]').forEach(b => { b.addEventListener('click', () => this.setTool(b.dataset.tool)); });
+    }
+    onMouseDown(e) {
+        const pos = this.getMousePos(e); const t = this.currentTool;
+        if (t === 'select') {
+            const v = this.findVertex(pos.x, pos.y);
+            if (v) { this.isDragging = true; this.dragVertex = v; this.dragOffsetX = pos.x - v.x; this.dragOffsetY = pos.y - v.y; this.pushHistory(); this.selectedElement = { type: 'vertex', id: v.id }; }
+            else { const a = this.findAnnotation(pos.x, pos.y); if (a) { this.isDragging = true; this.dragVertex = a; this.dragOffsetX = pos.x - a.x; this.dragOffsetY = pos.y - a.y; this.pushHistory(); this.selectedElement = { type: 'annotation', id: a.id }; } }
+        } else if (t === 'vertex') {
+            this.pushHistory();
+            const v = { id: this.nextVId++, x: pos.x, y: pos.y, label: String.fromCharCode(64 + this.nextVId - 1), color: '#2E8B57', radius: 22 };
+            this.vertices.push(v); this.redraw();
+        } else if (t === 'edge' || t === 'directed_edge' || t === 'weighted_edge') {
+            const v = this.findVertex(pos.x, pos.y);
+            if (v) {
+                if (!this.edgeStartVertex) { this.edgeStartVertex = v; this.selectedElement = { type: 'vertex', id: v.id }; }
+                else if (this.edgeStartVertex.id !== v.id) {
+                    this.pushHistory();
+                    if (t === 'weighted_edge') {
+                        this.pendingEdge = { source: this.edgeStartVertex.id, target: v.id, directed: false };
+                        this.edgeStartVertex = null;
+                        this.showWeightModal((w) => { const e = { id: this.nextEId++, source: this.pendingEdge.source, target: this.pendingEdge.target, directed: false, weight: w, color: '#444' }; this.edges.push(e); this.pendingEdge = null; this.redraw(); });
+                        return;
+                    }
+                    const directed = (t === 'directed_edge');
+                    const e = { id: this.nextEId++, source: this.edgeStartVertex.id, target: v.id, directed: directed, weight: null, color: '#444' };
+                    this.edges.push(e); this.edgeStartVertex = null; this.redraw();
+                }
+            }
+        } else if (t === 'annotation') {
+            this.pendingAnnotationPos = { x: pos.x, y: pos.y };
+            this.showTextModal('输入标注', '文本', '', (text) => { if (text) { this.pushHistory(); this.annotations.push({ id: this.nextAId++, x: this.pendingAnnotationPos.x, y: this.pendingAnnotationPos.y, text: text, color: '#333' }); this.redraw(); } this.pendingAnnotationPos = null; });
+        } else if (t === 'pen') {
+            this.isDrawing = true; this.currentDraw = { id: this.nextFId++, points: [pos], color: this.penColor, width: this.penWidth }; this.pushHistory();
+        } else if (t === 'delete') {
+            const v = this.findVertex(pos.x, pos.y);
+            if (v) { this.pushHistory(); this.vertices = this.vertices.filter(x => x.id !== v.id); this.edges = this.edges.filter(e => e.source !== v.id && e.target !== v.id); this.redraw(); return; }
+            const e = this.findEdge(pos.x, pos.y);
+            if (e) { this.pushHistory(); this.edges = this.edges.filter(x => x.id !== e.id); this.redraw(); return; }
+            const a = this.findAnnotation(pos.x, pos.y);
+            if (a) { this.pushHistory(); this.annotations = this.annotations.filter(x => x.id !== a.id); this.redraw(); }
+        }
+    }
+    onMouseMove(e) {
+        const pos = this.getMousePos(e);
+        if (this.isDragging && this.dragVertex) { this.dragVertex.x = pos.x - this.dragOffsetX; this.dragVertex.y = pos.y - this.dragOffsetY; this.redraw(); }
+        else if (this.isDrawing && this.currentDraw) { this.currentDraw.points.push(pos); this.redraw(); }
+        else if (this.currentTool === 'edge' || this.currentTool === 'directed_edge' || this.currentTool === 'weighted_edge') { const v = this.findVertex(pos.x, pos.y); if (v !== this.hoverVertex) { this.hoverVertex = v; this.redraw(); } }
+    }
+    onMouseUp(e) {
+        if (this.isDrawing && this.currentDraw) { if (this.currentDraw.points.length > 1) this.freeDraws.push(this.currentDraw); this.currentDraw = null; this.isDrawing = false; }
+        this.isDragging = false; this.dragVertex = null; this.redraw();
+    }
+    showWeightModal(callback) { this.weightCallback = callback; document.getElementById('weightInput').value = '1'; document.getElementById('weightModal').classList.add('show'); setTimeout(() => document.getElementById('weightInput').focus(), 50); }
+    showTextModal(title, label, defaultVal, callback) { this.textCallback = callback; document.getElementById('textModalTitle').textContent = title; document.getElementById('textModalLabel').textContent = label; document.getElementById('textInput').value = defaultVal || ''; document.getElementById('textModal').classList.add('show'); setTimeout(() => document.getElementById('textInput').focus(), 50); }
+    loadFromData(data) {
+        this.vertices = (data.vertices || []).map(v => ({...v})); this.edges = (data.edges || []).map(e => ({...e}));
+        this.annotations = (data.annotations || []).map(a => ({...a}));
+        this.freeDraws = (data.freeDraws || []).map(f => ({...f, points: f.points ? [...f.points.map(p => ({...p}))] : []}));
+        this.nextVId = data.nextVId || (this.vertices.reduce((m, v) => Math.max(m, v.id), 0) + 1);
+        this.nextEId = data.nextEId || (this.edges.reduce((m, e) => Math.max(m, e.id), 0) + 1);
+        this.nextAId = data.nextAId || (this.annotations.reduce((m, a) => Math.max(m, a.id), 0) + 1);
+        this.nextFId = data.nextFId || (this.freeDraws.reduce((m, f) => Math.max(m, f.id), 0) + 1);
+        this.undoStack = []; this.redraw();
+    }
+    exportData() {
+        return {
+            vertices: this.vertices.map(v => ({id:v.id,x:v.x,y:v.y,label:v.label,color:v.color,radius:v.radius})),
+            edges: this.edges.map(e => ({id:e.id,source:e.source,target:e.target,directed:e.directed,weight:e.weight,color:e.color})),
+            annotations: this.annotations.map(a => ({id:a.id,x:a.x,y:a.y,text:a.text,color:a.color})),
+            freeDraws: this.freeDraws.map(f => ({id:f.id,points:f.points.map(p=>({x:p.x,y:p.y})),color:f.color,width:f.width})),
+            nextVId: this.nextVId, nextEId: this.nextEId, nextAId: this.nextAId, nextFId: this.nextFId,
+            width: this.canvas.width, height: this.canvas.height
+        };
+    }
+    redraw() {
+        const ctx = this.ctx; const W = this.canvas.width, H = this.canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.strokeStyle = 'rgba(46,139,87,0.08)'; ctx.lineWidth = 1;
+        for (let x = 0; x < W; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+        for (let y = 0; y < H; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+        for (const e of this.edges) this.drawEdge(ctx, e);
+        for (const f of this.freeDraws) this.drawFreeDraw(ctx, f);
+        for (const v of this.vertices) this.drawVertex(ctx, v);
+        for (const a of this.annotations) this.drawAnnotation(ctx, a);
+        if (this.edgeStartVertex) { ctx.strokeStyle = '#FF5722'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.edgeStartVertex.x, this.edgeStartVertex.y, (this.edgeStartVertex.radius || 22) + 6, 0, Math.PI * 2); ctx.stroke(); }
+        if (this.currentDraw) this.drawFreeDraw(ctx, this.currentDraw);
+    }
+    drawVertex(ctx, v) {
+        const r = v.radius || 22;
+        ctx.fillStyle = v.color || '#2E8B57'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(v.x, v.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        if (this.selectedElement && this.selectedElement.type === 'vertex' && this.selectedElement.id === v.id) { ctx.strokeStyle = '#FF5722'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(v.x, v.y, r + 3, 0, Math.PI * 2); ctx.stroke(); }
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(v.label || String(v.id), v.x, v.y);
+    }
+    drawEdge(ctx, e) {
+        const src = this.vertices.find(v => v.id === e.source); const tgt = this.vertices.find(v => v.id === e.target);
+        if (!src || !tgt) return;
+        const r = src.radius || 22; const dx = tgt.x - src.x, dy = tgt.y - src.y; const dist = Math.hypot(dx, dy) || 1;
+        const ux = dx / dist, uy = dy / dist; const x1 = src.x + ux * r, y1 = src.y + uy * r; const x2 = tgt.x - ux * r, y2 = tgt.y - uy * r;
+        ctx.strokeStyle = e.color || '#444'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        if (e.directed) { const angle = Math.atan2(dy, dx); const ah = 10; ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - ah * Math.cos(angle - Math.PI / 6), y2 - ah * Math.sin(angle - Math.PI / 6)); ctx.lineTo(x2 - ah * Math.cos(angle + Math.PI / 6), y2 - ah * Math.sin(angle + Math.PI / 6)); ctx.closePath(); ctx.fillStyle = e.color || '#444'; ctx.fill(); }
+        if (e.weight !== null && e.weight !== undefined) { const mx = (src.x + tgt.x) / 2, my = (src.y + tgt.y) / 2 - 8; ctx.fillStyle = '#FFF8E1'; ctx.strokeStyle = '#FFC107'; ctx.lineWidth = 1; ctx.beginPath(); ctx.rect(mx - 12, my - 10, 24, 16); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#333'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(e.weight), mx, my - 2); }
+    }
+    drawFreeDraw(ctx, f) { if (!f.points || f.points.length < 2) return; ctx.strokeStyle = f.color || '#2E8B57'; ctx.lineWidth = f.width || 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(f.points[0].x, f.points[0].y); for (let i = 1; i < f.points.length; i++) ctx.lineTo(f.points[i].x, f.points[i].y); ctx.stroke(); }
+    drawAnnotation(ctx, a) { ctx.fillStyle = a.color || '#333'; ctx.font = '500 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.text || '', a.x, a.y); }
+}
+
+let eg = null;
+function initEmbeddedCanvas() { eg = new EmbeddedGraphCanvas('embeddedCanvas', 'embeddedCanvasArea'); }
+function closeWeightModal() { document.getElementById('weightModal').classList.remove('show'); if (eg && eg.weightCallback) { eg.weightCallback = null; } if (eg && eg.pendingEdge) eg.pendingEdge = null; }
+function confirmWeight() { const v = parseInt(document.getElementById('weightInput').value); if (isNaN(v)) { showToast('请输入数字'); return; } document.getElementById('weightModal').classList.remove('show'); if (eg && eg.weightCallback) { const cb = eg.weightCallback; eg.weightCallback = null; cb(v); } }
+function closeTextModal() { document.getElementById('textModal').classList.remove('show'); if (eg && eg.textCallback) { eg.textCallback = null; } if (eg && eg.pendingAnnotationPos) eg.pendingAnnotationPos = null; }
+function confirmTextModal() { const v = document.getElementById('textInput').value; document.getElementById('textModal').classList.remove('show'); if (eg && eg.textCallback) { const cb = eg.textCallback; eg.textCallback = null; cb(v); } }
+
+/* ============ PPT 模式：幻灯片管理 ============ */
+function pptGenId() { return 'el_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+function pptGenSlideId() { return 'slide_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+
+function pptAddSlide(layout) {
+    pptPushUndo();
+    const slide = { id: pptGenSlideId(), layout: layout || 'blank', background: {type: 'color', value: '#ffffff'}, elements: [] };
+    slides.push(slide);
+    currentSlideIndex = slides.length - 1;
+    pptRenderAll();
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptDeleteSlide() {
+    if (slides.length <= 1) { showToast('至少保留一张幻灯片'); return; }
+    showConfirmModal('删除幻灯片', '确定删除当前幻灯片？', () => {
+        pptPushUndo();
+        slides.splice(currentSlideIndex, 1);
+        if (currentSlideIndex >= slides.length) currentSlideIndex = slides.length - 1;
+        pptSelectedIds = [];
+        pptRenderAll();
+        hasUnsavedChanges = true; scheduleAutoSave();
+    });
+}
+
+function pptDuplicateSlide() {
+    if (!slides[currentSlideIndex]) return;
+    pptPushUndo();
+    const copy = JSON.parse(JSON.stringify(slides[currentSlideIndex]));
+    copy.id = pptGenSlideId();
+    copy.elements = copy.elements.map(e => ({...e, id: pptGenId()}));
+    slides.splice(currentSlideIndex + 1, 0, copy);
+    currentSlideIndex++;
+    pptRenderAll();
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptMoveSlide(direction) {
+    const newIndex = currentSlideIndex + direction;
+    if (newIndex < 0 || newIndex >= slides.length) return;
+    pptPushUndo();
+    const tmp = slides[currentSlideIndex];
+    slides[currentSlideIndex] = slides[newIndex];
+    slides[newIndex] = tmp;
+    currentSlideIndex = newIndex;
+    pptRenderAll();
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptSelectSlide(index) {
+    if (index < 0 || index >= slides.length) return;
+    currentSlideIndex = index;
+    pptSelectedIds = [];
+    pptRenderAll();
+}
+
+function pptSetLayout(layout) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    slide.layout = layout;
+    if (layout === 'title' && slide.elements.length === 0) {
+        slide.elements.push(pptCreateDefaultElement('text', 480, 200, 480, 80, { content: '点击输入标题', fontSize: 36, bold: true, align: 'center', color: '#2E8B57' }));
+    } else if (layout === 'title_content' && slide.elements.length === 0) {
+        slide.elements.push(pptCreateDefaultElement('text', 480, 60, 480, 70, { content: '点击输入标题', fontSize: 28, bold: true, align: 'center', color: '#1B5E20' }));
+        slide.elements.push(pptCreateDefaultElement('text', 80, 160, 800, 340, { content: '点击输入内容', fontSize: 18, align: 'left', color: '#333' }));
+    } else if (layout === 'two_column' && slide.elements.length === 0) {
+        slide.elements.push(pptCreateDefaultElement('text', 480, 40, 480, 60, { content: '点击输入标题', fontSize: 24, bold: true, align: 'center', color: '#1B5E20' }));
+        slide.elements.push(pptCreateDefaultElement('text', 60, 130, 400, 360, { content: '左栏内容', fontSize: 16, align: 'left', color: '#333' }));
+        slide.elements.push(pptCreateDefaultElement('text', 500, 130, 400, 360, { content: '右栏内容', fontSize: 16, align: 'left', color: '#333' }));
+    }
+    pptRenderSlide(); pptRenderSlideList(); pptRenderPropertyPanel();
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptSetSlideBg(type, value) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    slide.background = {type: type, value: value};
+    pptRenderSlide(); pptRenderSlideList();
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function onPptSlideBgSelected() { document.getElementById('pptSlideBgInput').click(); }
+
+function onPptSlideBgFileSelected(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const formData = new FormData(); formData.append('file', file);
+    fetch('/courseware/api/upload-image', { method: 'POST', body: formData })
+        .then(res => res.json()).then(data => {
+            if (data.error) { showToast('上传失败: ' + data.error); return; }
+            pptSetSlideBg('image', data.url);
+        }).catch(err => showToast('上传失败: ' + err));
+    e.target.value = '';
+}
+
+/* ============ PPT 模式：渲染 ============ */
+function pptRenderAll() { pptRenderSlideList(); pptRenderSlide(); pptRenderPropertyPanel(); }
+
+function pptRenderSlideList() {
+    const container = document.getElementById('pptSlideList');
+    container.innerHTML = '';
+    slides.forEach((slide, index) => {
+        const item = document.createElement('div');
+        item.className = 'ppt-slide-item' + (index === currentSlideIndex ? ' active' : '');
+        item.onclick = (e) => { if (!e.target.closest('.ppt-slide-actions')) pptSelectSlide(index); };
+        const thumb = document.createElement('div');
+        thumb.className = 'ppt-slide-thumb';
+        const inner = document.createElement('div');
+        inner.className = 'ppt-slide-thumb-inner';
+        inner.style.width = '960px'; inner.style.height = '540px'; inner.style.position = 'absolute';
+        const scale = 180 / 960;
+        inner.style.transform = `scale(${scale})`;
+        if (slide.background.type === 'color') inner.style.background = slide.background.value;
+        else if (slide.background.type === 'image') inner.style.background = `url('${slide.background.value}') center/cover no-repeat`;
+        slide.elements.forEach(el => {
+            const elDiv = document.createElement('div');
+            elDiv.style.position = 'absolute';
+            elDiv.style.left = (el.x || 0) + 'px'; elDiv.style.top = (el.y || 0) + 'px';
+            elDiv.style.width = (el.width || 100) + 'px'; elDiv.style.height = (el.height || 50) + 'px';
+            elDiv.style.transform = `rotate(${el.rotation || 0}deg)`;
+            elDiv.style.opacity = (el.opacity !== undefined ? el.opacity : 1);
+            elDiv.style.overflow = 'hidden';
+            pptRenderElementThumbContent(elDiv, el);
+            inner.appendChild(elDiv);
+        });
+        thumb.appendChild(inner);
+        const num = document.createElement('div');
+        num.className = 'ppt-slide-num'; num.textContent = (index + 1);
+        thumb.appendChild(num);
+        const actions = document.createElement('div');
+        actions.className = 'ppt-slide-actions';
+        actions.innerHTML = `<button onclick="event.stopPropagation();pptSelectSlide(${index});pptDuplicateSlide()" title="复制"><i class="bi bi-files"></i></button><button onclick="event.stopPropagation();pptSelectSlide(${index});pptDeleteSlide()" title="删除"><i class="bi bi-trash"></i></button>`;
+        thumb.appendChild(actions);
+        item.appendChild(thumb);
+        container.appendChild(item);
+    });
+}
+
+function pptRenderElementThumbContent(div, el) {
+    if (el.type === 'text' || el.type === 'knowledge' || el.type === 'quiz') {
+        const c = el.content || {};
+        const fontSize = (c.fontSize || 16) * 0.5;
+        div.style.fontSize = fontSize + 'px'; div.style.color = c.color || '#333';
+        div.style.fontWeight = c.bold ? 'bold' : 'normal'; div.style.fontStyle = c.italic ? 'italic' : 'normal';
+        div.style.textDecoration = c.underline ? 'underline' : 'none'; div.style.textAlign = c.align || 'left';
+        div.style.padding = '2px'; div.style.whiteSpace = 'pre-wrap'; div.style.wordBreak = 'break-word';
+        div.textContent = (c.content || '').substring(0, 100);
+    } else if (el.type === 'image') {
+        const c = el.content || {}; if (c.url) div.style.background = `url('${c.url}') center/contain no-repeat`;
+    } else if (el.type === 'shape') {
+        const c = el.content || {}; const shape = c.shape || 'rect';
+        if (shape === 'rect') { div.style.background = c.fillColor || '#2E8B57'; div.style.border = `${(c.strokeWidth||2)*0.5}px solid ${c.strokeColor||'#1B5E20'}`; }
+        else if (shape === 'circle') { div.style.background = c.fillColor || '#2E8B57'; div.style.borderRadius = '50%'; div.style.border = `${(c.strokeWidth||2)*0.5}px solid ${c.strokeColor||'#1B5E20'}`; }
+        else if (shape === 'line' || shape === 'arrow') { div.style.borderTop = `${(c.strokeWidth||2)*0.5}px solid ${c.strokeColor||'#333'}`; div.style.height = '0'; }
+    }
+}
+
+function pptRenderSlide() {
+    const slideEl = document.getElementById('pptSlide');
+    slideEl.querySelectorAll('.ppt-element').forEach(e => e.remove());
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    if (slide.background.type === 'color') slideEl.style.background = slide.background.value;
+    else if (slide.background.type === 'image') slideEl.style.background = `url('${slide.background.value}') center/cover no-repeat #fff`;
+    slideEl.classList.toggle('show-grid', pptShowGrid);
+    slide.elements.forEach(el => slideEl.appendChild(pptCreateElementDOM(el)));
+    pptApplyZoom();
+}
+
+function pptCreateElementDOM(el) {
+    const div = document.createElement('div');
+    div.className = 'ppt-element type-' + el.type;
+    div.dataset.elementId = el.id;
+    div.style.left = (el.x || 0) + 'px'; div.style.top = (el.y || 0) + 'px';
+    div.style.width = (el.width || 100) + 'px'; div.style.height = (el.height || 50) + 'px';
+    div.style.transform = `rotate(${el.rotation || 0}deg)`;
+    div.style.opacity = (el.opacity !== undefined ? el.opacity : 1);
+    div.style.zIndex = el.zIndex || 1;
+    if (pptSelectedIds.includes(el.id)) div.classList.add('selected');
+    if (el.groupId) div.dataset.groupId = el.groupId;
+    if (el.type === 'text' && el.content && el.content.bullet) div.classList.add('bullet');
+    const content = document.createElement('div');
+    content.className = 'ppt-element-content';
+    pptRenderElementContent(content, el);
+    div.appendChild(content);
+    pptBindElementEvents(div, el);
+    if (pptSelectedIds.includes(el.id)) pptAddHandles(div, el);
+    return div;
+}
+
+function pptRenderElementContent(contentDiv, el) {
+    contentDiv.innerHTML = '';
+    if (el.type === 'text') {
+        const c = el.content || {};
+        contentDiv.style.fontSize = (c.fontSize || 16) + 'px'; contentDiv.style.color = c.color || '#333';
+        contentDiv.style.fontWeight = c.bold ? 'bold' : 'normal'; contentDiv.style.fontStyle = c.italic ? 'italic' : 'normal';
+        contentDiv.style.textDecoration = c.underline ? 'underline' : 'none'; contentDiv.style.textAlign = c.align || 'left';
+        if (pptEditingTextId === el.id) {
+            contentDiv.setAttribute('contenteditable', 'true');
+            contentDiv.textContent = c.content || '';
+            contentDiv.focus();
+            const range = document.createRange(); range.selectNodeContents(contentDiv); range.collapse(false);
+            const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        } else {
+            if (c.bullet) {
+                const lines = (c.content || '').split('\n');
+                const listType = c.bulletType === 'number' ? 'ol' : 'ul';
+                const list = document.createElement(listType);
+                lines.forEach(line => { const li = document.createElement('li'); li.textContent = line; list.appendChild(li); });
+                contentDiv.appendChild(list);
+            } else {
+                contentDiv.textContent = c.content || '';
+                contentDiv.style.whiteSpace = 'pre-wrap';
+            }
+        }
+    } else if (el.type === 'image') {
+        const c = el.content || {};
+        if (c.url) { const img = document.createElement('img'); img.src = c.url; img.alt = ''; contentDiv.appendChild(img); }
+    } else if (el.type === 'shape') {
+        const c = el.content || {}; const shape = c.shape || 'rect';
+        const w = el.width || 100, h = el.height || 50;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.setAttribute('preserveAspectRatio', 'none');
+        if (shape === 'rect') {
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', (c.strokeWidth||2)/2); rect.setAttribute('y', (c.strokeWidth||2)/2);
+            rect.setAttribute('width', Math.max(1, w - (c.strokeWidth||2))); rect.setAttribute('height', Math.max(1, h - (c.strokeWidth||2)));
+            rect.setAttribute('fill', c.fillColor || '#2E8B57'); rect.setAttribute('stroke', c.strokeColor || '#1B5E20');
+            rect.setAttribute('stroke-width', c.strokeWidth || 2);
+            svg.appendChild(rect);
+        } else if (shape === 'circle') {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+            circle.setAttribute('cx', w/2); circle.setAttribute('cy', h/2);
+            circle.setAttribute('rx', Math.max(1, w/2 - (c.strokeWidth||2))); circle.setAttribute('ry', Math.max(1, h/2 - (c.strokeWidth||2)));
+            circle.setAttribute('fill', c.fillColor || '#2E8B57'); circle.setAttribute('stroke', c.strokeColor || '#1B5E20');
+            circle.setAttribute('stroke-width', c.strokeWidth || 2);
+            svg.appendChild(circle);
+        } else if (shape === 'line') {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', 0); line.setAttribute('y1', h/2); line.setAttribute('x2', w); line.setAttribute('y2', h/2);
+            line.setAttribute('stroke', c.strokeColor || '#333'); line.setAttribute('stroke-width', c.strokeWidth || 2);
+            svg.appendChild(line);
+        } else if (shape === 'arrow') {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', 0); line.setAttribute('y1', h/2); line.setAttribute('x2', w - 12); line.setAttribute('y2', h/2);
+            line.setAttribute('stroke', c.strokeColor || '#333'); line.setAttribute('stroke-width', c.strokeWidth || 2);
+            svg.appendChild(line);
+            const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            arrow.setAttribute('points', `${w-12},0 ${w},${h/2} ${w-12},${h}`);
+            arrow.setAttribute('fill', c.strokeColor || '#333');
+            svg.appendChild(arrow);
+        }
+        contentDiv.appendChild(svg);
+    } else if (el.type === 'graph') {
+        const c = el.content || {};
+        if (c.graphData) {
+            contentDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div></div>';
+            fetch('/courseware/api/render-graph', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(c.graphData) })
+                .then(res => res.json()).then(data => { if (data.svg) contentDiv.innerHTML = data.svg; })
+                .catch(() => { contentDiv.innerHTML = '<span class="text-danger small">渲染失败</span>'; });
+        } else {
+            contentDiv.innerHTML = '<span class="text-ink-gray small"><i class="bi bi-pencil me-1"></i>双击编辑</span>';
+        }
+    } else if (el.type === 'knowledge' || el.type === 'quiz') {
+        const c = el.content || {};
+        const titleDiv = document.createElement('div');
+        titleDiv.style.fontWeight = 'bold'; titleDiv.style.color = el.type === 'quiz' ? '#E65100' : '#1B5E20';
+        titleDiv.style.fontSize = '0.9rem'; titleDiv.style.marginBottom = '4px';
+        titleDiv.textContent = c.title || '';
+        contentDiv.appendChild(titleDiv);
+        const bodyDiv = document.createElement('div');
+        bodyDiv.style.whiteSpace = 'pre-wrap'; bodyDiv.textContent = c.content || '';
+        contentDiv.appendChild(bodyDiv);
+    }
+}
+
+function pptAddHandles(div, el) {
+    const handles = ['nw','n','ne','e','se','s','sw','w','rot'];
+    handles.forEach(h => {
+        const handle = document.createElement('div');
+        handle.className = 'ppt-handle h-' + h;
+        handle.dataset.handle = h;
+        div.appendChild(handle);
+    });
+}
+
+function pptBindElementEvents(div, el) {
+    div.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('ppt-handle')) {
+            const handle = e.target.dataset.handle;
+            if (handle === 'rot') pptStartRotate(e, el);
+            else pptStartResize(e, el, handle);
+            return;
+        }
+        if (pptEditingTextId && pptEditingTextId !== el.id) pptExitTextEditMode();
+        e.stopPropagation();
+        if (e.shiftKey) {
+            const idx = pptSelectedIds.indexOf(el.id);
+            if (idx >= 0) pptSelectedIds.splice(idx, 1);
+            else pptSelectedIds.push(el.id);
+        } else {
+            if (!pptSelectedIds.includes(el.id)) pptSelectedIds = [el.id];
+        }
+        pptRenderSlide(); pptRenderPropertyPanel();
+        if (!e.shiftKey) pptStartDrag(e, el);
+    });
+    div.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        if (el.type === 'graph') pptOpenGraphModal(el.id);
+        else if (el.type === 'text' || el.type === 'knowledge' || el.type === 'quiz') pptEnterTextEditMode(el.id);
+        else if (el.type === 'image') {
+            selectedPptElementId = el.id;
+            document.getElementById('imageFileInput').dataset.mode = 'ppt-replace';
+            document.getElementById('imageFileInput').click();
+        }
+    });
+}
+
+/* ============ PPT 模式：添加元素 ============ */
+function pptCreateDefaultElement(type, x, y, w, h, content) {
+    return { id: pptGenId(), type: type, x: x, y: y, width: w, height: h, rotation: 0, opacity: 1, zIndex: 1, groupId: null, content: content || {} };
+}
+
+function pptAddElement(type) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    if (type === 'text') {
+        const el = pptCreateDefaultElement('text', 100, 100, 240, 60, { content: '点击输入文本', fontSize: 18, color: '#333', bold: false, italic: false, underline: false, align: 'left', bullet: false });
+        slide.elements.push(el); pptSelectedIds = [el.id]; showToast('已添加文本框');
+    } else if (type === 'image') {
+        document.getElementById('imageFileInput').dataset.mode = 'ppt-new';
+        document.getElementById('imageFileInput').click();
+        return;
+    } else if (type.startsWith('shape-')) {
+        const shape = type.replace('shape-', '');
+        const el = pptCreateDefaultElement('shape', 150, 150, 160, 100, { shape: shape, fillColor: '#2E8B57', strokeColor: '#1B5E20', strokeWidth: 2 });
+        if (shape === 'line' || shape === 'arrow') { el.height = 4; el.width = 200; el.content.fillColor = 'transparent'; }
+        slide.elements.push(el); pptSelectedIds = [el.id]; showToast('已添加图形');
+    } else if (type === 'graph') {
+        const el = pptCreateDefaultElement('graph', 100, 100, 400, 300, {graphData: null});
+        slide.elements.push(el); pptSelectedIds = [el.id];
+        pptRenderSlide(); pptRenderPropertyPanel();
+        hasUnsavedChanges = true; scheduleAutoSave();
+        pptOpenGraphModal(el.id);
+        return;
+    }
+    pptRenderSlide(); pptRenderPropertyPanel();
+    hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptAddTextElementWithTemplate(type) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    const title = TYPE_DEFAULT_TITLES[type] || '文本';
+    if (type === 'formula') {
+        const el = pptCreateDefaultElement('text', 100, 100, 400, 80, { content: '∑_{i=1}^{n} i = n(n+1)/2', fontSize: 28, color: '#1B5E20', bold: true, align: 'center', bullet: false });
+        slide.elements.push(el); pptSelectedIds = [el.id];
+    } else if (type === 'chapter_cover') {
+        const el = pptCreateDefaultElement('text', 280, 200, 400, 80, { content: '章节标题', fontSize: 40, color: '#2E8B57', bold: true, align: 'center', bullet: false });
+        slide.elements.push(el); pptSelectedIds = [el.id];
+    } else {
+        const el = pptCreateDefaultElement('text', 100, 100, 400, 200, { content: '【' + title + '】\n在此输入内容...', fontSize: 18, color: '#333', align: 'left', bullet: false });
+        slide.elements.push(el); pptSelectedIds = [el.id];
+    }
+    pptRenderSlide(); pptRenderPropertyPanel();
+    hasUnsavedChanges = true; scheduleAutoSave();
+    showToast('已添加元素');
+}
+
+function pptCreateImageElement(url, filename) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    const el = pptCreateDefaultElement('image', 100, 100, 320, 240, {url: url, filename: filename});
+    slide.elements.push(el); pptSelectedIds = [el.id];
+    pptRenderSlide(); pptRenderPropertyPanel();
+    hasUnsavedChanges = true; scheduleAutoSave();
+    showToast('已添加图片');
+}
+
+function pptOpenGraphModal(elementId) {
+    graphEditContext = 'ppt'; currentEditingGraphId = elementId;
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    const el = slide.elements.find(e => e.id === elementId); if (!el) return;
+    document.getElementById('graphModal').classList.add('show');
+    setTimeout(() => {
+        eg.resize();
+        if (el.content && el.content.graphData) eg.loadFromData(el.content.graphData);
+        else eg.clearAll();
+    }, 50);
+}
+
+function pptAddKnowledgeItem(knowledgeId) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    fetch('/knowledge/api/detail/' + knowledgeId).then(res => res.json()).then(item => {
+        pptPushUndo();
+        const el = pptCreateDefaultElement('knowledge', 80, 80, 480, 320, { title: item.title, content: item.content || '', sourceId: item.id });
+        slide.elements.push(el); pptSelectedIds = [el.id];
+        pptRenderSlide(); pptRenderPropertyPanel();
+        hasUnsavedChanges = true; scheduleAutoSave();
+        showToast('已添加知识条目');
+    });
+}
+
+function pptAddQuizItem(quizId) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    fetch('/courseware/api/quiz-detail/' + quizId).then(res => res.json()).then(quiz => {
+        pptPushUndo();
+        let content = quiz.question_text || '';
+        if (quiz.options) { try { const opts = JSON.parse(quiz.options); if (Array.isArray(opts)) { opts.forEach((opt, i) => { content += '\n' + String.fromCharCode(65 + i) + '. ' + opt; }); } } catch (e) {} }
+        content += '\n\n【答案】' + (quiz.answer || '');
+        const el = pptCreateDefaultElement('quiz', 80, 80, 520, 360, { title: '练习题 #' + (quiz.question_number || quiz.id), content: content, sourceId: quiz.id });
+        slide.elements.push(el); pptSelectedIds = [el.id];
+        pptRenderSlide(); pptRenderPropertyPanel();
+        hasUnsavedChanges = true; scheduleAutoSave();
+        showToast('已添加试题');
+    });
+}
+
+/* ============ PPT 模式：选中、删除、复制 ============ */
+function pptSelectElement(id, additive) {
+    if (additive) { const idx = pptSelectedIds.indexOf(id); if (idx >= 0) pptSelectedIds.splice(idx, 1); else pptSelectedIds.push(id); }
+    else pptSelectedIds = [id];
+    pptRenderSlide(); pptRenderPropertyPanel();
+}
+
+function pptSelectAll() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptSelectedIds = slide.elements.map(e => e.id);
+    pptRenderSlide(); pptRenderPropertyPanel();
+}
+
+function pptDeleteSelected() {
+    if (pptSelectedIds.length === 0) return;
+    showConfirmModal('删除元素', '确定删除选中的 ' + pptSelectedIds.length + ' 个元素？', () => {
+        pptPushUndo();
+        const slide = slides[currentSlideIndex];
+        slide.elements = slide.elements.filter(e => !pptSelectedIds.includes(e.id));
+        pptSelectedIds = [];
+        pptRenderSlide(); pptRenderPropertyPanel();
+        hasUnsavedChanges = true; scheduleAutoSave();
+    });
+}
+
+function pptCopySelected() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptClipboard = slide.elements.filter(e => pptSelectedIds.includes(e.id)).map(e => JSON.parse(JSON.stringify(e)));
+    showToast('已复制 ' + pptClipboard.length + ' 个元素');
+}
+
+function pptPaste() {
+    if (pptClipboard.length === 0) return;
+    pptPushUndo();
+    const slide = slides[currentSlideIndex];
+    const newIds = [];
+    pptClipboard.forEach(el => {
+        const copy = JSON.parse(JSON.stringify(el));
+        copy.id = pptGenId(); copy.x = (el.x || 0) + 20; copy.y = (el.y || 0) + 20;
+        slide.elements.push(copy); newIds.push(copy.id);
+    });
+    pptSelectedIds = newIds;
+    pptRenderSlide(); pptRenderPropertyPanel();
+    hasUnsavedChanges = true; scheduleAutoSave();
+    showToast('已粘贴');
+}
+
+function pptDuplicateSelected() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    const newIds = [];
+    slide.elements.filter(e => pptSelectedIds.includes(e.id)).forEach(el => {
+        const copy = JSON.parse(JSON.stringify(el));
+        copy.id = pptGenId(); copy.x = (el.x || 0) + 20; copy.y = (el.y || 0) + 20;
+        slide.elements.push(copy); newIds.push(copy.id);
+    });
+    pptSelectedIds = newIds;
+    pptRenderSlide(); pptRenderPropertyPanel();
+    hasUnsavedChanges = true; scheduleAutoSave();
+    showToast('已复制');
+}
+
+/* ============ PPT 模式：拖拽、缩放、旋转 ============ */
+function pptStartDrag(e, el) {
+    e.preventDefault();
+    const scale = pptZoom;
+    const startX = e.clientX, startY = e.clientY;
+    const origs = {};
+    pptSelectedIds.forEach(id => {
+        const e2 = slides[currentSlideIndex].elements.find(x => x.id === id);
+        if (e2) origs[id] = {x: e2.x || 0, y: e2.y || 0};
+    });
+    pptIsDragging = true;
+    const slideEl = document.getElementById('pptSlide');
+    function onMove(ev) {
+        const dx = (ev.clientX - startX) / scale, dy = (ev.clientY - startY) / scale;
+        pptSelectedIds.forEach(id => {
+            const e2 = slides[currentSlideIndex].elements.find(x => x.id === id);
+            if (!e2) return;
+            const orig = origs[id];
+            e2.x = Math.round(orig.x + dx); e2.y = Math.round(orig.y + dy);
+            const div = slideEl.querySelector(`[data-element-id="${id}"]`);
+            if (div) { div.style.left = e2.x + 'px'; div.style.top = e2.y + 'px'; }
+        });
+        hasUnsavedChanges = true; scheduleAutoSave();
+        pptRenderPropertyPanel();
+    }
+    function onUp() {
+        pptIsDragging = false;
+        document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+        pptRenderSlideList();
+    }
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+}
+
+function pptStartResize(e, el, handle) {
+    e.preventDefault(); e.stopPropagation();
+    const scale = pptZoom;
+    const startX = e.clientX, startY = e.clientY;
+    const origX = el.x || 0, origY = el.y || 0, origW = el.width || 100, origH = el.height || 50;
+    pptIsResizing = true;
+    const slideEl = document.getElementById('pptSlide');
+    const div = slideEl.querySelector(`[data-element-id="${el.id}"]`);
+    function onMove(ev) {
+        const dx = (ev.clientX - startX) / scale, dy = (ev.clientY - startY) / scale;
+        let nx = origX, ny = origY, nw = origW, nh = origH;
+        if (handle.includes('e')) nw = Math.max(20, origW + dx);
+        if (handle.includes('s')) nh = Math.max(20, origH + dy);
+        if (handle.includes('w')) { nw = Math.max(20, origW - dx); nx = origX + (origW - nw); }
+        if (handle.includes('n')) { nh = Math.max(20, origH - dy); ny = origY + (origH - nh); }
+        el.x = Math.round(nx); el.y = Math.round(ny); el.width = Math.round(nw); el.height = Math.round(nh);
+        if (div) { div.style.left = el.x + 'px'; div.style.top = el.y + 'px'; div.style.width = el.width + 'px'; div.style.height = el.height + 'px'; }
+        if (el.type === 'shape') { const content = div.querySelector('.ppt-element-content'); if (content) pptRenderElementContent(content, el); }
+        hasUnsavedChanges = true; scheduleAutoSave();
+        pptRenderPropertyPanel();
+    }
+    function onUp() {
+        pptIsResizing = false;
+        document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+        pptRenderSlide(); pptRenderSlideList();
+    }
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+}
+
+function pptStartRotate(e, el) {
+    e.preventDefault(); e.stopPropagation();
+    const slideEl = document.getElementById('pptSlide');
+    const div = slideEl.querySelector(`[data-element-id="${el.id}"]`);
+    const rect = div.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+    const origRot = el.rotation || 0;
+    pptIsRotating = true;
+    function onMove(ev) {
+        const angle = Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180 / Math.PI;
+        let newRot = origRot + (angle - startAngle);
+        if (ev.shiftKey) newRot = Math.round(newRot / 15) * 15;
+        el.rotation = Math.round(newRot);
+        div.style.transform = `rotate(${el.rotation}deg)`;
+        hasUnsavedChanges = true; scheduleAutoSave();
+        pptRenderPropertyPanel();
+    }
+    function onUp() {
+        pptIsRotating = false;
+        document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+        pptRenderSlideList();
+    }
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+}
+
+/* ============ PPT 模式：图层操作 ============ */
+function pptBringForward() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    pptSelectedIds.forEach(id => { const el = slide.elements.find(e => e.id === id); if (el) el.zIndex = (el.zIndex || 1) + 1; });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptSendBackward() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    pptSelectedIds.forEach(id => { const el = slide.elements.find(e => e.id === id); if (el) el.zIndex = Math.max(0, (el.zIndex || 1) - 1); });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptBringToFront() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    let maxZ = 0;
+    slide.elements.forEach(e => { if ((e.zIndex || 0) > maxZ) maxZ = e.zIndex; });
+    pptSelectedIds.forEach(id => { const el = slide.elements.find(e => e.id === id); if (el) el.zIndex = maxZ + 1; });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptSendToBack() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    let minZ = 0;
+    slide.elements.forEach(e => { if ((e.zIndex || 0) < minZ) minZ = e.zIndex; });
+    pptSelectedIds.forEach(id => { const el = slide.elements.find(e => e.id === id); if (el) el.zIndex = minZ - 1; });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+/* ============ PPT 模式：对齐 ============ */
+function pptAlign(type) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    if (pptSelectedIds.length < 2) { showToast('至少选中两个元素'); return; }
+    pptPushUndo();
+    const els = slide.elements.filter(e => pptSelectedIds.includes(e.id));
+    if (els.length < 2) return;
+    const minX = Math.min(...els.map(e => e.x || 0));
+    const maxX = Math.max(...els.map(e => (e.x || 0) + (e.width || 0)));
+    const minY = Math.min(...els.map(e => e.y || 0));
+    const maxY = Math.max(...els.map(e => (e.y || 0) + (e.height || 0)));
+    const totalW = els.reduce((s, e) => s + (e.width || 0), 0);
+    const totalH = els.reduce((s, e) => s + (e.height || 0), 0);
+    els.forEach(el => {
+        if (type === 'left') el.x = minX;
+        else if (type === 'right') el.x = maxX - (el.width || 0);
+        else if (type === 'center') el.x = (minX + maxX) / 2 - (el.width || 0) / 2;
+        else if (type === 'top') el.y = minY;
+        else if (type === 'bottom') el.y = maxY - (el.height || 0);
+        else if (type === 'middle') el.y = (minY + maxY) / 2 - (el.height || 0) / 2;
+    });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+/* ============ PPT 模式：分组 ============ */
+function pptGroup() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    if (pptSelectedIds.length < 2) { showToast('至少选中两个元素'); return; }
+    pptPushUndo();
+    const gid = 'g_' + (pptNextGroupId++);
+    slide.elements.forEach(e => { if (pptSelectedIds.includes(e.id)) e.groupId = gid; });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+    showToast('已分组');
+}
+
+function pptUngroup() {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    if (pptSelectedIds.length === 0) return;
+    pptPushUndo();
+    slide.elements.forEach(e => { if (pptSelectedIds.includes(e.id)) e.groupId = null; });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+    showToast('已取消分组');
+}
+
+/* ============ PPT 模式：文本编辑 ============ */
+function pptEnterTextEditMode(id) {
+    pptEditingTextId = id;
+    pptRenderSlide();
+    const div = document.querySelector(`[data-element-id="${id}"]`);
+    if (div) {
+        div.classList.add('editing');
+        const content = div.querySelector('.ppt-element-content');
+        if (content) {
+            content.addEventListener('blur', () => { pptExitTextEditMode(); });
+            content.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') { e.preventDefault(); pptExitTextEditMode(); }
+            });
+        }
+    }
+}
+
+function pptExitTextEditMode() {
+    if (!pptEditingTextId) return;
+    const slide = slides[currentSlideIndex];
+    const el = slide.elements.find(e => e.id === pptEditingTextId);
+    if (el) {
+        const div = document.querySelector(`[data-element-id="${pptEditingTextId}"]`);
+        const content = div ? div.querySelector('.ppt-element-content') : null;
+        if (content) el.content.content = content.textContent;
+        hasUnsavedChanges = true; scheduleAutoSave();
+    }
+    pptEditingTextId = null;
+    pptRenderSlide();
+}
+
+function pptApplyTextFormat(prop, value) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    pptPushUndo();
+    pptSelectedIds.forEach(id => {
+        const el = slide.elements.find(e => e.id === id);
+        if (el && (el.type === 'text' || el.type === 'knowledge' || el.type === 'quiz')) {
+            if (!el.content) el.content = {};
+            if (prop === 'bullet') {
+                el.content.bullet = !el.content.bullet;
+            } else if (prop === 'increaseSize') {
+                el.content.fontSize = Math.min(96, (el.content.fontSize || 16) + 2);
+            } else if (prop === 'decreaseSize') {
+                el.content.fontSize = Math.max(8, (el.content.fontSize || 16) - 2);
+            } else {
+                el.content[prop] = value !== undefined ? value : !el.content[prop];
+            }
+        }
+    });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+function pptApplyStyle(prop, value) {
+    const slide = slides[currentSlideIndex]; if (!slide) return;
+    if (pptSelectedIds.length === 0) return;
+    pptPushUndo();
+    pptSelectedIds.forEach(id => {
+        const el = slide.elements.find(e => e.id === id);
+        if (el) {
+            if (prop === 'opacity') el.opacity = value;
+            else if (prop === 'rotation') el.rotation = value;
+            else if (prop === 'fillColor' || prop === 'strokeColor' || prop === 'strokeWidth') {
+                if (el.type === 'shape') { if (!el.content) el.content = {}; el.content[prop] = value; }
+            } else if (prop === 'fontSize' || prop === 'color') {
+                if (el.type === 'text' || el.type === 'knowledge' || el.type === 'quiz') {
+                    if (!el.content) el.content = {}; el.content[prop] = value;
+                }
+            } else if (prop === 'x' || prop === 'y' || prop === 'width' || prop === 'height') {
+                el[prop] = Math.round(value);
+            }
+        }
+    });
+    pptRenderSlide(); hasUnsavedChanges = true; scheduleAutoSave();
+}
+
+/* ============ PPT 模式：属性面板 ============ */
+function pptRenderPropertyPanel() {
+    const body = document.getElementById('pptPropertyBody');
+    if (pptSelectedIds.length === 0) {
+        body.innerHTML = pptSlidePropertiesHTML();
+        pptBindSlidePropertyEvents();
+    } else if (pptSelectedIds.length === 1) {
+        const slide = slides[currentSlideIndex];
+        const el = slide.elements.find(e => e.id === pptSelectedIds[0]);
+        if (!el) { body.innerHTML = '<div class="p-3 text-center text-ink-gray small">未选中元素</div>'; return; }
+        body.innerHTML = pptElementPropertiesHTML(el);
+        pptBindElementPropertyEvents(el);
+    } else {
+        const slide = slides[currentSlideIndex];
+        const els = slide.elements.filter(e => pptSelectedIds.includes(e.id));
+        body.innerHTML = pptMultiPropertiesHTML(els);
+        pptBindMultiPropertyEvents();
+    }
+}
+
+function pptSlidePropertiesHTML() {
+    const slide = slides[currentSlideIndex]; if (!slide) return '<div class="p-3 text-ink-gray small">无幻灯片</div>';
+    return `
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">幻灯片信息</div>
+        <div class="ppt-prop-row"><label>序号</label><input type="text" value="${currentSlideIndex + 1} / ${slides.length}" disabled></div>
+        <div class="ppt-prop-row"><label>布局</label><select id="pptPropLayout">
+            <option value="blank" ${slide.layout==='blank'?'selected':''}>空白</option>
+            <option value="title" ${slide.layout==='title'?'selected':''}>标题页</option>
+            <option value="title_content" ${slide.layout==='title_content'?'selected':''}>标题+内容</option>
+            <option value="two_column" ${slide.layout==='two_column'?'selected':''}>两栏</option>
+        </select></div>
+    </div>
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">背景</div>
+        <div class="ppt-color-palette">
+            ${['#ffffff','#2E8B57','#1565C0','#1A1A2E','#FFF8E1','#FF5722','#9C27B0','#FAFAF5'].map(c => `<div class="ppt-color-swatch" style="background:${c}" onclick="pptSetSlideBg('color','${c}')"></div>`).join('')}
+        </div>
+        <button class="btn btn-sm btn-outline-seagreen w-100 mt-2" onclick="onPptSlideBgSelected()"><i class="bi bi-image me-1"></i>自定义背景图</button>
+    </div>
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">提示</div>
+        <div class="small text-ink-gray">
+            <i class="bi bi-info-circle me-1"></i>选中元素后可在此编辑属性<br>
+            <i class="bi bi-keyboard me-1"></i>Ctrl+C/V 复制粘贴，Delete 删除<br>
+            <i class="bi bi-mouse me-1"></i>Shift+点击 多选
+        </div>
+    </div>`;
+}
+
+function pptBindSlidePropertyEvents() {
+    const layoutSel = document.getElementById('pptPropLayout');
+    if (layoutSel) layoutSel.addEventListener('change', (e) => pptSetLayout(e.target.value));
+}
+
+function pptElementPropertiesHTML(el) {
+    const typeLabels = {text: '文本框', image: '图片', shape: '形状', graph: '图形', knowledge: '知识条目', quiz: '试题'};
+    let html = `
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">${typeLabels[el.type] || el.type}</div>
+        <div class="small text-ink-gray">ID: ${el.id.substring(0, 12)}...</div>
+    </div>
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">位置和尺寸</div>
+        <div class="ppt-prop-row"><label>X</label><input type="number" data-prop="x" value="${Math.round(el.x || 0)}"></div>
+        <div class="ppt-prop-row"><label>Y</label><input type="number" data-prop="y" value="${Math.round(el.y || 0)}"></div>
+        <div class="ppt-prop-row"><label>宽度</label><input type="number" data-prop="width" value="${Math.round(el.width || 0)}"></div>
+        <div class="ppt-prop-row"><label>高度</label><input type="number" data-prop="height" value="${Math.round(el.height || 0)}"></div>
+        <div class="ppt-prop-row"><label>旋转</label><input type="number" data-prop="rotation" value="${Math.round(el.rotation || 0)}" min="0" max="360">°</div>
+        <div class="ppt-prop-row"><label>透明度</label><input type="range" data-prop="opacity" min="0" max="1" step="0.1" value="${el.opacity !== undefined ? el.opacity : 1}"></div>
+    </div>`;
+    if (el.type === 'text' || el.type === 'knowledge' || el.type === 'quiz') {
+        const c = el.content || {};
+        html += `
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">文字格式</div>
+        <div class="ppt-format-toolbar">
+            <button class="ppt-format-btn ${c.bold?'active':''}" onclick="pptApplyTextFormat('bold')" title="加粗"><i class="bi bi-type-bold"></i></button>
+            <button class="ppt-format-btn ${c.italic?'active':''}" onclick="pptApplyTextFormat('italic')" title="斜体"><i class="bi bi-type-italic"></i></button>
+            <button class="ppt-format-btn ${c.underline?'active':''}" onclick="pptApplyTextFormat('underline')" title="下划线"><i class="bi bi-type-underline"></i></button>
+            <button class="ppt-format-btn ${c.bullet?'active':''}" onclick="pptApplyTextFormat('bullet')" title="项目符号"><i class="bi bi-list-ul"></i></button>
+            <button class="ppt-format-btn" onclick="pptApplyTextFormat('increaseSize')" title="增大字号"><i class="bi bi-zoom-in"></i></button>
+            <button class="ppt-format-btn" onclick="pptApplyTextFormat('decreaseSize')" title="减小字号"><i class="bi bi-zoom-out"></i></button>
+        </div>
+        <div class="ppt-prop-row mt-2"><label>字号</label><input type="number" data-content="fontSize" value="${c.fontSize || 16}" min="8" max="96"></div>
+        <div class="ppt-prop-row"><label>颜色</label><input type="color" data-content="color" value="${c.color || '#333'}"></div>
+        <div class="ppt-prop-row"><label>对齐</label><select data-content="align">
+            <option value="left" ${c.align==='left'?'selected':''}>左对齐</option>
+            <option value="center" ${c.align==='center'?'selected':''}>居中</option>
+            <option value="right" ${c.align==='right'?'selected':''}>右对齐</option>
+        </select></div>
+    </div>`;
+    }
+    if (el.type === 'shape') {
+        const c = el.content || {};
+        html += `
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">形状</div>
+        <div class="ppt-prop-row"><label>填充</label><input type="color" data-content="fillColor" value="${c.fillColor || '#2E8B57'}"></div>
+        <div class="ppt-prop-row"><label>边框</label><input type="color" data-content="strokeColor" value="${c.strokeColor || '#1B5E20'}"></div>
+        <div class="ppt-prop-row"><label>边宽</label><input type="number" data-content="strokeWidth" value="${c.strokeWidth || 2}" min="0" max="20"></div>
+    </div>`;
+    }
+    html += `
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">图层</div>
+        <div class="ppt-layer-toolbar">
+            <button class="ppt-format-btn" onclick="pptBringToFront()" title="置顶"><i class="bi bi-chevron-double-up"></i></button>
+            <button class="ppt-format-btn" onclick="pptBringForward()" title="上移"><i class="bi bi-chevron-up"></i></button>
+            <button class="ppt-format-btn" onclick="pptSendBackward()" title="下移"><i class="bi bi-chevron-down"></i></button>
+            <button class="ppt-format-btn" onclick="pptSendToBack()" title="置底"><i class="bi bi-chevron-double-down"></i></button>
+        </div>
+    </div>
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">操作</div>
+        <button class="btn btn-sm btn-outline-seagreen w-100 mb-1" onclick="pptDuplicateSelected()"><i class="bi bi-files me-1"></i>复制</button>
+        <button class="btn btn-sm btn-outline-primary w-100 mb-1" onclick="pptCopySelected()"><i class="bi bi-clipboard me-1"></i>复制到剪贴板</button>
+        <button class="btn btn-sm btn-outline-danger w-100" onclick="pptDeleteSelected()"><i class="bi bi-trash me-1"></i>删除</button>
+    </div>`;
+    return html;
+}
+
+function pptBindElementPropertyEvents(el) {
+    document.querySelectorAll('#pptPropertyBody input[data-prop]').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const prop = e.target.dataset.prop;
+            let value = parseFloat(e.target.value);
+            if (isNaN(value)) value = 0;
+            pptApplyStyle(prop, value);
+            pptRenderPropertyPanel();
+        });
+    });
+    document.querySelectorAll('#pptPropertyBody input[data-content], #pptPropertyBody select[data-content]').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const prop = e.target.dataset.content;
+            let value = e.target.value;
+            if (e.target.type === 'number') value = parseFloat(value);
+            const slide = slides[currentSlideIndex];
+            const el2 = slide.elements.find(x => x.id === el.id);
+            if (el2) {
+                if (!el2.content) el2.content = {};
+                el2.content[prop] = value;
+                pptRenderSlide();
+                hasUnsavedChanges = true; scheduleAutoSave();
+            }
+        });
+    });
+}
+
+function pptMultiPropertiesHTML(els) {
+    return `
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">多选 (${els.length} 个元素)</div>
+        <div class="ppt-align-toolbar">
+            <button class="ppt-format-btn" onclick="pptAlign('left')" title="左对齐"><i class="bi bi-text-left"></i></button>
+            <button class="ppt-format-btn" onclick="pptAlign('center')" title="水平居中"><i class="bi bi-text-center"></i></button>
+            <button class="ppt-format-btn" onclick="pptAlign('right')" title="右对齐"><i class="bi bi-text-right"></i></button>
+            <button class="ppt-format-btn" onclick="pptAlign('top')" title="顶对齐"><i class="bi bi-box-align-top"></i></button>
+            <button class="ppt-format-btn" onclick="pptAlign('middle')" title="垂直居中"><i class="bi bi-box-align-middle"></i></button>
+            <button class="ppt-format-btn" onclick="pptAlign('bottom')" title="底对齐"><i class="bi bi-box-align-bottom"></i></button>
+        </div>
+    </div>
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">图层</div>
+        <div class="ppt-layer-toolbar">
+            <button class="ppt-format-btn" onclick="pptBringToFront()" title="置顶"><i class="bi bi-chevron-double-up"></i></button>
+            <button class="ppt-format-btn" onclick="pptBringForward()" title="上移"><i class="bi bi-chevron-up"></i></button>
+            <button class="ppt-format-btn" onclick="pptSendBackward()" title="下移"><i class="bi bi-chevron-down"></i></button>
+            <button class="ppt-format-btn" onclick="pptSendToBack()" title="置底"><i class="bi bi-chevron-double-down"></i></button>
+        </div>
+    </div>
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">分组</div>
+        <button class="btn btn-sm btn-outline-seagreen w-100 mb-1" onclick="pptGroup()"><i class="bi bi-link me-1"></i>组合</button>
+        <button class="btn btn-sm btn-outline-secondary w-100" onclick="pptUngroup()"><i class="bi bi-link-break me-1"></i>取消组合</button>
+    </div>
+    <div class="ppt-prop-group">
+        <div class="ppt-prop-group-title">操作</div>
+        <button class="btn btn-sm btn-outline-seagreen w-100 mb-1" onclick="pptDuplicateSelected()"><i class="bi bi-files me-1"></i>复制选中</button>
+        <button class="btn btn-sm btn-outline-danger w-100" onclick="pptDeleteSelected()"><i class="bi bi-trash me-1"></i>删除选中</button>
+    </div>`;
+}
+
+function pptBindMultiPropertyEvents() { /* 占位，事件已通过 onclick 绑定 */ }
+
+/* ============ PPT 模式：撤销/重做 ============ */
+function pptPushUndo() {
+    const snap = JSON.parse(JSON.stringify(slides));
+    pptUndoStack.push(snap);
+    if (pptUndoStack.length > 50) pptUndoStack.shift();
+    pptRedoStack = [];
+}
+
+function pptUndo() {
+    if (pptUndoStack.length === 0) { showToast('无可撤销'); return; }
+    pptRedoStack.push(JSON.parse(JSON.stringify(slides)));
+    slides = pptUndoStack.pop();
+    if (currentSlideIndex >= slides.length) currentSlideIndex = slides.length - 1;
+    pptSelectedIds = [];
+    pptRenderAll();
+    hasUnsavedChanges = true; scheduleAutoSave();
+    showToast('已撤销');
+}
+
+function pptRedo() {
+    if (pptRedoStack.length === 0) { showToast('无可重做'); return; }
+    pptUndoStack.push(JSON.parse(JSON.stringify(slides)));
+    slides = pptRedoStack.pop();
+    if (currentSlideIndex >= slides.length) currentSlideIndex = slides.length - 1;
+    pptSelectedIds = [];
+    pptRenderAll();
+    hasUnsavedChanges = true; scheduleAutoSave();
+    showToast('已重做');
+}
+
+/* ============ PPT 模式：网格和缩放 ============ */
+function pptToggleGrid() {
+    pptShowGrid = !pptShowGrid;
+    pptRenderSlide();
+}
+
+function pptZoomIn() { pptSetZoom(Math.min(2, pptZoom + 0.1)); }
+function pptZoomOut() { pptSetZoom(Math.max(0.5, pptZoom - 0.1)); }
+function pptSetZoom(z) { pptZoom = z; pptApplyZoom(); pptZoomInfoUpdate(); }
+
+function pptApplyZoom() {
+    const slide = document.getElementById('pptSlide');
+    const stage = document.getElementById('pptCanvasStage');
+    slide.style.transform = `scale(${pptZoom})`;
+    stage.style.width = (960 * pptZoom) + 'px';
+    stage.style.height = (540 * pptZoom) + 'px';
+}
+
+function pptZoomInfoUpdate() {
+    const txt = Math.round(pptZoom * 100) + '%';
+    const a = document.getElementById('pptZoomInfo');
+    const b = document.getElementById('pptZoomInfoBottom');
+    if (a) a.textContent = txt;
+    if (b) b.textContent = txt;
+}
+
+/* ============ PPT 模式：知识/题库浏览 ============ */
+function pptOpenKnowledgeBrowser() {
+    pptBrowserType = 'knowledge';
+    document.getElementById('pptBrowserTitle').innerHTML = '<i class="bi bi-book me-2"></i>选择知识条目';
+    document.getElementById('pptBrowserModal').classList.add('show');
+    document.getElementById('pptBrowserSearch').value = '';
+    pptBrowserLoad();
+}
+
+function pptOpenQuizBrowser() {
+    pptBrowserType = 'quiz';
+    document.getElementById('pptBrowserTitle').innerHTML = '<i class="bi bi-patch-question me-2"></i>选择试题';
+    document.getElementById('pptBrowserModal').classList.add('show');
+    document.getElementById('pptBrowserSearch').value = '';
+    pptBrowserLoad();
+}
+
+function pptBrowserDebounce() {
+    clearTimeout(pptBrowserTimer);
+    pptBrowserTimer = setTimeout(pptBrowserLoad, 300);
+}
+
+function pptBrowserLoad(page) {
+    page = page || 1;
+    const search = document.getElementById('pptBrowserSearch').value;
+    let url;
+    if (pptBrowserType === 'knowledge') {
+        url = '/courseware/api/knowledge-list?page=' + page + '&per_page=20';
+        if (search) url += '&search=' + encodeURIComponent(search);
+    } else {
+        url = '/courseware/api/quiz-list?page=' + page + '&per_page=20';
+        if (search) url += '&search=' + encodeURIComponent(search);
+    }
+    fetch(url).then(res => res.json()).then(data => {
+        const container = document.getElementById('pptBrowserList');
+        if (!data.items || data.items.length === 0) {
+            container.innerHTML = '<div class="text-center text-ink-gray py-4"><i class="bi bi-search me-2"></i>暂无数据</div>';
+            return;
+        }
+        let html = '';
+        data.items.forEach(item => {
+            if (pptBrowserType === 'knowledge') {
+                html += `<div class="ppt-browser-item" onclick="pptAddKnowledgeItem(${item.id});closePptBrowserModal()">
+                    <div class="item-title">${escapeHtml(item.title)}</div>
+                    <div class="item-meta">${escapeHtml(item.chapter || '')} ${escapeHtml(item.section || '')}</div>
+                    <div class="item-summary">${escapeHtml(item.content_summary || '')}</div>
+                </div>`;
+            } else {
+                const qText = (item.question_text || '').substring(0, 100);
+                html += `<div class="ppt-browser-item" onclick="pptAddQuizItem(${item.id});closePptBrowserModal()">
+                    <div class="item-title">题目 #${item.question_number || item.id}</div>
+                    <div class="item-meta">${escapeHtml(item.chapter || '')} | ${escapeHtml(item.difficulty || '')}</div>
+                    <div class="item-summary">${escapeHtml(qText)}</div>
+                </div>`;
+            }
+        });
+        container.innerHTML = html;
+    });
+}
+
+function closePptBrowserModal() {
+    document.getElementById('pptBrowserModal').classList.remove('show');
+    pptBrowserType = null;
+}
+
+/* ============ PPT 模式：画布事件 ============ */
+function initPptCanvasEvents() {
+    const slide = document.getElementById('pptSlide');
+    slide.addEventListener('mousedown', (e) => {
+        if (e.target === slide || e.target.classList.contains('ppt-slide-grid') || e.target.classList.contains('ppt-slide-align-guides')) {
+            if (pptEditingTextId) pptExitTextEditMode();
+            pptSelectedIds = [];
+            pptRenderSlide();
+            pptRenderPropertyPanel();
+        }
+    });
+}
+
+function initPptKeyboard() {
+    document.addEventListener('keydown', (e) => {
+        if (currentMode !== 'ppt') return;
+        if (pptEditingTextId) return;
+        const target = e.target;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) return;
+        if (e.ctrlKey || e.metaKey) {
+            if (e.key === 'c' || e.key === 'C') { e.preventDefault(); pptCopySelected(); }
+            else if (e.key === 'v' || e.key === 'V') { e.preventDefault(); pptPaste(); }
+            else if (e.key === 'd' || e.key === 'D') { e.preventDefault(); pptDuplicateSelected(); }
+            else if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); if (e.shiftKey) pptRedo(); else pptUndo(); }
+            else if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); pptRedo(); }
+            else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); pptSelectAll(); }
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (pptSelectedIds.length > 0) { e.preventDefault(); pptDeleteSelected(); }
+        } else if (e.key === 'Escape') {
+            pptSelectedIds = [];
+            pptRenderSlide();
+            pptRenderPropertyPanel();
+        }
+    });
+}
+
+/* ============ 保存/预览/导出 ============ */
+function saveCourseware() {
+    if (!coursewareId) { showToast('课件尚未创建'); return Promise.reject(new Error('课件尚未创建')); }
+    const contentData = currentMode === 'ppt'
+        ? { title: document.getElementById('cwTitle').value, description: document.getElementById('cwDesc').value, background: currentBackground, custom_bg_url: customBgUrl, slides: slides, slideSize: {width: 960, height: 540, ratio: '16:9'} }
+        : { title: document.getElementById('cwTitle').value, description: document.getElementById('cwDesc').value, background: currentBackground, custom_bg_url: customBgUrl, sections: sections };
+    return fetch('/courseware/api/update/' + coursewareId, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            title: document.getElementById('cwTitle').value,
+            description: document.getElementById('cwDesc').value,
+            mode: currentMode,
+            content_json: contentData
+        })
+    }).then(res => res.json()).then(data => {
+        hasUnsavedChanges = false;
+        const ind = document.getElementById('saveIndicator');
+        ind.textContent = '已保存'; ind.style.color = '#A5D6A7';
+        setTimeout(() => { ind.textContent = ''; }, 2000);
+        return data;
+    }).catch(err => { showToast('保存失败: ' + err); throw err; });
+}
+
+function previewCourseware() {
+    if (!coursewareId) { showToast('课件尚未创建'); return; }
+    const openPreview = () => window.open('/courseware/api/preview/' + coursewareId, '_blank');
+    if (hasUnsavedChanges) saveCourseware().then(openPreview).catch(() => {});
+    else openPreview();
+}
+
+function exportCourseware() {
+    if (!coursewareId) { showToast('课件尚未创建'); return; }
+    const startExport = () => { 
+        if (currentMode === 'ppt') {
+            window.location.href = '/courseware/api/ppt-export/' + coursewareId;
+        } else {
+            window.location.href = '/courseware/api/export/' + coursewareId;
+        }
+    };
+    if (hasUnsavedChanges) saveCourseware().then(startExport).catch(() => {});
+    else startExport();
+}
+
+function openSettingsModal() {
+    document.getElementById('settingConfirmDelete').checked = confirmDelete;
+    document.getElementById('settingAutoExtend').checked = autoExtendCanvas;
+    document.getElementById('settingsModal').classList.add('show');
+}
+
+function closeSettingsModal() {
+    document.getElementById('settingsModal').classList.remove('show');
+}
+
+function saveSettings() {
+    confirmDelete = document.getElementById('settingConfirmDelete').checked;
+    autoExtendCanvas = document.getElementById('settingAutoExtend').checked;
+    
+    if (autoExtendCanvas) {
+        adjustCanvasSize();
+    } else {
+        const canvas = document.getElementById('cwCanvas');
+        canvas.style.minHeight = '800px';
+        canvas.style.height = '100%';
+    }
+    
+    closeSettingsModal();
+    showToast('设置已保存');
+}
+
+/* ============ 工具函数 ============ */
+function showToast(msg) {
+    const toast = document.getElementById('cwToast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function escapeAttr(str) {
+    if (!str) return '';
+    return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function showConfirmModal(title, message, callback) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    confirmCallback = callback;
+    const modal = document.getElementById('confirmModal');
+    modal.classList.add('show');
+    const okBtn = document.getElementById('confirmOkBtn');
+    okBtn.removeEventListener('click', confirmOkHandler);
+    okBtn.addEventListener('click', confirmOkHandler);
+}
+
+function confirmOkHandler() {
+    closeConfirmModal();
+    if (confirmCallback) { const cb = confirmCallback; confirmCallback = null; cb(); }
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.remove('show');
+    confirmCallback = null;
+}
+</script>
+{% endblock %}

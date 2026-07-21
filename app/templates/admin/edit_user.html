@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}编辑用户 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-section {
+        background: var(--white);
+        border: 1px solid var(--border-green);
+        border-radius: var(--border-radius);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        padding: 1.75rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .edit-section::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--seagreen), var(--teal), var(--medium-seagreen));
+    }
+
+    .edit-section h4 {
+        color: var(--dark-green);
+        font-weight: 700;
+        margin-bottom: 1.25rem;
+    }
+
+    .edit-section h4 i {
+        color: var(--seagreen);
+        margin-right: 0.6rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--dark-green);
+    }
+
+    .input-group-text {
+        background: var(--light-green-bg);
+        border-color: #dce8dc;
+        color: var(--seagreen);
+    }
+
+    .user-avatar-lg {
+        width: 72px; height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--seagreen), var(--teal));
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 2rem;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+    <div class="d-flex align-items-center">
+        <div class="icon-wrapper me-3" style="width:54px;height:54px;">
+            <i class="bi bi-pencil-square" style="font-size:1.6rem;"></i>
+        </div>
+        <div>
+            <h2 class="mb-0 text-dark-green">编辑用户</h2>
+            <p class="text-ink-gray mb-0"><i class="bi bi-person-badge me-1"></i>{{ edit_user.username }}</p>
+        </div>
+    </div>
+    <a href="{{ url_for('admin.users') }}" class="btn btn-outline-seagreen">
+        <i class="bi bi-arrow-left me-1"></i>返回列表
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-4 mb-3">
+        <div class="edit-section h-100 text-center">
+            <div class="user-avatar-lg mx-auto mb-3">{{ edit_user.username[0] | upper }}</div>
+            <h4 class="mb-1">{{ edit_user.username }}</h4>
+            <p class="text-muted mb-2">用户 ID：#{{ edit_user.id }}</p>
+            <div class="mb-3">
+                {% if edit_user.is_admin %}
+                    <span class="badge bg-seagreen"><i class="bi bi-shield-fill-check me-1"></i>管理员</span>
+                {% else %}
+                    <span class="badge bg-secondary"><i class="bi bi-person me-1"></i>普通用户</span>
+                {% endif %}
+            </div>
+            <p class="text-muted small mb-0">
+                <i class="bi bi-calendar-event me-1"></i>
+                {{ edit_user.created_at.strftime('%Y-%m-%d %H:%M') if edit_user.created_at else '-' }}
+            </p>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <form method="post" action="{{ url_for('admin.edit_user', user_id=edit_user.id) }}">
+            <div class="edit-section">
+                <h4><i class="bi bi-person-vcard-fill"></i>基本信息</h4>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label"><i class="bi bi-person-fill me-1"></i>用户名</label>
+                        <input type="text" class="form-control" value="{{ edit_user.username }}" disabled>
+                        <small class="text-muted">用户名不可修改</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="email" class="form-label"><i class="bi bi-envelope-fill me-1"></i>邮箱</label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               value="{{ edit_user.email or '' }}" placeholder="name@example.com">
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   id="is_admin" name="is_admin"
+                                   {% if edit_user.is_admin %}checked{% endif %}>
+                            <label class="form-check-label" for="is_admin">
+                                <i class="bi bi-shield-fill-check me-1"></i>设为管理员
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="edit-section">
+                <h4><i class="bi bi-robot"></i>API 配置</h4>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="api_provider" class="form-label"><i class="bi bi-cloud-fill me-1"></i>API 服务商</label>
+                        <select class="form-select" id="api_provider" name="api_provider">
+                            <option value="qwen" {% if edit_user.api_provider == 'qwen' %}selected{% endif %}>通义千问</option>
+                            <option value="deepseek" {% if edit_user.api_provider == 'deepseek' %}selected{% endif %}>DeepSeek</option>
+                            <option value="openai" {% if edit_user.api_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="api_model" class="form-label"><i class="bi bi-diagram-3-fill me-1"></i>模型名称</label>
+                        <input type="text" class="form-control" id="api_model" name="api_model"
+                               value="{{ edit_user.api_model or '' }}" placeholder="留空保留原值">
+                    </div>
+                    <div class="col-12">
+                        <label for="api_key" class="form-label"><i class="bi bi-key-fill me-1"></i>API Key</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control" id="api_key" name="api_key"
+                                   placeholder="{% if edit_user.api_key %}已配置（留空则保留原值）{% else %}未配置{% endif %}">
+                            <button class="btn btn-outline-secondary" type="button" tabindex="-1"
+                                    onclick="togglePwd('api_key', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="edit-section">
+                <h4><i class="bi bi-shield-lock-fill"></i>重置密码</h4>
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label for="new_password" class="form-label"><i class="bi bi-key-fill me-1"></i>新密码</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control" id="new_password" name="new_password"
+                                   placeholder="留空则不修改密码">
+                            <button class="btn btn-outline-secondary" type="button" tabindex="-1"
+                                    onclick="togglePwd('new_password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">如需为该用户重置密码，请在此输入新密码（至少 6 位）。</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg me-1"></i>取消
+                </a>
+                <button type="submit" class="btn btn-seagreen btn-lg">
+                    <i class="bi bi-check2-circle me-2"></i>保存修改
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePwd(id, btn) {
+        const inp = document.getElementById(id);
+        const icon = btn.querySelector('i');
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            inp.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,938 @@
+{% extends "base.html" %}
+
+{% block title %}错题本 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ===== 错题本差异化样式：青绿琥珀色调（与水墨主题协调） ===== */
+.wb-wrap {
+    --wb-primary: #2E8B57;
+    --wb-primary-dark: #1B5E20;
+    --wb-accent: #00897B;
+    --wb-amber: #F59E0B;
+    --wb-danger: #DC2626;
+    --wb-success: #16A34A;
+    --wb-info: #0EA5E9;
+    --wb-ink: #1F2937;
+    --wb-ink-soft: #4B5563;
+    --wb-border: #D1FAE5;
+    --wb-bg-soft: #F0FDF4;
+    --wb-card: #FFFFFF;
+    --wb-radius: 14px;
+    color: var(--wb-ink);
+}
+
+/* 顶部标题 */
+.wb-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.wb-title {
+    font-size: 1.65rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--wb-primary-dark);
+}
+.wb-title .title-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--wb-primary), var(--wb-accent));
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    box-shadow: 0 4px 14px rgba(46, 139, 87, 0.35);
+}
+.wb-subtitle { color: var(--wb-ink-soft); font-size: 0.92rem; margin: 0; }
+
+/* 统计卡片 */
+.wb-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+}
+.wb-stat {
+    background: var(--wb-card);
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius);
+    padding: 18px 16px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(46, 139, 87, 0.06);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.wb-stat::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--wb-primary), var(--wb-accent));
+}
+.wb-stat:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(46, 139, 87, 0.16); }
+.wb-stat .wb-stat-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.15rem; color: #fff; margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--wb-primary), var(--wb-accent));
+}
+.wb-stat.s-amber .wb-stat-icon { background: linear-gradient(135deg, var(--wb-amber), #FB923C); }
+.wb-stat.s-success .wb-stat-icon { background: linear-gradient(135deg, var(--wb-success), var(--wb-accent)); }
+.wb-stat.s-danger .wb-stat-icon { background: linear-gradient(135deg, var(--wb-danger), #FB7185); }
+.wb-stat.s-info .wb-stat-icon { background: linear-gradient(135deg, var(--wb-info), var(--wb-accent)); }
+.wb-stat .wb-stat-value { font-size: 1.75rem; font-weight: 800; line-height: 1.1; color: var(--wb-ink); }
+.wb-stat .wb-stat-value .unit { font-size: 0.85rem; font-weight: 600; color: var(--wb-ink-soft); margin-left: 3px; }
+.wb-stat .wb-stat-label { font-size: 0.82rem; color: var(--wb-ink-soft); margin-top: 2px; }
+
+/* 工具栏 */
+.wb-toolbar {
+    background: var(--wb-card);
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(46, 139, 87, 0.05);
+}
+.wb-toolbar .form-select, .wb-toolbar .form-control {
+    border-radius: 9px;
+    border-color: var(--wb-border);
+    max-width: 200px;
+}
+.wb-toolbar .form-select:focus, .wb-toolbar .form-control:focus {
+    border-color: var(--wb-primary);
+    box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.15);
+}
+.wb-toolbar .toolbar-spacer { flex: 1; }
+.wb-btn {
+    border-radius: 9px;
+    font-weight: 600;
+    padding: 8px 16px;
+    transition: all 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.wb-btn-primary {
+    background: linear-gradient(135deg, var(--wb-primary), var(--wb-accent));
+    color: #fff;
+    border: none;
+    box-shadow: 0 3px 10px rgba(46, 139, 87, 0.3);
+}
+.wb-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(46, 139, 87, 0.4); color: #fff; }
+.wb-btn-outline {
+    background: #fff;
+    color: var(--wb-primary-dark);
+    border: 1.5px solid var(--wb-primary);
+}
+.wb-btn-outline:hover { background: var(--wb-bg-soft); transform: translateY(-2px); }
+.wb-btn-amber {
+    background: linear-gradient(135deg, var(--wb-amber), #FB923C);
+    color: #fff; border: none;
+    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+}
+.wb-btn-amber:hover { transform: translateY(-2px); color: #fff; }
+
+/* 错题卡片 */
+.wb-list { display: flex; flex-direction: column; gap: 16px; }
+.wb-card {
+    background: var(--wb-card);
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius);
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(46, 139, 87, 0.07);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+    position: relative;
+}
+.wb-card:hover { box-shadow: 0 8px 24px rgba(46, 139, 87, 0.14); transform: translateY(-2px); }
+.wb-card.mastered { opacity: 0.78; }
+.wb-card.mastered::after {
+    content: '已掌握';
+    position: absolute;
+    top: 14px; right: -32px;
+    background: var(--wb-success);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 40px;
+    transform: rotate(35deg);
+    box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+}
+.wb-card.need-review { border-left: 4px solid var(--wb-danger); }
+.wb-card-head {
+    padding: 14px 18px 8px 18px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.wb-card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.wb-tag {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 10px;
+}
+.wb-tag.t-type { background: #DBEAFE; color: #1E40AF; }
+.wb-tag.t-diff-easy { background: #D1FAE5; color: #065F46; }
+.wb-tag.t-diff-medium { background: #FEF3C7; color: #92400E; }
+.wb-tag.t-diff-hard { background: #FEE2E2; color: #991B1B; }
+.wb-tag.t-chapter { background: var(--wb-bg-soft); color: var(--wb-primary-dark); }
+.wb-tag.t-wrong { background: #FEE2E2; color: #991B1B; }
+.wb-tag.t-review { background: #FEE2E2; color: var(--wb-danger); }
+
+.wb-card-body { padding: 0 18px 14px 18px; }
+.wb-question {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--wb-ink);
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+}
+.wb-options {
+    background: var(--wb-bg-soft);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 0.88rem;
+    color: var(--wb-ink-soft);
+    white-space: pre-wrap;
+}
+.wb-answer-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.wb-answer-box {
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+}
+.wb-answer-box .label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 3px;
+    display: block;
+}
+.wb-answer-box.wrong {
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    color: #991B1B;
+}
+.wb-answer-box.wrong .label { color: var(--wb-danger); }
+.wb-answer-box.correct {
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    color: #065F46;
+}
+.wb-answer-box.correct .label { color: var(--wb-success); }
+.wb-answer-cn {
+    font-size: 0.85rem;
+    color: var(--wb-ink-soft);
+    margin-top: -6px;
+    margin-bottom: 12px;
+    padding-left: 4px;
+}
+
+.wb-note-area {
+    margin-bottom: 12px;
+}
+.wb-note-area textarea {
+    width: 100%;
+    border: 1px solid var(--wb-border);
+    border-radius: 9px;
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    resize: vertical;
+    min-height: 50px;
+    font-family: inherit;
+}
+.wb-note-area textarea:focus {
+    border-color: var(--wb-primary);
+    box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.12);
+    outline: none;
+}
+.wb-note-saved { font-size: 0.75rem; color: var(--wb-success); margin-top: 3px; display: none; }
+
+.wb-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    background: var(--wb-bg-soft);
+    border-top: 1px solid var(--wb-border);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.wb-meta { font-size: 0.78rem; color: var(--wb-ink-soft); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wb-meta i { color: var(--wb-primary); }
+.wb-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.wb-act-btn {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.wb-act-btn.master { background: var(--wb-success); color: #fff; }
+.wb-act-btn.master:hover { background: #15803D; }
+.wb-act-btn.unmaster { background: #fff; color: var(--wb-amber); border-color: var(--wb-amber); }
+.wb-act-btn.unmaster:hover { background: var(--wb-amber); color: #fff; }
+.wb-act-btn.review { background: var(--wb-info); color: #fff; }
+.wb-act-btn.review:hover { background: #0284C7; }
+.wb-act-btn.redo { background: #fff; color: var(--wb-primary-dark); border-color: var(--wb-primary); }
+.wb-act-btn.redo:hover { background: var(--wb-primary); color: #fff; }
+.wb-act-btn.del { background: #fff; color: var(--wb-danger); border-color: #FECACA; }
+.wb-act-btn.del:hover { background: var(--wb-danger); color: #fff; }
+
+/* 空状态 */
+.wb-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--wb-ink-soft);
+}
+.wb-empty i { font-size: 3rem; color: var(--wb-border); display: block; margin-bottom: 14px; }
+.wb-empty h4 { color: var(--wb-primary-dark); margin-bottom: 8px; }
+
+/* 加载 */
+.wb-loading { text-align: center; padding: 40px; color: var(--wb-ink-soft); }
+
+/* 模态框题目搜索结果 */
+.quiz-search-results {
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid var(--wb-border);
+    border-radius: 9px;
+    margin-top: 8px;
+}
+.quiz-search-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--wb-border);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.quiz-search-item:last-child { border-bottom: none; }
+.quiz-search-item:hover { background: var(--wb-bg-soft); }
+.quiz-search-item.selected { background: var(--wb-bg-soft); border-left: 3px solid var(--wb-primary); }
+.quiz-search-item .qsi-text {
+    font-size: 0.88rem;
+    color: var(--wb-ink);
+    margin-bottom: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+.quiz-search-item .qsi-meta { font-size: 0.74rem; color: var(--wb-ink-soft); }
+
+@media (max-width: 640px) {
+    .wb-answer-row { grid-template-columns: 1fr; }
+    .wb-stats { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wb-wrap">
+    <!-- 顶部标题 -->
+    <div class="wb-header">
+        <div>
+            <h1 class="wb-title">
+                <span class="title-icon"><i class="bi bi-journal-x"></i></span>
+                错题本
+            </h1>
+            <p class="wb-subtitle">收录错题，按艾宾浩斯曲线科学复习，攻克薄弱环节</p>
+        </div>
+        <a href="{{ url_for('dashboard.index') }}" class="btn wb-btn-outline">
+            <i class="bi bi-speedometer2"></i> 学习仪表盘
+        </a>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="wb-stats">
+        <div class="wb-stat">
+            <div class="wb-stat-icon"><i class="bi bi-journal-text"></i></div>
+            <div class="wb-stat-value"><span id="statTotal">0</span><span class="unit">题</span></div>
+            <div class="wb-stat-label">总错题数</div>
+        </div>
+        <div class="wb-stat s-danger">
+            <div class="wb-stat-icon"><i class="bi bi-alarm"></i></div>
+            <div class="wb-stat-value"><span id="statNeedReview">0</span><span class="unit">题</span></div>
+            <div class="wb-stat-label">待复习数</div>
+        </div>
+        <div class="wb-stat s-success">
+            <div class="wb-stat-icon"><i class="bi bi-check-circle"></i></div>
+            <div class="wb-stat-value"><span id="statMastered">0</span><span class="unit">题</span></div>
+            <div class="wb-stat-label">已掌握数</div>
+        </div>
+        <div class="wb-stat s-amber">
+            <div class="wb-stat-icon"><i class="bi bi-calendar-day"></i></div>
+            <div class="wb-stat-value"><span id="statToday">0</span><span class="unit">题</span></div>
+            <div class="wb-stat-label">今日需复习</div>
+        </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="wb-toolbar">
+        <select id="filterChapter" class="form-select">
+            <option value="">全部章节</option>
+            {% for ch in chapters %}
+            <option value="{{ ch }}">{{ ch }}</option>
+            {% endfor %}
+        </select>
+        <select id="filterTag" class="form-select">
+            <option value="">全部标签</option>
+            {% for t in all_tags %}
+            <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+        </select>
+        <select id="filterStatus" class="form-select">
+            <option value="">全部状态</option>
+            <option value="need_review">待复习</option>
+            <option value="mastered">已掌握</option>
+            <option value="unmastered">未掌握</option>
+        </select>
+        <button class="btn wb-btn-outline" id="btnResetFilter">
+            <i class="bi bi-arrow-counterclockwise"></i> 重置
+        </button>
+        <div class="toolbar-spacer"></div>
+        <button class="btn wb-btn-amber" id="btnAutoAdd" title="从刷题记录自动收录错题">
+            <i class="bi bi-cloud-download"></i> 自动收录
+        </button>
+        <button class="btn wb-btn-primary" id="btnAdd">
+            <i class="bi bi-plus-lg"></i> 手动添加
+        </button>
+        <button class="btn wb-btn-outline" id="btnExportPdf">
+            <i class="bi bi-file-pdf"></i> 导出PDF
+        </button>
+    </div>
+
+    <!-- 错题列表 -->
+    <div class="wb-list" id="wbList">
+        <div class="wb-loading"><i class="bi bi-arrow-clockwise"></i> 加载中...</div>
+    </div>
+</div>
+
+<!-- 手动添加模态框 -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>手动添加错题</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 添加方式切换 -->
+                <ul class="nav nav-pills mb-3" id="addTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-search" type="button">
+                            <i class="bi bi-search me-1"></i>从题库选择
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-input" type="button">
+                            <i class="bi bi-pencil me-1"></i>直接输入
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <!-- 从题库搜索 -->
+                    <div class="tab-pane fade show active" id="tab-search">
+                        <div class="mb-2">
+                            <input type="text" class="form-control" id="quizSearchInput" placeholder="输入关键词搜索题库（题目内容）...">
+                        </div>
+                        <div class="quiz-search-results" id="quizSearchResults">
+                            <div style="padding:18px;text-align:center;color:#9ca3af;font-size:0.85rem;">输入关键词后点击搜索</div>
+                        </div>
+                        <div id="selectedQuizInfo" style="display:none;margin-top:12px;padding:12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:9px;">
+                            <div style="font-size:0.78rem;color:#065F46;font-weight:600;margin-bottom:4px;">已选题目</div>
+                            <div id="selectedQuizText" style="font-size:0.9rem;"></div>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label small fw-bold">你的答案（选填）</label>
+                            <textarea class="form-control" id="addUserAnswer" rows="2" placeholder="输入你当时做错的答案"></textarea>
+                        </div>
+                    </div>
+                    <!-- 直接输入 -->
+                    <div class="tab-pane fade" id="tab-input">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">题目内容 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="addQuestionText" rows="3" placeholder="输入题目内容"></textarea>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">章节</label>
+                                <input type="text" class="form-control" id="addChapter" placeholder="如：第一章">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">题型</label>
+                                <select class="form-select" id="addQuestionType">
+                                    <option value="short_answer">简答题</option>
+                                    <option value="choice">选择题</option>
+                                    <option value="fill">填空题</option>
+                                    <option value="calc">计算题</option>
+                                    <option value="proof">证明题</option>
+                                    <option value="true_false">判断题</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">难度</label>
+                                <select class="form-select" id="addDifficulty">
+                                    <option value="medium">中等</option>
+                                    <option value="easy">简单</option>
+                                    <option value="hard">困难</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">正确答案 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="addCorrectAnswer" rows="2" placeholder="输入正确答案"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">你的答案（选填）</label>
+                            <textarea class="form-control" id="addUserAnswer2" rows="2" placeholder="输入你做错的答案"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">标签（逗号分隔）</label>
+                            <input type="text" class="form-control" id="addTags" placeholder="如：逻辑,集合">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn wb-btn-primary" id="btnSubmitAdd">
+                    <i class="bi bi-check-lg"></i> 添加错题
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const API_BASE = '{{ url_for("wrong_book.index") }}';
+    let allItems = [];
+    let selectedQuizId = null;
+    let addModal = null;
+    const noteTimers = {};
+
+    // ===== 工具函数 =====
+    function showToast(message, type) {
+        type = type || 'info';
+        const bgMap = { success: 'bg-success', error: 'bg-danger', warning: 'bg-warning', info: 'bg-seagreen' };
+        const toast = document.createElement('div');
+        toast.className = 'toast align-items-center text-white border-0 ' + (bgMap[type] || 'bg-seagreen');
+        toast.style.cssText = 'position:fixed;top:80px;right:20px;z-index:10000;min-width:200px;';
+        toast.innerHTML = '<div class="d-flex"><div class="toast-body">' + escapeHtml(message) + '</div>' +
+            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+        document.body.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+        toast.addEventListener('hidden.bs.toast', function () { toast.remove(); });
+    }
+    async function fetchJSON(url, opts) {
+        const resp = await fetch(url, opts);
+        return resp.json();
+    }
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function fmtDate(iso) {
+        if (!iso) return '-';
+        try {
+            const d = new Date(iso);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        } catch (e) { return iso; }
+    }
+    function fmtDateTime(iso) {
+        if (!iso) return '-';
+        try {
+            const d = new Date(iso);
+            return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        } catch (e) { return iso; }
+    }
+    function diffClass(diff) {
+        return { easy: 't-diff-easy', medium: 't-diff-medium', hard: 't-diff-hard' }[diff] || 't-diff-medium';
+    }
+    function parseOptions(options) {
+        if (!options) return null;
+        if (typeof options === 'object') return options;
+        try { return JSON.parse(options); } catch (e) { return null; }
+    }
+
+    // ===== 统计 =====
+    async function loadStats() {
+        try {
+            const data = await fetchJSON(API_BASE + 'api/stats');
+            if (!data.success) return;
+            document.getElementById('statTotal').textContent = data.total || 0;
+            document.getElementById('statNeedReview').textContent = data.need_review || 0;
+            document.getElementById('statMastered').textContent = data.mastered || 0;
+            document.getElementById('statToday').textContent = data.today_review || 0;
+        } catch (e) { console.error('加载统计失败', e); }
+    }
+
+    // ===== 列表 =====
+    async function loadList() {
+        const chapter = document.getElementById('filterChapter').value;
+        const tag = document.getElementById('filterTag').value;
+        const status = document.getElementById('filterStatus').value;
+
+        const params = new URLSearchParams();
+        if (chapter) params.set('chapter', chapter);
+        if (tag) params.set('tags', tag);
+        if (status === 'mastered') params.set('is_mastered', 'true');
+        else if (status === 'unmastered') params.set('is_mastered', 'false');
+        else if (status === 'need_review') params.set('need_review', 'true');
+
+        const box = document.getElementById('wbList');
+        box.innerHTML = '<div class="wb-loading"><i class="bi bi-arrow-clockwise"></i> 加载中...</div>';
+
+        try {
+            const data = await fetchJSON(API_BASE + 'api/list?' + params.toString());
+            if (!data.success) { box.innerHTML = '<div class="wb-empty">加载失败</div>'; return; }
+            allItems = data.items || [];
+            renderList(allItems);
+        } catch (e) {
+            box.innerHTML = '<div class="wb-empty"><i class="bi bi-exclamation-triangle"></i>加载失败，请稍后重试</div>';
+        }
+    }
+
+    function renderList(items) {
+        const box = document.getElementById('wbList');
+        if (!items || items.length === 0) {
+            box.innerHTML = `
+                <div class="wb-empty">
+                    <i class="bi bi-inbox"></i>
+                    <h4>错题本空空如也</h4>
+                    <p>刷题时做错的题目会自动收录到这里，<br>也可点击"手动添加"或"自动收录"补充错题。</p>
+                    <a href="/quiz/practice" class="btn wb-btn-primary mt-2"><i class="bi bi-pencil-square"></i> 去刷题</a>
+                </div>`;
+            return;
+        }
+        box.innerHTML = items.map(it => renderItem(it)).join('');
+        // 绑定事件
+        bindCardEvents();
+    }
+
+    function renderItem(it) {
+        const opts = parseOptions(it.options);
+        let optionsHtml = '';
+        if (opts && (Array.isArray(opts) || typeof opts === 'object')) {
+            let lines = [];
+            if (Array.isArray(opts)) {
+                opts.forEach((o, i) => lines.push(`${String.fromCharCode(65+i)}. ${escapeHtml(typeof o === 'string' ? o : (o.text || o.label || JSON.stringify(o)))}`));
+            } else {
+                Object.keys(opts).forEach(k => lines.push(`${escapeHtml(k)}. ${escapeHtml(opts[k])}`));
+            }
+            if (lines.length) optionsHtml = `<div class="wb-options">${lines.join('\n')}</div>`;
+        }
+
+        const reviewBadge = it.need_review
+            ? `<span class="wb-tag t-review"><i class="bi bi-alarm"></i> 待复习</span>`
+            : (it.is_mastered ? '' : `<span class="wb-tag" style="background:#FEF3C7;color:#92400E;"><i class="bi bi-clock"></i> ${it.next_review ? '下次 ' + fmtDate(it.next_review) : '未安排'}</span>`);
+
+        return `
+        <div class="wb-card ${it.is_mastered ? 'mastered' : ''} ${it.need_review ? 'need-review' : ''}" data-id="${it.id}">
+            <div class="wb-card-head">
+                <div class="wb-card-tags">
+                    ${it.question_type_cn ? `<span class="wb-tag t-type">${escapeHtml(it.question_type_cn)}</span>` : ''}
+                    ${it.difficulty ? `<span class="wb-tag ${diffClass(it.difficulty)}">${escapeHtml(it.difficulty_cn || it.difficulty)}</span>` : ''}
+                    ${it.chapter ? `<span class="wb-tag t-chapter"><i class="bi bi-book"></i> ${escapeHtml(it.chapter)}</span>` : ''}
+                    <span class="wb-tag t-wrong"><i class="bi bi-x-circle"></i> 答错 ${it.wrong_count} 次</span>
+                    ${reviewBadge}
+                </div>
+            </div>
+            <div class="wb-card-body">
+                <div class="wb-question">${escapeHtml(it.question_text)}</div>
+                ${optionsHtml}
+                <div class="wb-answer-row">
+                    <div class="wb-answer-box wrong">
+                        <span class="label"><i class="bi bi-x-circle"></i> 你的答案</span>
+                        ${escapeHtml(it.user_answer || '（未作答）')}
+                    </div>
+                    <div class="wb-answer-box correct">
+                        <span class="label"><i class="bi bi-check-circle"></i> 正确答案</span>
+                        ${escapeHtml(it.correct_answer || '')}
+                    </div>
+                </div>
+                ${it.answer_cn ? `<div class="wb-answer-cn"><i class="bi bi-translate"></i> 中文答案：${escapeHtml(it.answer_cn)}</div>` : ''}
+                <div class="wb-note-area">
+                    <textarea placeholder="写下你的笔记、解题思路或易错点..." data-id="${it.id}" class="wb-note-input">${escapeHtml(it.note || '')}</textarea>
+                    <div class="wb-note-saved" data-note-saved="${it.id}"><i class="bi bi-check2"></i> 笔记已自动保存</div>
+                </div>
+            </div>
+            <div class="wb-card-foot">
+                <div class="wb-meta">
+                    <span><i class="bi bi-calendar-plus"></i> 收录于 ${fmtDate(it.added_at)}</span>
+                    ${it.last_reviewed ? `<span><i class="bi bi-clock-history"></i> 上次复习 ${fmtDate(it.last_reviewed)}</span>` : ''}
+                    ${it.next_review && !it.is_mastered ? `<span><i class="bi bi-calendar-event"></i> 下次复习 ${fmtDate(it.next_review)}</span>` : ''}
+                </div>
+                <div class="wb-actions">
+                    ${it.need_review ? `<button class="wb-act-btn review" data-act="review" data-id="${it.id}"><i class="bi bi-check2-circle"></i> 已复习</button>` : ''}
+                    ${it.is_mastered
+                        ? `<button class="wb-act-btn unmaster" data-act="unmaster" data-id="${it.id}"><i class="bi bi-arrow-counterclockwise"></i> 取消掌握</button>`
+                        : `<button class="wb-act-btn master" data-act="master" data-id="${it.id}"><i class="bi bi-check-lg"></i> 标记已掌握</button>`}
+                    <a class="wb-act-btn redo" href="/quiz/practice"><i class="bi bi-arrow-repeat"></i> 再做一次</a>
+                    <button class="wb-act-btn del" data-act="delete" data-id="${it.id}"><i class="bi bi-trash"></i> 删除</button>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function bindCardEvents() {
+        // 操作按钮
+        document.querySelectorAll('.wb-act-btn[data-act]').forEach(btn => {
+            btn.addEventListener('click', async function () {
+                const act = this.dataset.act;
+                const id = this.dataset.id;
+                if (act === 'delete') {
+                    if (!confirm('确定删除这道错题吗？')) return;
+                    await doAction(id, 'delete', 'DELETE');
+                } else if (act === 'master') {
+                    await doAction(id, 'mastered', 'POST');
+                } else if (act === 'unmaster') {
+                    await doAction(id, 'unmastered', 'POST');
+                } else if (act === 'review') {
+                    await doAction(id, 'review', 'POST');
+                }
+            });
+        });
+
+        // 笔记自动保存（防抖）
+        document.querySelectorAll('.wb-note-input').forEach(ta => {
+            ta.addEventListener('input', function () {
+                const id = this.dataset.id;
+                if (noteTimers[id]) clearTimeout(noteTimers[id]);
+                noteTimers[id] = setTimeout(() => saveNote(id, this.value), 800);
+            });
+        });
+    }
+
+    async function doAction(id, action, method) {
+        try {
+            const resp = await fetch(`${API_BASE}api/${id}/${action}`, { method: method });
+            const data = await resp.json();
+            if (data.success) {
+                loadStats();
+                loadList();
+            } else {
+                showToast(data.message || '操作失败', 'error');
+            }
+        } catch (e) { showToast('操作失败：' + e.message, 'error'); }
+    }
+
+    async function saveNote(id, note) {
+        try {
+            const resp = await fetch(`${API_BASE}api/${id}/note`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: note })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                const tip = document.querySelector(`[data-note-saved="${id}"]`);
+                if (tip) { tip.style.display = 'block'; setTimeout(() => { tip.style.display = 'none'; }, 1500); }
+            }
+        } catch (e) { /* 静默失败 */ }
+    }
+
+    // ===== 筛选 =====
+    ['filterChapter', 'filterTag', 'filterStatus'].forEach(id => {
+        document.getElementById(id).addEventListener('change', loadList);
+    });
+    document.getElementById('btnResetFilter').addEventListener('click', function () {
+        document.getElementById('filterChapter').value = '';
+        document.getElementById('filterTag').value = '';
+        document.getElementById('filterStatus').value = '';
+        loadList();
+    });
+
+    // ===== 自动收录 =====
+    document.getElementById('btnAutoAdd').addEventListener('click', async function () {
+        if (!confirm('从所有刷题记录中自动收录错题？已收录的错题会更新答错次数。')) return;
+        const btn = this;
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 收录中...';
+        try {
+            const resp = await fetch(API_BASE + 'api/auto-add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                loadStats();
+                loadList();
+            } else {
+                showToast(data.message || '收录失败', 'error');
+            }
+        } catch (e) { showToast('收录失败：' + e.message, 'error'); }
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+    });
+
+    // ===== 导出PDF =====
+    document.getElementById('btnExportPdf').addEventListener('click', function () {
+        const chapter = document.getElementById('filterChapter').value;
+        const tag = document.getElementById('filterTag').value;
+        const status = document.getElementById('filterStatus').value;
+        const params = new URLSearchParams();
+        if (chapter) params.set('chapter', chapter);
+        if (tag) params.set('tags', tag);
+        if (status === 'mastered') params.set('is_mastered', 'true');
+        else if (status === 'unmastered') params.set('is_mastered', 'false');
+        const q = params.toString();
+        window.location.href = API_BASE + 'api/export-pdf' + (q ? '?' + q : '');
+    });
+
+    // ===== 手动添加模态框 =====
+    document.getElementById('btnAdd').addEventListener('click', function () {
+        if (!addModal) addModal = new bootstrap.Modal(document.getElementById('addModal'));
+        // 重置表单
+        selectedQuizId = null;
+        document.getElementById('quizSearchInput').value = '';
+        document.getElementById('quizSearchResults').innerHTML = '<div style="padding:18px;text-align:center;color:#9ca3af;font-size:0.85rem;">输入关键词后点击搜索</div>';
+        document.getElementById('selectedQuizInfo').style.display = 'none';
+        document.getElementById('addUserAnswer').value = '';
+        document.getElementById('addQuestionText').value = '';
+        document.getElementById('addChapter').value = '';
+        document.getElementById('addQuestionType').value = 'short_answer';
+        document.getElementById('addDifficulty').value = 'medium';
+        document.getElementById('addCorrectAnswer').value = '';
+        document.getElementById('addUserAnswer2').value = '';
+        document.getElementById('addTags').value = '';
+        addModal.show();
+    });
+
+    // 题库搜索
+    let searchTimer = null;
+    document.getElementById('quizSearchInput').addEventListener('input', function () {
+        const kw = this.value.trim();
+        if (searchTimer) clearTimeout(searchTimer);
+        if (!kw) {
+            document.getElementById('quizSearchResults').innerHTML = '<div style="padding:18px;text-align:center;color:#9ca3af;font-size:0.85rem;">输入关键词后点击搜索</div>';
+            return;
+        }
+        searchTimer = setTimeout(() => searchQuiz(kw), 400);
+    });
+
+    async function searchQuiz(kw) {
+        const box = document.getElementById('quizSearchResults');
+        box.innerHTML = '<div style="padding:18px;text-align:center;color:#9ca3af;font-size:0.85rem;"><i class="bi bi-arrow-clockwise"></i> 搜索中...</div>';
+        try {
+            const resp = await fetch('/quiz/api/list?per_page=20&page=1');
+            const data = await resp.json();
+            // 客户端关键词过滤（题库list API 不支持关键词，这里在前端过滤）
+            const items = (data.items || []).filter(it =>
+                (it.question_text || '').toLowerCase().includes(kw.toLowerCase())
+            ).slice(0, 20);
+            if (items.length === 0) {
+                box.innerHTML = '<div style="padding:18px;text-align:center;color:#9ca3af;font-size:0.85rem;">未找到匹配题目</div>';
+                return;
+            }
+            box.innerHTML = items.map(it => `
+                <div class="quiz-search-item" data-quiz-id="${it.id}" data-quiz-text="${escapeHtml(it.question_text)}">
+                    <div class="qsi-text">${escapeHtml(it.question_text)}</div>
+                    <div class="qsi-meta">
+                        ${it.chapter ? escapeHtml(it.chapter) : ''} · 
+                        ${it.question_type || ''} · 
+                        ${it.difficulty || ''}
+                    </div>
+                </div>
+            `).join('');
+            box.querySelectorAll('.quiz-search-item').forEach(el => {
+                el.addEventListener('click', function () {
+                    box.querySelectorAll('.quiz-search-item').forEach(e => e.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedQuizId = this.dataset.quizId;
+                    document.getElementById('selectedQuizText').textContent = this.dataset.quizText;
+                    document.getElementById('selectedQuizInfo').style.display = 'block';
+                });
+            });
+        } catch (e) {
+            box.innerHTML = '<div style="padding:18px;text-align:center;color:#dc2626;font-size:0.85rem;">搜索失败</div>';
+        }
+    }
+
+    // 提交添加
+    document.getElementById('btnSubmitAdd').addEventListener('click', async function () {
+        const btn = this;
+        const activeTab = document.querySelector('#addTab .nav-link.active').getAttribute('data-bs-target');
+        let payload = {};
+
+        if (activeTab === '#tab-search') {
+            if (!selectedQuizId) { showToast('请先从题库中选择一道题目', 'warning'); return; }
+            payload.quiz_id = parseInt(selectedQuizId);
+            payload.user_answer = document.getElementById('addUserAnswer').value.trim();
+        } else {
+            const qtext = document.getElementById('addQuestionText').value.trim();
+            const canswer = document.getElementById('addCorrectAnswer').value.trim();
+            if (!qtext) { showToast('请输入题目内容', 'warning'); return; }
+            if (!canswer) { showToast('请输入正确答案', 'warning'); return; }
+            payload.question_text = qtext;
+            payload.correct_answer = canswer;
+            payload.user_answer = document.getElementById('addUserAnswer2').value.trim();
+            payload.chapter = document.getElementById('addChapter').value.trim();
+            payload.question_type = document.getElementById('addQuestionType').value;
+            payload.difficulty = document.getElementById('addDifficulty').value;
+            payload.tags = document.getElementById('addTags').value.trim();
+        }
+
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 提交中...';
+        try {
+            const resp = await fetch(API_BASE + 'api/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                if (addModal) addModal.hide();
+                showToast(data.message || '添加成功', 'success');
+                loadStats();
+                loadList();
+            } else {
+                showToast(data.message || '添加失败', 'error');
+            }
+        } catch (e) {
+            showToast('添加失败：' + e.message, 'error');
+        }
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+    });
+
+    // ===== 启动 =====
+    document.addEventListener('DOMContentLoaded', function () {
+        loadStats();
+        loadList();
+    });
+})();
+</script>
+{% endblock %}

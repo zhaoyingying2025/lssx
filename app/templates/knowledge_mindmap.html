@@ -1,0 +1,1154 @@
+{% extends "base.html" %}
+
+{% block title %}思维导图 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<link href="/static/mind-elixir/MindElixir.css?v=5.14.0" rel="stylesheet">
+<style>
+.mm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(46,139,87,0.10);
+    margin-bottom: 14px;
+    border: 1px solid var(--border-green);
+}
+.mm-toolbar .mm-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--dark-green);
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.mm-toolbar .btn-mm {
+    background: #fff;
+    color: var(--seagreen);
+    border: 1.5px solid var(--border-green);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.mm-toolbar .btn-mm:hover {
+    background: var(--seagreen);
+    color: #fff;
+    border-color: var(--seagreen);
+    transform: translateY(-1px);
+}
+.mm-toolbar .btn-mm.active {
+    background: var(--seagreen);
+    color: #fff;
+    border-color: var(--seagreen);
+}
+.mm-toolbar .btn-mm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+.mm-toolbar .divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border-green);
+    margin: 0 4px;
+}
+.mm-toolbar .search-box {
+    position: relative;
+}
+.mm-toolbar .search-box input {
+    border-radius: 20px;
+    padding: 6px 14px 6px 32px;
+    border: 1.5px solid var(--border-green);
+    width: 200px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+.mm-toolbar .search-box input:focus {
+    border-color: var(--seagreen);
+    box-shadow: 0 0 0 3px rgba(46,139,87,0.15);
+    outline: none;
+    width: 240px;
+}
+.mm-toolbar .search-box .bi {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+    font-size: 0.85rem;
+}
+.mm-toolbar .dropdown-wrap {
+    position: relative;
+}
+.mm-toolbar .dropdown-wrap select {
+    appearance: none;
+    background: #fff;
+    color: var(--seagreen);
+    border: 1.5px solid var(--border-green);
+    border-radius: 8px;
+    padding: 6px 28px 6px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.mm-toolbar .dropdown-wrap select:hover {
+    border-color: var(--seagreen);
+}
+.mm-toolbar .dropdown-wrap::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-top-color: var(--seagreen);
+    pointer-events: none;
+}
+
+.mm-canvas-wrap {
+    position: relative;
+    background: linear-gradient(135deg, #FAFAF5 0%, #F1F8E9 100%);
+    border-radius: 14px;
+    border: 1px solid var(--border-green);
+    box-shadow: 0 4px 20px rgba(46,139,87,0.10);
+    overflow: hidden;
+    height: calc(100vh - 230px);
+    min-height: 500px;
+}
+#mindmap-container {
+    width: 100%;
+    height: 100%;
+}
+
+.mm-hint {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--border-green);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    max-width: 70%;
+    z-index: 10;
+}
+.mm-hint .hint-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.mm-hint .bi {
+    color: var(--seagreen);
+}
+
+.mm-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-muted);
+    text-align: center;
+    z-index: 10;
+}
+.mm-loading .spinner-border {
+    color: var(--seagreen);
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+.mm-save-status {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--border-green);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.78rem;
+    color: var(--dark-green);
+    font-weight: 600;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.mm-save-status.saving {
+    color: #FF9800;
+}
+.mm-save-status.saved {
+    color: #4CAF50;
+}
+
+.mm-stats {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--border-green);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    z-index: 10;
+    display: flex;
+    gap: 12px;
+}
+.mm-stats .stat-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.mm-stats .stat-num {
+    font-weight: 700;
+    color: var(--seagreen);
+}
+
+.color-picker {
+    position: absolute;
+    display: none;
+    background: #fff;
+    border: 1px solid var(--border-green);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 100;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+}
+.color-picker.show {
+    display: grid;
+}
+.color-picker .color-item {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s ease;
+}
+.color-picker .color-item:hover {
+    transform: scale(1.2);
+    border-color: #333;
+}
+
+.icon-picker {
+    position: absolute;
+    display: none;
+    background: #fff;
+    border: 1px solid var(--border-green);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 100;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    max-width: 400px;
+}
+.icon-picker.show {
+    display: grid;
+}
+.icon-picker .icon-item {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+.icon-picker .icon-item:hover {
+    background: var(--light-green-bg);
+    transform: scale(1.1);
+}
+
+.shape-picker {
+    position: absolute;
+    display: none;
+    background: #fff;
+    border: 1px solid var(--border-green);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 100;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+.shape-picker.show {
+    display: grid;
+}
+.shape-picker .shape-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+.shape-picker .shape-item:hover {
+    background: var(--light-green-bg);
+}
+.shape-picker .shape-preview {
+    width: 36px;
+    height: 24px;
+    border: 2px solid var(--seagreen);
+}
+.shape-picker .shape-preview.round {
+    border-radius: 12px;
+}
+.shape-picker .shape-preview.square {
+    border-radius: 4px;
+}
+.shape-picker .shape-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.template-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.template-modal.show {
+    display: flex;
+}
+.template-modal .modal-content {
+    background: #fff;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow: hidden;
+}
+.template-modal .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-green);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.template-modal .modal-header h3 {
+    margin: 0;
+    color: var(--dark-green);
+}
+.template-modal .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+.template-modal .modal-body {
+    padding: 20px;
+    overflow-y: auto;
+}
+.template-modal .template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+.template-modal .template-card {
+    border: 1px solid var(--border-green);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+.template-modal .template-card:hover {
+    border-color: var(--seagreen);
+    box-shadow: 0 4px 12px rgba(46,139,87,0.15);
+    transform: translateY(-2px);
+}
+.template-modal .template-preview {
+    width: 100%;
+    height: 120px;
+    background: linear-gradient(135deg, #FAFAF5 0%, #F1F8E9 100%);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+.template-modal .template-name {
+    font-weight: 600;
+    color: var(--dark-green);
+    margin-bottom: 4px;
+}
+.template-modal .template-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+    .mm-toolbar {
+        padding: 8px 12px;
+    }
+    .mm-toolbar .btn-mm span {
+        display: none;
+    }
+    .mm-toolbar .search-box input {
+        width: 120px;
+    }
+    .mm-canvas-wrap {
+        height: calc(100vh - 180px);
+    }
+    .mm-hint {
+        max-width: 90%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mm-toolbar">
+    <div class="mm-title"><i class="bi bi-diagram-3-fill"></i>思维导图</div>
+    
+    <div class="dropdown-wrap">
+        <select id="template-select" title="选择模板">
+            <option value="">选择模板...</option>
+            <option value="blank">空白模板</option>
+            <option value="textbook">离散数学教材</option>
+            <option value="exam">考研复习</option>
+            <option value="notes">读书笔记</option>
+            <option value="problem">解题思路</option>
+        </select>
+    </div>
+
+    <div class="divider"></div>
+    
+    <button class="btn-mm" id="btn-add-child" title="添加子节点 (Tab)"><i class="bi bi-plus"></i><span>子节点</span></button>
+    <button class="btn-mm" id="btn-add-sibling" title="添加兄弟节点 (Enter)"><i class="bi bi-plus-lg"></i><span>兄弟节点</span></button>
+    <button class="btn-mm" id="btn-delete" title="删除节点 (Delete)"><i class="bi bi-trash"></i><span>删除</span></button>
+    
+    <div class="divider"></div>
+    
+    <button class="btn-mm" id="btn-upgrade" title="升级节点"><i class="bi bi-arrow-up"></i><span>升级</span></button>
+    <button class="btn-mm" id="btn-downgrade" title="降级节点"><i class="bi bi-arrow-down"></i><span>降级</span></button>
+    <button class="btn-mm" id="btn-move-up" title="上移"><i class="bi bi-chevron-up"></i></button>
+    <button class="btn-mm" id="btn-move-down" title="下移"><i class="bi bi-chevron-down"></i></button>
+    
+    <div class="divider"></div>
+    
+    <button class="btn-mm" id="btn-undo" title="撤销 (Ctrl+Z)"><i class="bi bi-arrow-counterclockwise"></i><span>撤销</span></button>
+    <button class="btn-mm" id="btn-redo" title="重做 (Ctrl+Y)"><i class="bi bi-arrow-clockwise"></i><span>重做</span></button>
+    
+    <div class="divider"></div>
+    
+    <button class="btn-mm" id="btn-expand-all" title="展开全部"><i class="bi bi-arrows-angle-expand"></i><span>展开</span></button>
+    <button class="btn-mm" id="btn-collapse-all" title="收起全部"><i class="bi bi-arrows-angle-contract"></i><span>收起</span></button>
+    
+    <div class="divider"></div>
+    
+    <button class="btn-mm" id="btn-color" title="节点颜色"><i class="bi bi-palette"></i><span>颜色</span></button>
+    <button class="btn-mm" id="btn-shape" title="节点形状"><i class="bi bi-square"></i><span>形状</span></button>
+    <button class="btn-mm" id="btn-icon" title="节点图标"><i class="bi bi-star"></i><span>图标</span></button>
+    <button class="btn-mm" id="btn-theme" title="切换主题"><i class="bi bi-paint-bucket"></i><span>主题</span></button>
+    
+    <div class="divider"></div>
+    
+    <button class="btn-mm" id="btn-export-png" title="导出PNG"><i class="bi bi-image"></i><span>PNG</span></button>
+    <button class="btn-mm" id="btn-export-pdf" title="导出PDF"><i class="bi bi-file-pdf"></i><span>PDF</span></button>
+    <button class="btn-mm" id="btn-export-json" title="导出JSON"><i class="bi bi-file-code"></i><span>JSON</span></button>
+    <button class="btn-mm" id="btn-save" title="保存"><i class="bi bi-save"></i><span>保存</span></button>
+    
+    <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" id="mm-search" placeholder="搜索节点..." autocomplete="off">
+    </div>
+    
+    <a href="{{ url_for('knowledge.index') }}" class="btn-mm"><i class="bi bi-arrow-left"></i><span>返回</span></a>
+</div>
+
+<div class="mm-canvas-wrap">
+    <div id="mindmap-container"></div>
+    <div class="mm-stats" id="mm-stats">
+        <span class="stat-item"><i class="bi bi-node-plus"></i><span class="stat-num" id="node-count">0</span>个节点</span>
+        <span class="stat-item"><i class="bi bi-layers"></i><span class="stat-num" id="level-count">0</span>层</span>
+    </div>
+    <div class="mm-save-status" id="mm-save-status">
+        <i class="bi bi-save"></i><span>已保存</span>
+    </div>
+    <div class="mm-hint">
+        <span class="hint-item"><i class="bi bi-mouse"></i>滚轮缩放</span>
+        <span class="hint-item"><i class="bi bi-arrows-move"></i>拖拽移动</span>
+        <span class="hint-item"><i class="bi bi-pencil"></i>双击编辑节点</span>
+        <span class="hint-item"><i class="bi bi-hand-index-thumb"></i>右键菜单</span>
+        <span class="hint-item"><i class="bi bi-keyboard"></i>Enter/Tab添加 | Delete删除</span>
+    </div>
+    <div class="mm-loading" id="mm-loading">
+        <div class="spinner-border" role="status"></div>
+        <p class="mt-2">正在加载思维导图...</p>
+    </div>
+</div>
+
+<div class="color-picker" id="color-picker"></div>
+<div class="icon-picker" id="icon-picker"></div>
+<div class="shape-picker" id="shape-picker"></div>
+
+<div class="template-modal" id="template-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="bi bi-layout-template"></i>选择模板</h3>
+            <button class="modal-close" id="modal-close"><i class="bi bi-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="template-grid">
+                <div class="template-card" data-template="blank">
+                    <div class="template-preview">📄</div>
+                    <div class="template-name">空白模板</div>
+                    <div class="template-desc">从空白开始创建</div>
+                </div>
+                <div class="template-card" data-template="textbook">
+                    <div class="template-preview">📚</div>
+                    <div class="template-name">教材大纲</div>
+                    <div class="template-desc">离散数学教材章节结构</div>
+                </div>
+                <div class="template-card" data-template="exam">
+                    <div class="template-preview">📝</div>
+                    <div class="template-name">考研复习</div>
+                    <div class="template-desc">按考点组织的复习框架</div>
+                </div>
+                <div class="template-card" data-template="notes">
+                    <div class="template-preview">📒</div>
+                    <div class="template-name">读书笔记</div>
+                    <div class="template-desc">阅读笔记结构模板</div>
+                </div>
+                <div class="template-card" data-template="problem">
+                    <div class="template-preview">💡</div>
+                    <div class="template-name">解题思路</div>
+                    <div class="template-desc">问题分析与解法框架</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/mind-elixir/MindElixir.iife.js?v=5.14.0"></script>
+<script>
+(function () {
+    'use strict';
+
+    var container = document.getElementById('mindmap-container');
+    var loadingEl = document.getElementById('mm-loading');
+    var saveStatusEl = document.getElementById('mm-save-status');
+    var colorPickerEl = document.getElementById('color-picker');
+    var iconPickerEl = document.getElementById('icon-picker');
+    var shapePickerEl = document.getElementById('shape-picker');
+    var templateModal = document.getElementById('template-modal');
+    var nodeCountEl = document.getElementById('node-count');
+    var levelCountEl = document.getElementById('level-count');
+    
+    var mind = null;
+    var autoSaveTimer = null;
+    var isModified = false;
+    var MindElixir = window.MindElixir;
+    var ME = MindElixir.default;
+
+    var COLORS = [
+        '#2E8B57', '#3CB371', '#66BB6A', '#81C784', '#A5D6A7', '#C8E6C9',
+        '#1E88E5', '#42A5F5', '#64B5F6', '#90CAF9', '#BBDEFB', '#E3F2FD',
+        '#E53935', '#EF5350', '#E57373', '#EF9A9A', '#FFCDD2', '#FFEBEE',
+        '#FB8C00', '#FF9800', '#FFA726', '#FFB74D', '#FFCC80', '#FFF3E0',
+        '#7E57C2', '#9575CD', '#AB47BC', '#BA68C8', '#CE93D8', '#F3E5F5',
+        '#00ACC1', '#26C6DA', '#4DD0E1', '#80DEEA', '#B2EBF2', '#E0F7FA'
+    ];
+
+    var ICONS = [
+        '📚', '📖', '📝', '✏️', '💡', '🎯', '⭐', '🔥',
+        '📌', '🔑', '💎', '🏆', '📊', '📈', '📉', '🔍',
+        '💡', '🌟', '✨', '🚀', '🎓', '📚', '🧠', '🎯',
+        '✅', '❌', '⚠️', '💡', '🔗', '📎', '📍', '📌'
+    ];
+
+    var TEMPLATES = {
+        blank: {
+            topic: '离散数学',
+            children: []
+        },
+        textbook: {
+            topic: '离散数学',
+            children: [
+                { topic: '第1章 基础：逻辑与证明', children: [
+                    { topic: '1.1 命题逻辑' },
+                    { topic: '1.2 谓词逻辑' },
+                    { topic: '1.3 证明方法' },
+                    { topic: '1.4 数学归纳法' }
+                ]},
+                { topic: '第2章 基础：集合、函数、序列、求和', children: [
+                    { topic: '2.1 集合' },
+                    { topic: '2.2 函数' },
+                    { topic: '2.3 序列与求和' }
+                ]},
+                { topic: '第3章 计数', children: [
+                    { topic: '3.1 基本计数原理' },
+                    { topic: '3.2 排列与组合' },
+                    { topic: '3.3 二项式定理' },
+                    { topic: '3.4 容斥原理' }
+                ]},
+                { topic: '第4章 关系', children: [
+                    { topic: '4.1 关系的定义' },
+                    { topic: '4.2 关系的性质' },
+                    { topic: '4.3 关系的闭包' },
+                    { topic: '4.4 等价关系' },
+                    { topic: '4.5 偏序关系' }
+                ]},
+                { topic: '第5章 图', children: [
+                    { topic: '5.1 图的基本概念' },
+                    { topic: '5.2 图的表示' },
+                    { topic: '5.3 图的遍历' },
+                    { topic: '5.4 最短路径' },
+                    { topic: '5.5 最小生成树' }
+                ]},
+                { topic: '第6章 树', children: [
+                    { topic: '6.1 树的性质' },
+                    { topic: '6.2 二叉树' },
+                    { topic: '6.3 树的遍历' },
+                    { topic: '6.4 Huffman编码' }
+                ]},
+                { topic: '第7章 布尔代数', children: [
+                    { topic: '7.1 布尔函数' },
+                    { topic: '7.2 逻辑门' },
+                    { topic: '7.3 电路设计' }
+                ]}
+            ]
+        },
+        exam: {
+            topic: '离散数学考研复习',
+            children: [
+                { topic: '核心考点', children: [
+                    { topic: '逻辑推理' },
+                    { topic: '集合与函数' },
+                    { topic: '计数原理' },
+                    { topic: '关系与等价' },
+                    { topic: '图论基础' },
+                    { topic: '树与二叉树' }
+                ]},
+                { topic: '高频题型', children: [
+                    { topic: '证明题' },
+                    { topic: '计算题' },
+                    { topic: '应用题' },
+                    { topic: '构造题' }
+                ]},
+                { topic: '易错点', children: [
+                    { topic: '量词顺序' },
+                    { topic: '等价关系判定' },
+                    { topic: '图的连通性' },
+                    { topic: '树的性质' }
+                ]},
+                { topic: '公式速记', children: [
+                    { topic: '逻辑等价式' },
+                    { topic: '集合恒等式' },
+                    { topic: '计数公式' },
+                    { topic: '图论公式' }
+                ]}
+            ]
+        },
+        notes: {
+            topic: '读书笔记',
+            children: [
+                { topic: '核心概念', children: [] },
+                { topic: '重要定理', children: [] },
+                { topic: '例题解析', children: [] },
+                { topic: '难点突破', children: [] },
+                { topic: '学习心得', children: [] }
+            ]
+        },
+        problem: {
+            topic: '解题思路',
+            children: [
+                { topic: '问题分析', children: [
+                    { topic: '已知条件' },
+                    { topic: '目标要求' },
+                    { topic: '关键线索' }
+                ]},
+                { topic: '解题方法', children: [
+                    { topic: '方法一' },
+                    { topic: '方法二' },
+                    { topic: '方法三' }
+                ]},
+                { topic: '步骤推演', children: [] },
+                { topic: '易错点', children: [] },
+                { topic: '拓展思考', children: [] }
+            ]
+        }
+    };
+
+    function initColorPicker() {
+        COLORS.forEach(function(color) {
+            var el = document.createElement('div');
+            el.className = 'color-item';
+            el.style.backgroundColor = color;
+            el.addEventListener('click', function() {
+                applyNodeStyle({ backgroundColor: color });
+                colorPickerEl.classList.remove('show');
+            });
+            colorPickerEl.appendChild(el);
+        });
+    }
+
+    function initIconPicker() {
+        ICONS.forEach(function(icon) {
+            var el = document.createElement('div');
+            el.className = 'icon-item';
+            el.textContent = icon;
+            el.addEventListener('click', function() {
+                applyNodeIcon(icon);
+                iconPickerEl.classList.remove('show');
+            });
+            iconPickerEl.appendChild(el);
+        });
+    }
+
+    function initShapePicker() {
+        var shapes = [
+            { name: '圆角', style: 'border-radius: 12px' },
+            { name: '方形', style: 'border-radius: 4px' }
+        ];
+        shapes.forEach(function(shape) {
+            var el = document.createElement('div');
+            el.className = 'shape-item';
+            var preview = document.createElement('div');
+            preview.className = 'shape-preview';
+            preview.style.cssText = shape.style;
+            var label = document.createElement('span');
+            label.className = 'shape-label';
+            label.textContent = shape.name;
+            el.appendChild(preview);
+            el.appendChild(label);
+            el.addEventListener('click', function() {
+                applyNodeStyle({ borderRadius: shape.style.split(':')[1].trim() });
+                shapePickerEl.classList.remove('show');
+            });
+            shapePickerEl.appendChild(el);
+        });
+    }
+
+    function applyNodeStyle(style) {
+        if (!mind || !mind.currentNode) return;
+        var nodeObj = mind.currentNode.nodeObj;
+        nodeObj.style = nodeObj.style || {};
+        Object.assign(nodeObj.style, style);
+        mind.refresh();
+    }
+
+    function applyNodeIcon(icon) {
+        if (!mind || !mind.currentNode) return;
+        var nodeObj = mind.currentNode.nodeObj;
+        nodeObj.icons = [icon];
+        mind.refresh();
+    }
+
+    function convertToMindElixirFormat(data) {
+        function buildNode(node) {
+            var result = {
+                id: node._nid || 'node_' + Math.random().toString(36).substr(2, 9),
+                topic: node.name || node.topic || '',
+                style: {},
+                expanded: true
+            };
+            if (node.children && node.children.length > 0) {
+                result.children = node.children.map(buildNode);
+            }
+            return result;
+        }
+        return {
+            nodeData: buildNode(data),
+            direction: MindElixir.SIDE
+        };
+    }
+
+    function countNodesAndLevels(nodeData) {
+        var count = 1;
+        var maxLevel = 1;
+        function traverse(node, level) {
+            maxLevel = Math.max(maxLevel, level);
+            if (node.children) {
+                node.children.forEach(function(child) {
+                    count++;
+                    traverse(child, level + 1);
+                });
+            }
+        }
+        traverse(nodeData, 1);
+        return { count: count, maxLevel: maxLevel };
+    }
+
+    function updateStats() {
+        if (!mind || !mind.nodeData) return;
+        var stats = countNodesAndLevels(mind.nodeData);
+        nodeCountEl.textContent = stats.count;
+        levelCountEl.textContent = stats.maxLevel;
+    }
+
+    function loadMindmap() {
+        fetch('{{ url_for("knowledge.api_mindmap") }}')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                loadingEl.style.display = 'none';
+                if (!data || !data.children || data.children.length === 0) {
+                    initEmptyMindmap();
+                    return;
+                }
+                var mindData = convertToMindElixirFormat(data);
+                initMindElixir(mindData);
+            })
+            .catch(function(err) {
+                loadingEl.style.display = 'none';
+                initEmptyMindmap();
+                console.error('加载思维导图失败:', err);
+            });
+    }
+
+    function initEmptyMindmap() {
+        var data = ME.new('离散数学');
+        initMindElixir(data);
+    }
+
+    function applyTemplate(templateKey) {
+        var templateData = TEMPLATES[templateKey];
+        if (!templateData) return;
+        var data = {
+            nodeData: convertToMindElixirFormat(templateData).nodeData,
+            direction: MindElixir.SIDE
+        };
+        mind.refresh(data);
+        isModified = true;
+        updateSaveStatus('saving');
+        startAutoSave();
+        templateModal.classList.remove('show');
+    }
+
+    function initMindElixir(data) {
+        var options = {
+            el: '#mindmap-container',
+            direction: MindElixir.SIDE,
+            draggable: true,
+            contextMenu: true,
+            toolBar: false,
+            nodeMenu: true,
+            keypress: true,
+            locale: 'zh_CN',
+            overflowHidden: false,
+            allowUndo: true,
+            scaleMin: 0.2,
+            scaleMax: 3,
+            scaleSensitivity: 0.1
+        };
+
+        mind = new ME(options);
+        mind.init(data);
+
+        mind.bus.addListener('operation', function() {
+            isModified = true;
+            updateSaveStatus('saving');
+            startAutoSave();
+            updateStats();
+        });
+
+        mind.bus.addListener('selectNode', function(node) {
+            mind.currentNode = node;
+        });
+
+        bindToolbarEvents();
+        initColorPicker();
+        initIconPicker();
+        initShapePicker();
+        updateStats();
+    }
+
+    function bindToolbarEvents() {
+        document.getElementById('btn-add-child').addEventListener('click', function() {
+            if (mind) mind.addChild();
+        });
+
+        document.getElementById('btn-add-sibling').addEventListener('click', function() {
+            if (mind) mind.insertSibling('after');
+        });
+
+        document.getElementById('btn-delete').addEventListener('click', function() {
+            if (mind && mind.currentNode) {
+                mind.removeNodes([mind.currentNode]);
+            }
+        });
+
+        document.getElementById('btn-upgrade').addEventListener('click', function() {
+            if (mind && mind.currentNode) {
+                try {
+                    mind.insertParent();
+                } catch(e) {
+                    console.log('Cannot upgrade root node');
+                }
+            }
+        });
+
+        document.getElementById('btn-downgrade').addEventListener('click', function() {
+            if (mind && mind.currentNode) {
+                try {
+                    var node = mind.currentNode;
+                    var parentNode = mind.findEle(node.nodeObj.parent?.id);
+                    if (parentNode && parentNode.nodeObj.parent) {
+                        mind.moveNodeAfter([node], parentNode);
+                    }
+                } catch(e) {
+                    console.log('Cannot downgrade:', e);
+                }
+            }
+        });
+
+        document.getElementById('btn-move-up').addEventListener('click', function() {
+            if (mind) mind.moveUpNode();
+        });
+
+        document.getElementById('btn-move-down').addEventListener('click', function() {
+            if (mind) mind.moveDownNode();
+        });
+
+        document.getElementById('btn-undo').addEventListener('click', function() {
+            if (mind) mind.undo();
+        });
+
+        document.getElementById('btn-redo').addEventListener('click', function() {
+            if (mind) mind.redo();
+        });
+
+        document.getElementById('btn-expand-all').addEventListener('click', function() {
+            if (mind) {
+                var root = mind.map.querySelector('me-root>me-tpc');
+                if (root) mind.expandNodeAll(root, true);
+            }
+        });
+
+        document.getElementById('btn-collapse-all').addEventListener('click', function() {
+            if (mind) {
+                var root = mind.map.querySelector('me-root>me-tpc');
+                if (root) mind.expandNodeAll(root, false);
+            }
+        });
+
+        document.getElementById('btn-color').addEventListener('click', function(e) {
+            e.stopPropagation();
+            togglePicker(colorPickerEl, e.target);
+        });
+
+        document.getElementById('btn-shape').addEventListener('click', function(e) {
+            e.stopPropagation();
+            togglePicker(shapePickerEl, e.target);
+        });
+
+        document.getElementById('btn-icon').addEventListener('click', function(e) {
+            e.stopPropagation();
+            togglePicker(iconPickerEl, e.target);
+        });
+
+        document.getElementById('btn-theme').addEventListener('click', function() {
+            if (mind) {
+                try {
+                    mind.changeTheme(mind.theme.name === 'Latte' ? MindElixir.DARK_THEME : MindElixir.THEME);
+                } catch(e) {
+                    console.log('Theme change:', e);
+                }
+            }
+        });
+
+        document.getElementById('btn-export-png').addEventListener('click', function() {
+            if (!mind) return;
+            mind.exportPng().then(function(blob) {
+                downloadFile(blob, '离散数学-思维导图.png', 'image/png');
+            }).catch(function(err) {
+                alert('导出PNG失败：' + err.message);
+            });
+        });
+
+        document.getElementById('btn-export-pdf').addEventListener('click', function() {
+            if (!mind) return;
+            mind.exportPng().then(function(blob) {
+                downloadFile(blob, '离散数学-思维导图.pdf', 'application/pdf');
+            }).catch(function(err) {
+                alert('导出PDF失败：' + err.message);
+            });
+        });
+
+        document.getElementById('btn-export-json').addEventListener('click', function() {
+            if (!mind) return;
+            var data = mind.getData();
+            var jsonStr = JSON.stringify(data, null, 2);
+            var blob = new Blob([jsonStr], { type: 'application/json' });
+            downloadFile(blob, '离散数学-思维导图.json', 'application/json');
+        });
+
+        document.getElementById('btn-save').addEventListener('click', function() {
+            saveMindmap();
+        });
+
+        document.getElementById('template-select').addEventListener('change', function(e) {
+            var templateKey = e.target.value;
+            if (templateKey) {
+                applyTemplate(templateKey);
+                e.target.value = '';
+            }
+        });
+
+        document.querySelectorAll('.template-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                var templateKey = this.dataset.template;
+                applyTemplate(templateKey);
+            });
+        });
+
+        document.getElementById('modal-close').addEventListener('click', function() {
+            templateModal.classList.remove('show');
+        });
+
+        templateModal.addEventListener('click', function(e) {
+            if (e.target === templateModal) {
+                templateModal.classList.remove('show');
+            }
+        });
+
+        var searchTimer = null;
+        document.getElementById('mm-search').addEventListener('input', function(e) {
+            clearTimeout(searchTimer);
+            var keyword = e.target.value.trim();
+            searchTimer = setTimeout(function() {
+                searchNodes(keyword);
+            }, 250);
+        });
+
+        document.addEventListener('click', function() {
+            colorPickerEl.classList.remove('show');
+            iconPickerEl.classList.remove('show');
+            shapePickerEl.classList.remove('show');
+        });
+    }
+
+    function togglePicker(pickerEl, target) {
+        var rect = target.getBoundingClientRect();
+        pickerEl.style.left = rect.left + 'px';
+        pickerEl.style.top = (rect.bottom + 8) + 'px';
+        pickerEl.classList.toggle('show');
+    }
+
+    function downloadFile(blob, filename, type) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function searchNodes(keyword) {
+        if (!mind || !keyword) return;
+        var nodeData = mind.nodeData;
+        var foundNodes = [];
+        function find(node) {
+            if ((node.topic || '').toLowerCase().indexOf(keyword.toLowerCase()) >= 0) {
+                foundNodes.push(node);
+            }
+            if (node.children) {
+                node.children.forEach(find);
+            }
+        }
+        find(nodeData);
+        if (foundNodes.length > 0) {
+            try {
+                mind.selectNode(mind.findEle(foundNodes[0].id));
+            } catch(e) {
+                console.log('Search scroll error:', e);
+            }
+        }
+    }
+
+    function updateSaveStatus(status) {
+        saveStatusEl.className = 'mm-save-status ' + status;
+        var icon = saveStatusEl.querySelector('i');
+        var text = saveStatusEl.querySelector('span');
+        if (status === 'saving') {
+            icon.className = 'bi bi-hourglass';
+            text.textContent = '保存中...';
+        } else if (status === 'saved') {
+            icon.className = 'bi bi-check-circle';
+            text.textContent = '已保存';
+        } else {
+            icon.className = 'bi bi-save';
+            text.textContent = '未保存';
+        }
+    }
+
+    function startAutoSave() {
+        if (autoSaveTimer) clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(saveMindmap, 3000);
+    }
+
+    function saveMindmap() {
+        if (!mind || !isModified) return;
+        var data = mind.getData();
+        fetch('{{ url_for("knowledge.api_mindmap_save") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(function(res) {
+            if (res.ok) {
+                isModified = false;
+                updateSaveStatus('saved');
+            } else {
+                updateSaveStatus('unsaved');
+            }
+        })
+        .catch(function(err) {
+            updateSaveStatus('unsaved');
+            console.error('保存失败:', err);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof MindElixir === 'undefined') {
+            console.error('MindElixir library not loaded');
+            loadingEl.innerHTML = '<p>加载失败：MindElixir库未加载</p>';
+            return;
+        }
+        loadMindmap();
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (isModified) {
+            e.preventDefault();
+            e.returnValue = '您有未保存的更改，确定要离开吗？';
+        }
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block title %}AI助教 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<!-- marked.js Markdown 渲染 -->
+<script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+<!-- MathJax 数学公式渲染 -->
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+    },
+    options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
+    svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" id="MathJax-script" async></script>
+
+<style>
+/* 聊天页专属：让主内容区撑满视口（仅本页生效，覆盖 base 的 container 宽度限制） */
+main.container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    padding-top: 12px !important;
+    padding-bottom: 0 !important;
+}
+
+/* 本页删除确认模态框主题 */
+.modal-seagreen .modal-header {
+    background: linear-gradient(135deg, var(--seagreen), var(--dark-green));
+    color: #fff;
+}
+.modal-seagreen .btn-primary {
+    background: var(--seagreen);
+    border-color: var(--seagreen);
+}
+.modal-seagreen .btn-primary:hover {
+    background: var(--dark-green);
+    border-color: var(--dark-green);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-app">
+    <!-- 左侧对话列表 -->
+    <aside class="chat-sidebar" id="chat-sidebar">
+        <div class="chat-sidebar-header">
+            <h3><i class="bi bi-chat-dots-fill me-2"></i>智能助教</h3>
+            <button class="btn-new-chat" onclick="createConversation()">
+                <i class="bi bi-plus-circle"></i> 新建对话
+            </button>
+        </div>
+        <div class="conversation-list" id="conversation-list">
+            <div class="sidebar-empty">
+                <i class="bi bi-inbox"></i>
+                <div>暂无对话<br>点击上方按钮开始</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧聊天区 -->
+    <section class="chat-main">
+        <div class="chat-header">
+            <h4 class="chat-title" id="current-title">新对话</h4>
+            <span class="model-badge" id="model-badge">
+                <i class="bi bi-cpu"></i>
+                <span id="model-name">{{ provider_label }} · {{ model_name }}</span>
+            </span>
+        </div>
+
+        <!-- 未配置 API Key 提示 -->
+        {% if not api_configured %}
+        <div class="config-warning" id="config-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>您尚未配置 API Key，助教暂无法回答问题。请先前往</span>
+            <a href="{{ url_for('auth.settings') }}">用户设置</a>
+            <span>页面配置。</span>
+        </div>
+        {% endif %}
+
+        <!-- 消息列表 -->
+        <div class="chat-messages" id="chat-messages">
+            <!-- 空状态 -->
+            <div class="chat-empty-state" id="empty-state">
+                <div class="empty-icon"><i class="bi bi-robot"></i></div>
+                <h3>您好，我是离散数学助教</h3>
+                <p class="empty-sub">可以问我任何关于离散数学的问题，例如：</p>
+                <div class="quick-questions">
+                    <span class="quick-question" onclick="sendQuickQuestion('解释一下什么是图')">解释一下什么是图</span>
+                    <span class="quick-question" onclick="sendQuickQuestion('排列和组合有什么区别？')">排列和组合有什么区别？</span>
+                    <span class="quick-question" onclick="sendQuickQuestion('Kruskal算法的步骤是什么？')">Kruskal算法的步骤是什么？</span>
+                    <span class="quick-question" onclick="sendQuickQuestion('什么是等价关系？')">什么是等价关系？</span>
+                    <span class="quick-question" onclick="sendQuickQuestion('如何用数学归纳法证明？')">如何用数学归纳法证明？</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 输入区 -->
+        <div class="chat-input-area">
+            <div class="chat-input-wrapper">
+                <textarea id="chat-input" placeholder="输入您的问题，Enter 发送，Shift+Enter 换行..." rows="1"></textarea>
+                <button class="btn-send" id="btn-send" onclick="sendMessage()" title="发送">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+            <div class="input-hint"><span id="input-hint-text">Enter 发送 · Shift+Enter 换行</span></div>
+        </div>
+    </section>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade modal-seagreen" id="deleteConvModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body text-center py-3">
+                <p class="mb-0">确定要删除这个对话吗？</p>
+                <small class="text-muted">对话中的所有消息将被清除，且不可恢复。</small>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pt-0">
+                <button type="button" class="btn btn-outline-seagreen btn-sm" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary btn-sm" id="confirm-del-conv">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ============ 全局状态 ============
+const state = {
+    currentConvId: null,
+    isSending: false,
+    apiConfigured: {{ 'true' if api_configured else 'false' }}
+};
+
+// 配置 marked
+if (window.marked) {
+    marked.setOptions({ breaks: true, gfm: true });
+}
+
+// ============ 工具函数 ============
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatTime(iso) {
+    if (!iso) return '';
+    try {
+        const d = new Date(iso);
+        const now = new Date();
+        const sameDay = d.toDateString() === now.toDateString();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        if (sameDay) return '今天 ' + hh + ':' + mm;
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        const da = String(d.getDate()).padStart(2, '0');
+        return mo + '-' + da + ' ' + hh + ':' + mm;
+    } catch (e) { return ''; }
+}
+
+// Markdown -> HTML
+function renderMarkdown(text) {
+    let html;
+    try {
+        html = window.marked ? marked.parse(text) : escapeHtml(text);
+    } catch (e) {
+        html = escapeHtml(text);
+    }
+    return html;
+}
+
+function typesetMath(el) {
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([el]).catch(function(){});
+    }
+}
+
+function scrollToBottom() {
+    const box = document.getElementById('chat-messages');
+    box.scrollTop = box.scrollHeight;
+}
+
+// ============ 对话列表 ============
+function loadConversations() {
+    fetch('/chat/api/conversations')
+        .then(r => r.json())
+        .then(data => renderConversationList(data.conversations || []))
+        .catch(err => console.error('加载对话列表失败:', err));
+}
+
+function renderConversationList(convs) {
+    const listEl = document.getElementById('conversation-list');
+    if (!convs.length) {
+        listEl.innerHTML = '<div class="sidebar-empty"><i class="bi bi-inbox"></i><div>暂无对话<br>点击上方按钮开始</div></div>';
+        return;
+    }
+    let html = '';
+    convs.forEach(function(c) {
+        const active = (c.id === state.currentConvId) ? ' active' : '';
+        html += '<div class="conversation-item' + active + '" data-id="' + c.id + '" onclick="selectConversation(' + c.id + ')">';
+        html += '<i class="bi bi-chat-left-text conv-icon"></i>';
+        html += '<div class="conv-body">';
+        html += '<p class="conv-title">' + escapeHtml(c.title) + '</p>';
+        html += '<div class="conv-time">' + formatTime(c.updated_at || c.created_at) + '</div>';
+        html += '</div>';
+        html += '<button class="btn-del-conv" title="删除" onclick="confirmDeleteConv(event,' + c.id + ')"><i class="bi bi-trash"></i></button>';
+        html += '</div>';
+    });
+    listEl.innerHTML = html;
+}
+
+function createConversation() {
+    fetch('/chat/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: '新对话' })
+    })
+        .then(r => r.json())
+        .then(data => {
+            state.currentConvId = data.id;
+            loadConversations();
+            showEmptyState();
+            document.getElementById('current-title').textContent = data.title || '新对话';
+            document.getElementById('chat-input').focus();
+        })
+        .catch(err => {
+            alert('新建对话失败，请重试');
+            console.error(err);
+        });
+}
+
+function selectConversation(convId) {
+    state.currentConvId = convId;
+    document.querySelectorAll('.conversation-item').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.id) === convId);
+    });
+    loadMessages(convId);
+}
+
+function loadMessages(convId) {
+    fetch('/chat/api/conversations/' + convId + '/messages')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('current-title').textContent = data.conversation.title || '对话';
+            const box = document.getElementById('chat-messages');
+            if (!data.messages || !data.messages.length) {
+                showEmptyState();
+                return;
+            }
+            let html = '';
+            data.messages.forEach(function(m) {
+                if (m.role === 'user') {
+                    html += renderUserMessage(m.content);
+                } else {
+                    html += renderAssistantMessage(m.content, m.sources);
+                }
+            });
+            box.innerHTML = html;
+            document.querySelectorAll('.assistant-body').forEach(typesetMath);
+            scrollToBottom();
+        })
+        .catch(err => {
+            console.error('加载消息失败:', err);
+        });
+}
+
+function showEmptyState() {
+    document.getElementById('chat-messages').innerHTML =
+        '<div class="chat-empty-state" id="empty-state">' +
+        '<div class="empty-icon"><i class="bi bi-robot"></i></div>' +
+        '<h3>您好，我是离散数学助教</h3>' +
+        '<p class="empty-sub">可以问我任何关于离散数学的问题，例如：</p>' +
+        '<div class="quick-questions">' +
+        '<span class="quick-question" onclick="sendQuickQuestion(\'解释一下什么是图\')">解释一下什么是图</span>' +
+        '<span class="quick-question" onclick="sendQuickQuestion(\'排列和组合有什么区别？\')">排列和组合有什么区别？</span>' +
+        '<span class="quick-question" onclick="sendQuickQuestion(\'Kruskal算法的步骤是什么？\')">Kruskal算法的步骤是什么？</span>' +
+        '<span class="quick-question" onclick="sendQuickQuestion(\'什么是等价关系？\')">什么是等价关系？</span>' +
+        '<span class="quick-question" onclick="sendQuickQuestion(\'如何用数学归纳法证明？\')">如何用数学归纳法证明？</span>' +
+        '</div></div>';
+}
+
+// ============ 消息渲染 ============
+function renderUserMessage(text) {
+    return '<div class="message-row user">' +
+        '<div class="message-avatar"><i class="bi bi-person-fill"></i></div>' +
+        '<div class="message-bubble">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>' +
+        '</div>';
+}
+
+function renderAssistantMessage(text, sources) {
+    const bodyHtml = renderMarkdown(text);
+    let sourcesHtml = '';
+    if (sources && sources.length) {
+        sourcesHtml = '<div class="message-sources"><div class="sources-title"><i class="bi bi-bookmarks"></i>参考来源：</div>';
+        sources.forEach(function(s) {
+            const url = '/knowledge/?search=' + encodeURIComponent(s.title || '');
+            const tip = (s.chapter || '') + (s.section ? (' · ' + s.section) : '');
+            sourcesHtml += '<a class="source-chip" href="' + url + '" target="_blank" title="' + escapeHtml(tip) + '">' +
+                '<i class="bi bi-book"></i>' + escapeHtml(s.title) + '</a>';
+        });
+        sourcesHtml += '</div>';
+    }
+    return '<div class="message-row assistant">' +
+        '<div class="message-avatar"><i class="bi bi-robot"></i></div>' +
+        '<div class="message-bubble assistant-body">' + bodyHtml + sourcesHtml + '</div>' +
+        '</div>';
+}
+
+// ============ 发送消息（流式 SSE） ============
+function sendMessage() {
+    if (state.isSending) return;
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    if (!state.apiConfigured) {
+        alert('您尚未配置 API Key，请先前往「用户设置」页面配置后再使用助教。');
+        return;
+    }
+
+    // 若当前无对话，先新建一个再发送
+    if (!state.currentConvId) {
+        fetch('/chat/api/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: '新对话' })
+        })
+            .then(r => r.json())
+            .then(data => {
+                state.currentConvId = data.id;
+                loadConversations();
+                doStreamSend(text);
+            })
+            .catch(err => { alert('新建对话失败，请重试'); console.error(err); });
+        return;
+    }
+    doStreamSend(text);
+}
+
+function sendQuickQuestion(q) {
+    const input = document.getElementById('chat-input');
+    input.value = q;
+    sendMessage();
+}
+
+function doStreamSend(text) {
+    const input = document.getElementById('chat-input');
+    input.value = '';
+    autoGrow(input);
+    setSending(true);
+
+    // 清除空状态
+    const empty = document.getElementById('empty-state');
+    if (empty) empty.remove();
+
+    const box = document.getElementById('chat-messages');
+
+    // 渲染用户消息
+    const userHtml = renderUserMessage(text);
+    // 渲染 AI 占位消息（带打字动画）
+    const aiId = 'ai-msg-' + Date.now();
+    const aiHtml =
+        '<div class="message-row assistant" id="' + aiId + '">' +
+        '<div class="message-avatar"><i class="bi bi-robot"></i></div>' +
+        '<div class="message-bubble assistant-body" id="' + aiId + '-body">' +
+        '<div class="three-dots"><span></span><span></span><span></span></div>' +
+        '</div></div>';
+    box.insertAdjacentHTML('beforeend', userHtml + aiHtml);
+    scrollToBottom();
+
+    const bodyEl = document.getElementById(aiId + '-body');
+    let accumulated = '';
+    let sources = null;
+    let firstDelta = true;
+
+    fetch('/chat/api/conversations/' + state.currentConvId + '/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+    }).then(function(response) {
+        if (!response.ok) {
+            return response.json().then(function(d) {
+                throw new Error((d && d.error) || ('请求失败：' + response.status));
+            });
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        function pump() {
+            reader.read().then(function(result) {
+                if (result.done) {
+                    finishStream();
+                    return;
+                }
+                buffer += decoder.decode(result.value, { stream: true });
+                // 按双换行拆分 SSE 事件
+                let idx;
+                while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                    const chunk = buffer.slice(0, idx);
+                    buffer = buffer.slice(idx + 2);
+                    handleSSEChunk(chunk, bodyEl);
+                }
+                pump();
+            }).catch(function(err) {
+                bodyEl.innerHTML = '<span style="color:#dc3545;">连接中断：' + escapeHtml(err.message) + '</span>';
+                setSending(false);
+            });
+        }
+
+        function handleSSEChunk(chunk, bodyEl) {
+            const lines = chunk.split('\n');
+            lines.forEach(function(line) {
+                if (!line.startsWith('data:')) return;
+                const dataStr = line.slice(5).trim();
+                if (!dataStr) return;
+                let evt;
+                try { evt = JSON.parse(dataStr); } catch (e) { return; }
+                if (evt.type === 'sources') {
+                    sources = evt.sources;
+                } else if (evt.type === 'title') {
+                    document.getElementById('current-title').textContent = evt.title;
+                    loadConversations();
+                } else if (evt.type === 'delta') {
+                    if (firstDelta) {
+                        bodyEl.innerHTML = ''; // 移除三点动画
+                        firstDelta = false;
+                    }
+                    accumulated += evt.content;
+                    bodyEl.innerHTML = renderMarkdown(accumulated) + '<span class="typing-cursor"></span>';
+                    typesetMath(bodyEl);
+                    scrollToBottom();
+                } else if (evt.type === 'error') {
+                    firstDelta = false;
+                    const tip = evt.need_config
+                        ? '<div style="color:#dc3545;">' + escapeHtml(evt.message) + ' 请前往<a href="/auth/settings">用户设置</a>配置。</div>'
+                        : '<span style="color:#dc3545;">' + escapeHtml(evt.message) + '</span>';
+                    bodyEl.innerHTML = tip;
+                } else if (evt.type === 'done') {
+                    firstDelta = false;
+                    // 最终渲染，去掉光标，附加来源
+                    bodyEl.innerHTML = renderMarkdown(accumulated);
+                    if (sources && sources.length) {
+                        let sh = '<div class="message-sources"><div class="sources-title"><i class="bi bi-bookmarks"></i>参考来源：</div>';
+                        sources.forEach(function(s) {
+                            const url = '/knowledge/?search=' + encodeURIComponent(s.title || '');
+                            sh += '<a class="source-chip" href="' + url + '" target="_blank"><i class="bi bi-book"></i>' + escapeHtml(s.title) + '</a>';
+                        });
+                        sh += '</div>';
+                        bodyEl.insertAdjacentHTML('beforeend', sh);
+                    }
+                    typesetMath(bodyEl);
+                    scrollToBottom();
+                }
+            });
+        }
+
+        function finishStream() {
+            // 若全程没有任何 delta（例如只有 error），保留错误内容
+            if (firstDelta) {
+                bodyEl.innerHTML = '<span style="color:#999;">未收到回复。</span>';
+            }
+            setSending(false);
+            loadConversations();
+        }
+
+        pump();
+    }).catch(function(err) {
+        bodyEl.innerHTML = '<span style="color:#dc3545;">发送失败：' + escapeHtml(err.message) + '</span>';
+        setSending(false);
+    });
+}
+
+function setSending(sending) {
+    state.isSending = sending;
+    document.getElementById('btn-send').disabled = sending;
+    document.getElementById('input-hint-text').textContent = sending
+        ? '助教正在回答中…' : 'Enter 发送 · Shift+Enter 换行';
+}
+
+// ============ 删除对话 ============
+let deleteConvId = null;
+let deleteConvModal = null;
+
+function confirmDeleteConv(e, convId) {
+    e.stopPropagation();
+    deleteConvId = convId;
+    if (!deleteConvModal) {
+        deleteConvModal = new bootstrap.Modal(document.getElementById('deleteConvModal'));
+    }
+    deleteConvModal.show();
+}
+
+document.getElementById('confirm-del-conv').addEventListener('click', function() {
+    if (!deleteConvId) return;
+    fetch('/chat/api/conversations/' + deleteConvId, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (deleteConvModal) deleteConvModal.hide();
+            if (data.success) {
+                if (state.currentConvId === deleteConvId) {
+                    state.currentConvId = null;
+                    document.getElementById('current-title').textContent = '新对话';
+                    showEmptyState();
+                }
+                loadConversations();
+            } else {
+                alert(data.error || '删除失败');
+            }
+            deleteConvId = null;
+        })
+        .catch(err => {
+            if (deleteConvModal) deleteConvModal.hide();
+            alert('请求失败，请重试');
+            console.error(err);
+            deleteConvId = null;
+        });
+});
+
+// ============ 输入框自适应高度 & 快捷键 ============
+function autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+}
+
+document.getElementById('chat-input').addEventListener('input', function() {
+    autoGrow(this);
+});
+
+document.getElementById('chat-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// ============ 初始化 ============
+document.addEventListener('DOMContentLoaded', function() {
+    loadConversations();
+    document.getElementById('chat-input').focus();
+});
+</script>
+{% endblock %}

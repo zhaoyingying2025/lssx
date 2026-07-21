@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block title %}概念对比 - 离散数学智能教学体{% endblock %}
+
+{% block extra_css %}
+<style>
+.cmp-top-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+.cmp-top-bar h2 {
+    margin: 0;
+    font-weight: 700;
+    color: var(--dark-green);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cmp-top-bar .back-link {
+    margin-left: auto;
+}
+
+/* 对比主题选择卡片 */
+.cmp-themes {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 4px 2px 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+.cmp-theme-card {
+    background: #fff;
+    border: 1.5px solid var(--border-green);
+    border-radius: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    min-width: 170px;
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+}
+.cmp-theme-card:hover {
+    border-color: var(--seagreen);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(46,139,87,0.15);
+}
+.cmp-theme-card.active {
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    border-color: var(--seagreen);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(46,139,87,0.3);
+}
+.cmp-theme-card .tc-index {
+    font-size: 0.72rem;
+    opacity: 0.7;
+    font-weight: 600;
+}
+.cmp-theme-card .tc-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.cmp-theme-card .tc-meta {
+    font-size: 0.72rem;
+    opacity: 0.75;
+}
+
+/* 对比详情 */
+.cmp-detail {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid var(--border-green);
+    box-shadow: 0 4px 20px rgba(46,139,87,0.10);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+.cmp-detail-header {
+    background: linear-gradient(135deg, var(--dark-green), var(--seagreen));
+    color: #fff;
+    padding: 16px 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.cmp-detail-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+.cmp-detail-header .bi {
+    font-size: 1.3rem;
+}
+
+.cmp-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.cmp-table th, .cmp-table td {
+    border: 1px solid var(--border-green);
+    padding: 14px 18px;
+    vertical-align: top;
+    font-size: 0.92rem;
+    line-height: 1.7;
+}
+.cmp-table thead th {
+    background: linear-gradient(135deg, var(--seagreen), var(--teal));
+    color: #fff;
+    font-weight: 600;
+    text-align: center;
+    font-size: 1rem;
+    border-color: var(--seagreen);
+}
+.cmp-table thead th.row-label-col {
+    background: var(--dark-green);
+    width: 110px;
+    color: #fff;
+}
+.cmp-table tbody th {
+    background: var(--light-green-bg);
+    color: var(--dark-green);
+    font-weight: 600;
+    width: 110px;
+    text-align: center;
+    white-space: nowrap;
+}
+.cmp-table tbody tr:nth-child(even) td {
+    background: #FAFAF5;
+}
+.cmp-table tbody tr:hover td {
+    background: rgba(46,139,87,0.05);
+}
+.cmp-table .feature-list {
+    margin: 0;
+    padding-left: 18px;
+}
+.cmp-table .feature-list li {
+    margin-bottom: 3px;
+}
+.cmp-table .formula-cell {
+    font-family: 'Consolas', 'Monaco', monospace;
+    background: var(--light-green-bg);
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    font-size: 0.88rem;
+    color: var(--dark-green);
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+.cmp-table .example-cell {
+    color: var(--text-muted);
+    font-style: italic;
+}
+.cmp-table .concept-name {
+    color: var(--seagreen);
+    font-weight: 600;
+}
+
+/* 对比总结 */
+.cmp-summary {
+    background: linear-gradient(135deg, rgba(46,139,87,0.06), rgba(0,137,123,0.05));
+    border-top: 2px dashed var(--border-green);
+    padding: 18px 22px;
+    color: var(--ink-color);
+    font-size: 0.95rem;
+    line-height: 1.8;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+.cmp-summary .bi {
+    color: var(--seagreen);
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.cmp-summary .summary-text {
+    flex: 1;
+}
+.cmp-summary .summary-label {
+    font-weight: 700;
+    color: var(--dark-green);
+    margin-right: 4px;
+}
+
+/* 加载/空状态 */
+.cmp-loading, .cmp-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+.cmp-loading .spinner-border {
+    color: var(--seagreen);
+    width: 2.5rem;
+    height: 2.5rem;
+}
+.cmp-empty i {
+    font-size: 4rem;
+    color: var(--border-green);
+    display: block;
+    margin-bottom: 12px;
+}
+
+/* 三列布局适配 */
+.cmp-table.col-3 thead th.row-label-col,
+.cmp-table.col-3 tbody th {
+    width: 90px;
+}
+.cmp-table.col-3 th, .cmp-table.col-3 td {
+    font-size: 0.86rem;
+    padding: 12px 14px;
+}
+
+/* 响应式：小屏改为竖排卡片 */
+@media (max-width: 768px) {
+    .cmp-table thead { display: none; }
+    .cmp-table, .cmp-table tbody, .cmp-table tr, .cmp-table td, .cmp-table th {
+        display: block;
+        width: 100% !important;
+    }
+    .cmp-table tr {
+        border: 1px solid var(--border-green);
+        border-radius: 10px;
+        margin-bottom: 12px;
+        padding: 8px;
+    }
+    .cmp-table tbody th {
+        background: linear-gradient(135deg, var(--seagreen), var(--teal));
+        color: #fff;
+        text-align: left;
+        margin-bottom: 6px;
+    }
+    .cmp-table td {
+        border: none;
+        border-bottom: 1px dashed var(--border-green);
+        padding: 8px 4px;
+    }
+    .cmp-table td:last-child { border-bottom: none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cmp-top-bar">
+    <h2><i class="bi bi-arrow-left-right"></i>概念对比</h2>
+    <span class="text-muted small">选择下方任意主题，对比易混概念的差异</span>
+    <a href="{{ url_for('knowledge.index') }}" class="btn btn-outline-seagreen btn-sm back-link">
+        <i class="bi bi-arrow-left me-1"></i>返回知识库
+    </a>
+</div>
+
+<!-- 主题选择 -->
+<div class="cmp-themes" id="cmp-themes">
+    <div class="cmp-loading">
+        <div class="spinner-border" role="status"></div>
+        <p class="mt-2">正在加载对比主题...</p>
+    </div>
+</div>
+
+<!-- 对比详情 -->
+<div id="cmp-detail-container"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    let themeList = [];
+    let currentIndex = null;
+
+    const themesEl = document.getElementById('cmp-themes');
+    const detailEl = document.getElementById('cmp-detail-container');
+
+    function escapeHtml(text) {
+        if (text == null) return '';
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+
+    // ============ 加载主题列表 ============
+    function loadThemes() {
+        fetch('{{ url_for("knowledge.api_comparisons") }}')
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                themeList = data.items || [];
+                renderThemes();
+                if (themeList.length > 0) {
+                    selectTheme(themeList[0].index);
+                }
+            })
+            .catch(function (err) {
+                themesEl.innerHTML =
+                    '<div class="cmp-empty"><i class="bi bi-exclamation-circle"></i>' +
+                    '<p>加载失败，请刷新重试</p></div>';
+                console.error(err);
+            });
+    }
+
+    function renderThemes() {
+        if (themeList.length === 0) {
+            themesEl.innerHTML =
+                '<div class="cmp-empty"><i class="bi bi-inbox"></i>' +
+                '<p>暂无对比主题</p></div>';
+            return;
+        }
+        themesEl.innerHTML = themeList.map(function (t) {
+            const active = t.index === currentIndex ? ' active' : '';
+            return '<div class="cmp-theme-card' + active + '" data-index="' + t.index + '">' +
+                '<span class="tc-index">对比 ' + String(t.index + 1).padStart(2, '0') + '</span>' +
+                '<span class="tc-title">' + escapeHtml(t.title) + '</span>' +
+                '<span class="tc-meta">' + t.item_count + ' 个概念</span>' +
+                '</div>';
+        }).join('');
+
+        themesEl.querySelectorAll('.cmp-theme-card').forEach(function (el) {
+            el.addEventListener('click', function () {
+                selectTheme(parseInt(el.getAttribute('data-index'), 10));
+            });
+        });
+    }
+
+    // ============ 选择主题并加载详情 ============
+    function selectTheme(index) {
+        if (index === currentIndex) return;
+        currentIndex = index;
+        // 更新激活态
+        themesEl.querySelectorAll('.cmp-theme-card').forEach(function (el) {
+            el.classList.toggle('active', parseInt(el.getAttribute('data-index'), 10) === index);
+        });
+        // 加载详情
+        detailEl.innerHTML =
+            '<div class="cmp-loading"><div class="spinner-border" role="status"></div>' +
+            '<p class="mt-2">加载对比详情...</p></div>';
+
+        fetch('{{ url_for("knowledge.api_comparison_detail", index=0) }}'.replace('/0', '/' + index))
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data || !data.data) {
+                    detailEl.innerHTML =
+                        '<div class="cmp-empty"><i class="bi bi-exclamation-circle"></i>' +
+                        '<p>未找到对比详情</p></div>';
+                    return;
+                }
+                renderDetail(data.data);
+            })
+            .catch(function (err) {
+                detailEl.innerHTML =
+                    '<div class="cmp-empty"><i class="bi bi-exclamation-circle"></i>' +
+                    '<p>加载失败，请重试</p></div>';
+                console.error(err);
+            });
+    }
+
+    function renderDetail(item) {
+        const items = item.items || [];
+        const colClass = 'col-' + Math.max(2, Math.min(items.length, 4));
+
+        // 表头
+        let html = '<div class="cmp-detail">';
+        html += '<div class="cmp-detail-header"><i class="bi bi-table"></i>' +
+                '<h3>' + escapeHtml(item.title) + '</h3></div>';
+        html += '<table class="cmp-table ' + colClass + '"><thead><tr>';
+        html += '<th class="row-label-col">对比项</th>';
+        items.forEach(function (it) {
+            html += '<th>' + escapeHtml(it.name) + '</th>';
+        });
+        html += '</tr></thead><tbody>';
+
+        // 定义行
+        html += renderRow('定义', items, function (it) {
+            return escapeHtml(it.definition);
+        });
+        html += renderRow('公式', items, function (it) {
+            return '<span class="formula-cell">' + escapeHtml(it.formula) + '</span>';
+        });
+        html += renderRow('特点', items, function (it) {
+            if (!it.features || it.features.length === 0) return '';
+            const lis = it.features.map(function (f) {
+                return '<li>' + escapeHtml(f) + '</li>';
+            }).join('');
+            return '<ul class="feature-list">' + lis + '</ul>';
+        });
+        html += renderRow('示例', items, function (it) {
+            return '<span class="example-cell">' + escapeHtml(it.example) + '</span>';
+        });
+        html += renderRow('适用场景', items, function (it) {
+            return escapeHtml(it.use_case);
+        });
+
+        html += '</tbody></table>';
+
+        // 对比总结
+        html += '<div class="cmp-summary">' +
+                '<i class="bi bi-lightbulb-fill"></i>' +
+                '<div class="summary-text">' +
+                '<span class="summary-label">对比总结：</span>' +
+                escapeHtml(item.comparison) +
+                '</div></div>';
+
+        html += '</div>';
+        detailEl.innerHTML = html;
+    }
+
+    function renderRow(label, items, cellRenderer) {
+        let html = '<tr><th>' + escapeHtml(label) + '</th>';
+        items.forEach(function (it) {
+            html += '<td>' + cellRenderer(it) + '</td>';
+        });
+        html += '</tr>';
+        return html;
+    }
+
+    // ============ 启动 ============
+    document.addEventListener('DOMContentLoaded', loadThemes);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,95 @@
+{
+  "nodeData": {
+    "id": "node_r6g1qga4p",
+    "topic": "读书笔记",
+    "style": {},
+    "expanded": true,
+    "children": [
+      {
+        "id": "node_0owwl7lni",
+        "topic": "核心概念",
+        "style": {},
+        "expanded": true,
+        "direction": 0
+      },
+      {
+        "id": "node_j7qb6kxse",
+        "topic": "重要定理",
+        "style": {},
+        "expanded": true,
+        "direction": 1
+      },
+      {
+        "id": "node_13jrx3i5s",
+        "topic": "例题解析",
+        "style": {},
+        "expanded": true,
+        "direction": 0,
+        "children": [
+          {
+            "topic": "New Node",
+            "id": "f7da9d2c74ce4e24"
+          }
+        ]
+      },
+      {
+        "id": "node_dm2ucl1cr",
+        "topic": "难点突破",
+        "style": {},
+        "expanded": true,
+        "direction": 1
+      },
+      {
+        "id": "node_17igovskn",
+        "topic": "学习心得",
+        "style": {},
+        "expanded": true,
+        "direction": 0
+      }
+    ]
+  },
+  "arrows": [],
+  "summaries": [],
+  "direction": 2,
+  "theme": {
+    "name": "Dark",
+    "type": "dark",
+    "palette": [
+      "#848FA0",
+      "#748BE9",
+      "#D2F9FE",
+      "#4145A5",
+      "#789AFA",
+      "#706CF4",
+      "#EF987F",
+      "#775DD5",
+      "#FCEECF",
+      "#DA7FBC"
+    ],
+    "cssVar": {
+      "--node-gap-x": "30px",
+      "--node-gap-y": "10px",
+      "--main-gap-x": "65px",
+      "--main-gap-y": "45px",
+      "--root-radius": "30px",
+      "--main-radius": "20px",
+      "--root-color": "#ffffff",
+      "--root-bgcolor": "#2d3748",
+      "--root-border-color": "rgba(255, 255, 255, 0.1)",
+      "--main-border": "",
+      "--main-color": "#ffffff",
+      "--main-bgcolor": "#4c4f69",
+      "--main-bgcolor-transparent": "rgba(76, 79, 105, 0.8)",
+      "--topic-padding": "3px",
+      "--color": "#cccccc",
+      "--bgcolor": "#252526",
+      "--selected": "#4dc4ff",
+      "--accent-color": "#789AFA",
+      "--panel-color": "#ffffff",
+      "--panel-bgcolor": "#2d3748",
+      "--panel-border-color": "#696969",
+      "--map-padding": "50px 80px"
+    }
+  },
+  "compact": false
+}

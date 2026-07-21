@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    {% if current_user.is_authenticated %}
+    <meta name="user-id" content="{{ current_user.id }}">
+    {% endif %}
+    <!-- 移动端兼容性meta标签 -->
+    <meta name="format-detection" content="telephone=no, email=no, address=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="离散数学">
+    <meta name="theme-color" content="#2E8B57">
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- 兼容IE/Edge -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <!-- 禁止缓存（确保获取最新内容） -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{% block title %}离散数学智能教学体{% endblock %}</title>
+    <!-- 资源预加载优化 -->
+    <link rel="preconnect" href="https://cdn.bootcdn.net" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.bootcdn.net">
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.2/font/bootstrap-icons.min.css" rel="stylesheet" media="all">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="all">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700;900&display=swap" rel="stylesheet" media="screen">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1000, 9999) | random }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="sidebar-body">
+    <!-- 页面加载动画 -->
+    <div class="page-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">加载中...</div>
+    </div>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Logo 和收缩按钮 -->
+        <div class="sidebar-header">
+            <a class="sidebar-brand" href="{{ url_for('main.index') }}">
+                <i class="bi bi-mortarboard-fill"></i>
+                <span class="brand-text">离散数学</span>
+            </a>
+            <button class="sidebar-toggle" id="sidebarToggle" title="收缩/展开侧边栏">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+        </div>
+
+        <!-- 导航菜单 -->
+        <nav class="sidebar-nav">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('main.index') }}">
+                        <i class="nav-icon bi bi-house-fill"></i>
+                        <span class="nav-text">首页</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/knowledge' in request.path and '/graph' not in request.path %}active{% endif %}" href="{{ url_for('knowledge.index') }}">
+                        <i class="nav-icon bi bi-book-fill"></i>
+                        <span class="nav-text">知识库</span>
+                    </a>
+                </li>
+                
+                <li class="nav-item">
+                    <a class="nav-link {% if '/courseware' in request.path %}active{% endif %}" href="{{ url_for('courseware.index') }}">
+                        <i class="nav-icon bi bi-journal-richtext"></i>
+                        <span class="nav-text">课件制作</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/quiz' in request.path %}active{% endif %}" href="{{ url_for('quiz.index') }}">
+                        <i class="nav-icon bi bi-patch-question-fill"></i>
+                        <span class="nav-text">题库练习</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/canvas' in request.path %}active{% endif %}" href="{{ url_for('canvas.index') }}">
+                        <i class="nav-icon bi bi-palette-fill"></i>
+                        <span class="nav-text">画板</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/chat' in request.path %}active{% endif %}" href="{{ url_for('chat.index') }}">
+                        <i class="nav-icon bi bi-robot"></i>
+                        <span class="nav-text">AI助教</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/dashboard' in request.path %}active{% endif %}" href="{{ url_for('dashboard.index') }}">
+                        <i class="nav-icon bi bi-speedometer2"></i>
+                        <span class="nav-text">我的学习</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/wrong-book' in request.path %}active{% endif %}" href="{{ url_for('wrong_book.index') }}">
+                        <i class="nav-icon bi bi-journal-x"></i>
+                        <span class="nav-text">错题本</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- 用户信息区（侧边栏底部） -->
+        <div class="sidebar-footer">
+            {% if current_user %}
+            <div class="user-dropdown">
+                <a class="user-info" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="user-avatar">{{ current_user.username[0] | upper }}</span>
+                    <span class="user-name">{{ current_user.username }}</span>
+                    {% if current_user.is_admin %}
+                    <i class="bi bi-shield-fill-check text-warning ms-1" title="管理员"></i>
+                    {% endif %}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <span class="dropdown-item-text small text-muted">
+                            <i class="bi bi-person-badge me-1"></i>
+                            {% if current_user.is_admin %}管理员{% else %}普通用户{% endif %}
+                        </span>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('auth.settings') }}">
+                            <i class="bi bi-gear-fill me-2"></i>用户设置
+                        </a>
+                    </li>
+                    {% if current_user.is_admin %}
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('admin.index') }}">
+                            <i class="bi bi-speedometer2 me-2"></i>管理后台
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                            <i class="bi bi-box-arrow-right me-2"></i>退出登录
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            {% else %}
+            <div class="sidebar-auth-links">
+                <a class="auth-link" href="{{ url_for('auth.login') }}">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>登录
+                </a>
+                <a class="auth-link" href="{{ url_for('auth.register') }}">
+                    <i class="bi bi-person-plus-fill me-1"></i>注册
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- 移动端汉堡菜单按钮 -->
+    <button class="mobile-menu-btn" id="mobileMenuBtn" title="打开菜单">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- 遮罩层 -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="site-footer">
+        <div class="footer-ink-decoration"></div>
+        <div class="container text-center position-relative">
+            <p class="mb-1"><i class="bi bi-mortarboard-fill me-2"></i>离散数学智能教学体</p>
+            <p class="mb-0 small">基于 Rosen《离散数学及其应用》教材 | 智能化教学辅助平台</p>
+        </div>
+    </footer>
+
+    <!-- 脚本加载优化：使用defer异步加载 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.2/js/bootstrap.bundle.min.js" defer></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ range(1000, 9999) | random }}" defer></script>
+    <!-- MathJax 配置：使用 window.MathJax 对象预配置，MathJax 加载后会自动读取 -->
+    <script>
+        window.MathJax = {
+            tex2jax: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            messageStyle: 'none',
+            showProcessingMessages: false,
+            AuthorInit: function() {
+                // MathJax 加载完成后执行的回调（可选）
+            }
+        };
+    </script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML" defer></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
